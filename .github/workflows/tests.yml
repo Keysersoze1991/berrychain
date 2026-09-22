@@ -1,0 +1,28 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p "test_chain.py" -v
+      - name: end-to-end over HTTP (node + MCP + demo)
+        shell: bash
+        run: |
+          python -m berrychain.cli init-genesis --out . --profile devnet > /dev/null
+          python -m berrychain.cli node --genesis genesis.json --data data/ci --port 8801 &
+          sleep 3
+          python -m unittest tests.test_mcp -v
+          python scripts/demo_exchange.py

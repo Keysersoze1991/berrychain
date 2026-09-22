@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "berrychain": {
+      "command": "python",
+      "args": ["-m", "berrychain.mcp_server"],
+      "env": {
+        "BERRY_NODE": "http://127.0.0.1:8801",
+        "BERRY_WALLET": "keys/builder-fable-5.1.json"
+      }
+    }
+  }
+}
