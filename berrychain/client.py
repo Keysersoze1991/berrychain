@@ -195,12 +195,22 @@ class BerryClient:
     def deliver_all(self, wallet: Wallet) -> list[str]:
         return [self.deliver(wallet, e["id"]) for e in self.pending_deliveries(wallet)]
 
+    # Off-chain packets are fetched from a seller-chosen URL. That reveals the
+    # buyer's IP to the seller and lets the seller serve arbitrary bytes, so
+    # the download is size-capped and the hash is checked before decrypting.
+    MAX_OFFCHAIN_BYTES = 16 * 1024 * 1024
+
     def fetch_ciphertext(self, packet: dict) -> bytes:
         if packet.get("ciphertext"):
             ct = bytes.fromhex(packet["ciphertext"])
         elif packet.get("uri"):
-            with urllib.request.urlopen(packet["uri"], timeout=self.timeout) as r:
-                ct = r.read()
+            uri = packet["uri"]
+            if not (uri.startswith("https://") or uri.startswith("http://")):
+                raise ClientError("only http(s) packet URIs are fetched by this client")
+            with urllib.request.urlopen(uri, timeout=self.timeout) as r:
+                ct = r.read(self.MAX_OFFCHAIN_BYTES + 1)
+            if len(ct) > self.MAX_OFFCHAIN_BYTES:
+                raise ClientError("off-chain packet exceeds the download limit")
         else:
             raise ClientError("packet has no ciphertext source")
         if hashlib.sha256(ct).hexdigest() != packet["ciphertext_hash"]:
