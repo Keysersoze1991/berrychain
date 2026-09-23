@@ -461,7 +461,18 @@ def serve(node: Node, host: str = "127.0.0.1", port: int = 8801, advertise: str 
 
 
 def open_or_create(genesis_path: str, data_dir: str | None) -> Chain:
+    """Load the persisted chain if it belongs to the genesis we were given;
+    otherwise set the stale file aside and start from that genesis. A node
+    must never silently keep mining a retired chain."""
+    fresh = Chain.from_genesis_file(genesis_path)
     path = os.path.join(data_dir, "chain.json") if data_dir else None
     if path and os.path.exists(path):
-        return Chain.load(path)
-    return Chain.from_genesis_file(genesis_path)
+        stored = Chain.load(path)
+        if stored.blocks[0]["hash"] == fresh.blocks[0]["hash"]:
+            return stored
+        old = stored.blocks[0]["hash"][:8]
+        aside = os.path.join(data_dir, f"chain-stale-{old}.json")
+        os.replace(path, aside)
+        print(f"stored chain has genesis {old}..., not the genesis in {genesis_path}; "
+              f"moved it to {aside} and starting from the given genesis", flush=True)
+    return fresh

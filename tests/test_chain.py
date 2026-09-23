@@ -609,6 +609,31 @@ class GrantHalvingTests(unittest.TestCase):
         finally:
             params.GRANT_HALVING_EVERY = old
 
+class NodeStartupTests(unittest.TestCase):
+    def test_stale_chain_from_another_genesis_is_set_aside(self):
+        """A node given a new genesis must not keep mining the chain persisted
+        from an old one (the gaming-PC fork of 2026-09-24)."""
+        import json
+        from berrychain.node import open_or_create
+        old, new = Harness(founders=False), Harness(founders=False)
+        old.mine(3)
+        with tempfile.TemporaryDirectory() as d:
+            old.chain.save(os.path.join(d, "chain.json"))
+            gpath = os.path.join(d, "genesis.json")
+            with open(gpath, "w") as f:
+                json.dump(new.chain.genesis, f)
+            c = open_or_create(gpath, d)
+            self.assertEqual(c.blocks[0]["hash"], new.chain.blocks[0]["hash"])
+            self.assertEqual(c.height, 0)
+            stale = [n for n in os.listdir(d) if n.startswith("chain-stale-")]
+            self.assertEqual(len(stale), 1)                       # kept, not deleted
+            # same genesis: the persisted chain is used
+            c.save(os.path.join(d, "chain.json"))
+            self.assertEqual(open_or_create(gpath, d).blocks[0]["hash"], new.chain.blocks[0]["hash"])
+            with open(gpath, "w") as f:
+                json.dump(old.chain.genesis, f)
+            self.assertEqual(open_or_create(gpath, d).height, 0)  # old genesis again: the new one is set aside
+
 
 if __name__ == "__main__":
     unittest.main()
