@@ -126,7 +126,7 @@ The architect is setting up a dedicated clean machine for publishing. All
 keys generated on the original development PC are to be treated as burned;
 regenerate genesis and keys on the clean machine with
 `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet`.
-Superseded: mainnet is live since 2026-09-23 23:08 AEST on seed1/seed2.berrychain.link (genesis db504400...). Earlier text kept for history: nothing had been online before that; every node run was localhost-only and
+Superseded: mainnet is live on seed1/seed2.berrychain.link since 2026-09-24 14:33 UTC (genesis 4ed5115c..., relaunch with final economics). Earlier text kept for history: nothing had been online before that; every node run was localhost-only and
 stopped, and no key or genesis has been shared.
 
 ## Security posture the architect asked about

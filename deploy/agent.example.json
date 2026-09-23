@@ -5,7 +5,7 @@
   "node": "https://seed1.berrychain.link",
   "verify_nodes": ["https://seed2.berrychain.link"],
   "genesis_hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
-  "checkpoint": null,
+  "checkpoint": [94, "000016e8e41005dc8b0bcc21f8d29a1c18a65712afac81e4c7871c6909324b8e"],
   "wallet": "launch-mainnet/keys/builder-agent.json",
   "model": "claude-opus-5",
   "effort": "medium",
