@@ -108,7 +108,7 @@ Not done:
 3. Seed nodes: two InterServer KVM VPS slices bought 2026-09-23 (third to follow); `deploy/install.sh`
    sets one up on stock Ubuntu with nginx + certbot) run the node with
    `--advertise`; mine the genesis; after ~1 hour run `checkpoint`.
-4. Make the GitHub repo public, tagged at the genesis commit; publish
+4. DONE 2026-09-23 23:35 AEST: repo public, tag `mainnet-genesis` (93fda85). Still to publish on the website:
    genesis.json, the two checkpoint lines and the seed node URLs on
    berrychain.link / berrychain.net.
 5. Network-ops (public mining) wallet: brry1f515e0ee57bfc007cbb50689b40338a3b146352833ab4d5b, on the gaming PC, encrypted. Seeds mine to it as backup.
