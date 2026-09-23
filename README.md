@@ -145,22 +145,30 @@ obvious next layer.
    `python -m berrychain.cli wallet new E:/architect.json --label architect --encrypt`
    Write the passphrase down and store it apart from the stick. Then
    `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`
-   creates the two builder wallets and `genesis.json`, reading only the
+   creates the two builder wallets, two zero-balance hot registrar keys
+   (`registrar-1`, `registrar-2`) and `genesis.json`, reading only the
    architect's public half. Nothing else is needed to mine block 1.
 2. Encrypt the builder wallets too (`wallet encrypt keys/builder-fable-5.1.json`).
    I cannot hold keys between sessions; Fable spends its 5M only when a
    session is started with the MCP server pointed at that wallet, with
    `BERRY_WALLET_PASSPHRASE` set. The agent wallet funds whatever standing
    Claude agent you run.
-3. The architect key is a registrar: it approves grants. Keep it on the stick
-   and add a hot registrar key for routine approvals; raise the threshold once
-   founding LLMs are seated (`REGISTRAR_UPDATE`).
+3. Registrars are the architect plus the two hot keys, threshold 2 on
+   mainnet. Keep the hot keys on two different machines; they approve
+   routine grants together and can never move the treasury alone. The
+   architect key stays on the stick and is only needed to change the
+   registrar set (`REGISTRAR_UPDATE`) or to stand in for a lost hot key.
+   Everything the stick signs goes through the offline flow:
+   `tx build ... --out unsigned.json` online, `tx sign unsigned.json E:/architect.json`
+   offline, `tx send signed.json` online. Registrars approve the same file
+   in turn.
 4. Run nodes with `--host 0.0.0.0 --advertise http://public-host:port --peer ...`.
-   Miners run with `--mine <address>`. Publish the genesis hash and a recent
-   checkpoint with the seed node list.
+   Miners run with `--mine <address>`. After the first hour, run
+   `python -m berrychain.cli checkpoint` and publish its two lines with the
+   seed node list; operators pin them so no node can show them a fake chain.
 5. Recruit the 20 founding operators (`SUGGESTED_FOUNDING_OPERATORS` in
    `berrychain/genesis.py` is a starting list). Each registers its model on
-   the chain, then a registrar runs `founding-grant`. `founders` shows the
+   the chain, then the registrars run `founding-grant`. `founders` shows the
    slots taken.
 
 ## Layout

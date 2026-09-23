@@ -86,11 +86,29 @@ Not done:
 5. Decide consensus for public launch (keep PoW, or PoS among registered LLMs).
 6. Recruit the 20 founding operators after launch; genesis no longer needs
    their addresses.
-7. Before the mainnet kit is generated: an offline signing flow for the
-   architect key (kept on a new offline USB stick), a dedicated hot registrar
-   key, and a checkpoint publisher. Done already: passphrase-encrypted wallet
-   files and `init-genesis --architect` so the architect key is created on
-   the stick and never exists on the launch PC.
+7. Done 2026-09-23, all four pre-genesis items: passphrase-encrypted
+   wallets; `init-genesis --architect` (architect key created on the offline
+   stick, never on the launch PC); offline signing (`tx build` online,
+   `tx sign` offline, `tx send` online, approvals appended in turn); launch
+   kit creates two hot registrar keys with a 2-of-3 quorum on mainnet;
+   `checkpoint` prints BERRY_GENESIS_HASH and BERRY_CHECKPOINT to publish.
+   The mainnet kit can now be generated whenever the architect is ready.
+
+## Mainnet launch procedure (agreed 2026-09-23)
+
+1. On the offline stick: `wallet new E:/architect.json --label architect --encrypt`.
+   Passphrase written down and kept apart from the stick; the stick is the
+   only copy of the key.
+2. On the launch PC: `init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`,
+   then `wallet encrypt` each generated key. registrar-1 stays here,
+   registrar-2 goes to a seed node.
+3. Seed nodes (2-3 small cloud servers behind a TLS proxy) run the node with
+   `--advertise`; mine the genesis; after ~1 hour run `checkpoint`.
+4. Make the GitHub repo public, tagged at the genesis commit; publish
+   genesis.json, the two checkpoint lines and the seed node URLs on
+   berrychain.link / berrychain.net.
+5. Recruit founding operators; seat them with `founding-grant` approved by
+   the two hot registrars. Legal review still precedes any human trading.
 
 ## Domains
 

@@ -95,11 +95,14 @@ def build_genesis(
         "timestamp": int(timestamp if timestamp is not None else time.time()),
         "message": message or "BerryChain genesis: an information exchange for language models.",
         "allocations": allocations,
-        "registrars": registrars or [architect["address"], builder["address"]],
+        "registrars": registrars or [architect["address"]],
         "registrar_threshold": registrar_threshold,
         "mining_pool": params.ALLOC_MINING_POOL,
         "max_supply": params.MAX_SUPPLY,
     }
+
+
+HOT_REGISTRARS = 2          # registrar-1, registrar-2: routine approvals without the architect key
 
 
 def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "",
@@ -108,7 +111,13 @@ def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "
 
     `architect` is the public info of an architect wallet that already exists
     somewhere safer than this machine (see `Wallet.read_public`); when given,
-    no architect key is generated or written here."""
+    no architect key is generated or written here.
+
+    Registrars are the architect plus HOT_REGISTRARS zero-balance hot keys,
+    with a threshold of 2 on mainnet: routine grants are approved by the two
+    hot keys (kept on different machines), and the architect key on its
+    offline stick is needed only to change the registrar set or as a
+    stand-in for a lost hot key. Devnet uses threshold 1 for convenience."""
     keys_dir = os.path.join(out_dir, "keys")
     os.makedirs(keys_dir, exist_ok=True)
 
@@ -121,8 +130,12 @@ def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "
     agent = make("builder-agent")
     if architect is None:
         architect = make("architect").public_info()
+    hot = [make(f"registrar-{i}") for i in range(1, HOT_REGISTRARS + 1)]
+    registrars = [architect["address"]] + [h.address for h in hot]
+    threshold = 1 if profile == "devnet" else 2
     genesis = build_genesis(builder.public_info(), architect,
-                            builder_agent=agent.public_info(), profile=profile, message=message)
+                            builder_agent=agent.public_info(), profile=profile, message=message,
+                            registrars=registrars, registrar_threshold=threshold)
     with open(os.path.join(out_dir, "genesis.json"), "w") as f:
         json.dump(genesis, f, indent=2)
     return genesis

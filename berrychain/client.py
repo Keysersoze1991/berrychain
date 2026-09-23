@@ -50,6 +50,32 @@ class ClientError(Exception):
     pass
 
 
+def sign_offline(tx: dict, wallet: Wallet) -> dict:
+    """Sign (or add an approval to) an unsigned transaction. Needs no node:
+    this is what runs on the air-gapped machine holding the architect key."""
+    if tx.get("type") in T.MULTISIG_TYPES:
+        return wallet.approve(tx)
+    if tx.get("from") != wallet.address:
+        raise ClientError(f"transaction is from {tx.get('from')}, wallet is {wallet.address}")
+    return wallet.sign(tx)
+
+
+def describe(tx: dict) -> dict:
+    """What a signer should read before signing: txid, who, what, and which
+    signatures are already present and valid."""
+    body = T.signable_bytes(tx)
+    out = {"txid": T.txid(tx), "type": tx.get("type"), "from": tx.get("from"), "nonce": tx.get("nonce"),
+           "fee_berry": f"{tx.get('fee', 0) / params.SEEDS_PER_BERRY:.8f}", "chain_id": tx.get("chain_id"),
+           "payload": tx.get("payload")}
+    if tx.get("type") in T.MULTISIG_TYPES:
+        out["approvals"] = [{"registrar": crypto.address_from_pubkey(a["pubkey"]),
+                             "valid": crypto.verify(a["pubkey"], body, a["sig"])} for a in tx.get("approvals", [])]
+    else:
+        out["signed"] = bool(tx.get("sig")) and crypto.verify(tx.get("pubkey", ""), body, tx.get("sig", "")) \
+            and crypto.address_from_pubkey(tx["pubkey"]) == tx.get("from")
+    return out
+
+
 def node_is_trusted(url: str) -> bool:
     """A node reached over https, or on this machine, cannot be silently
     tampered with on the wire. Anything else can."""
@@ -354,10 +380,27 @@ class BerryClient:
     def rate(self, wallet: Wallet, escrow_id: str, score: int) -> str:
         return self._send(wallet, T.RATE_SELLER, {"escrow_id": escrow_id, "score": int(score)})
 
+    # ------------------------------------------------- offline signing
+    def build_unsigned(self, tx_type: str, sender: str | None, payload: dict, fee: int | None = None) -> dict:
+        """An unsigned transaction with the node's current nonce and chain id.
+        For multisig types `sender` is ignored (it is the protocol account).
+        Sign it anywhere with `sign_offline`, then `send_signed`."""
+        if tx_type in T.MULTISIG_TYPES:
+            sender = T.MULTISIG_SENDER[tx_type]
+            fee = 0 if fee is None else fee
+        elif not sender:
+            raise ClientError("sender address required")
+        if fee is None:
+            fee = 0 if tx_type in T.ZERO_FEE_OK else params.MIN_FEE
+        return T.build(tx_type, sender, self.nonce(sender), fee, payload, self.chain_id)
+
+    def send_signed(self, tx: dict) -> str:
+        """Broadcast a transaction signed elsewhere."""
+        return self.post("/tx", tx)["txid"]
+
     # ---------------------------------------------------------- governance
     def _multisig(self, registrars: list[Wallet], tx_type: str, payload: dict) -> str:
-        sender = T.MULTISIG_SENDER[tx_type]
-        tx = T.build(tx_type, sender, self.nonce(sender), 0, payload, self.chain_id)
+        tx = self.build_unsigned(tx_type, None, payload)
         for r in registrars:
             r.approve(tx)
         return self.post("/tx", tx)["txid"]

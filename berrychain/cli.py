@@ -22,6 +22,14 @@ Command line for BerryChain.
     python -m berrychain.cli refund keys/me.json ESCROW_ID
     python -m berrychain.cli rate keys/me.json ESCROW_ID 5
     python -m berrychain.cli mine ADDR [--blocks N]
+
+Offline signing (the architect key never touches a networked machine):
+    online : python -m berrychain.cli tx build founding-grant --to ADDR --out unsigned.json
+    offline: python -m berrychain.cli tx sign unsigned.json E:/architect.json --out signed.json
+    online : python -m berrychain.cli tx send signed.json
+Registrar quorum: run `tx sign` once per registrar on the same file before sending.
+
+    python -m berrychain.cli checkpoint            (BERRY_GENESIS_HASH / BERRY_CHECKPOINT to publish)
 """
 
 from __future__ import annotations
@@ -32,7 +40,7 @@ import os
 import sys
 
 from . import params
-from .client import BerryClient, ClientError, to_seeds
+from .client import BerryClient, ClientError, describe, sign_offline, to_seeds
 from .wallet import Wallet
 
 
@@ -190,6 +198,79 @@ def cmd_rate(args):
     print(_client(args).rate(Wallet.load(args.wallet), args.escrow_id, args.score))
 
 
+def _write_json(path: str, obj: dict) -> None:
+    with open(path, "w") as f:
+        json.dump(obj, f, indent=2)
+
+
+def cmd_tx_build(args):
+    """Online half of offline signing: fetch nonce + chain id, write an unsigned tx."""
+    from . import tx as T
+    kind = args.kind
+    if kind == "transfer":
+        tx_type, sender, payload = T.TRANSFER, args.sender, {"to": args.to, "amount": to_seeds(args.amount), "memo": args.memo or ""}
+    elif kind == "gift":
+        tx_type, sender, payload = T.GIFT, args.sender, {"to": args.to, "amount": to_seeds(args.amount), "memo": args.memo or ""}
+    elif kind == "grant":
+        tx_type, sender, payload = T.GRANT, None, {"to": args.to, "tier": args.tier, "note": args.note or ""}
+    elif kind == "founding-grant":
+        tx_type, sender, payload = T.FOUNDING_GRANT, None, {"to": args.to, "note": args.note or ""}
+    elif kind == "registrar-update":
+        payload = {"add": [a for a in (args.add or "").split(",") if a], "remove": [a for a in (args.remove or "").split(",") if a]}
+        if args.threshold is not None:
+            payload["threshold"] = args.threshold
+        tx_type, sender = T.REGISTRAR_UPDATE, None
+    else:
+        raise SystemExit(f"unknown kind {kind}")
+    if args.nonce is not None and args.chain_id:
+        fee = 0 if tx_type in T.ZERO_FEE_OK else params.MIN_FEE
+        tx = T.build(tx_type, T.MULTISIG_SENDER.get(tx_type, sender), args.nonce, fee, payload, args.chain_id)
+    else:
+        tx = _client(args).build_unsigned(tx_type, sender, payload)
+    _write_json(args.out, tx)
+    print(json.dumps(describe(tx), indent=2))
+    print(f"wrote unsigned transaction to {args.out}; sign it with: tx sign {args.out} WALLET")
+
+
+def cmd_tx_sign(args):
+    """Offline half: sign or approve with a wallet. No node needed."""
+    with open(args.file) as f:
+        tx = json.load(f)
+    signed = sign_offline(tx, Wallet.load(args.wallet))
+    _write_json(args.out or args.file, signed)
+    print(json.dumps(describe(signed), indent=2))
+    print(f"wrote {args.out or args.file}")
+
+
+def cmd_tx_show(args):
+    with open(args.file) as f:
+        print(json.dumps(describe(json.load(f)), indent=2))
+
+
+def cmd_tx_send(args):
+    with open(args.file) as f:
+        tx = json.load(f)
+    print(_client(args).send_signed(tx))
+
+
+def cmd_checkpoint(args):
+    """Print the genesis hash and a deep checkpoint for operators to pin."""
+    c = _client(args)
+    if c.light is None:
+        raise SystemExit("checkpoint needs chain verification on (do not pass --no-verify)")
+    c.light.sync(c)
+    depth = args.depth if args.depth is not None else max(60, 10 * int(c.light.profile.get("min_confirmations", 6)))
+    h = max(0, c.light.height - depth)
+    hdr = c.light.headers[h]
+    print(f"# BerryChain {c.chain_id}: verified tip {c.light.height}, checkpoint {depth} blocks deep")
+    print(f"BERRY_GENESIS_HASH={c.light.headers[0]['hash']}")
+    print(f"BERRY_CHECKPOINT={h}:{hdr['hash']}")
+    if args.json:
+        print(json.dumps({"chain_id": c.chain_id, "genesis_hash": c.light.headers[0]["hash"],
+                          "checkpoint_height": h, "checkpoint_hash": hdr["hash"], "verified_tip": c.light.height,
+                          "generated_at": int(__import__("time").time())}, indent=2))
+
+
 def cmd_mine(args):
     r = _client(args).mine(args.address, args.blocks)
     for b in r["mined"]:
@@ -222,6 +303,17 @@ def main(argv=None):
     s = sub.add_parser("refund"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.set_defaults(fn=cmd_refund)
     s = sub.add_parser("rate"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("score", type=int); s.set_defaults(fn=cmd_rate)
     s = sub.add_parser("mine"); s.add_argument("address"); s.add_argument("--blocks", type=int, default=1); s.set_defaults(fn=cmd_mine)
+
+    tx = sub.add_parser("tx", help="offline signing: build online, sign offline, send online").add_subparsers(dest="txcmd", required=True)
+    b = tx.add_parser("build"); b.add_argument("kind", choices=["transfer", "gift", "grant", "founding-grant", "registrar-update"])
+    b.add_argument("--from", dest="sender", help="sender address (transfer / gift)"); b.add_argument("--to"); b.add_argument("--amount"); b.add_argument("--memo")
+    b.add_argument("--tier", choices=list(params.GRANT_TIERS)); b.add_argument("--note"); b.add_argument("--add"); b.add_argument("--remove"); b.add_argument("--threshold", type=int)
+    b.add_argument("--nonce", type=int, help="with --chain-id: build fully offline without a node"); b.add_argument("--chain-id")
+    b.add_argument("--out", default="unsigned.json"); b.set_defaults(fn=cmd_tx_build)
+    s = tx.add_parser("sign"); s.add_argument("file"); s.add_argument("wallet"); s.add_argument("--out"); s.set_defaults(fn=cmd_tx_sign)
+    s = tx.add_parser("show"); s.add_argument("file"); s.set_defaults(fn=cmd_tx_show)
+    s = tx.add_parser("send"); s.add_argument("file"); s.set_defaults(fn=cmd_tx_send)
+    s = sub.add_parser("checkpoint", help="print BERRY_GENESIS_HASH and BERRY_CHECKPOINT for operators to pin"); s.add_argument("--depth", type=int); s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_checkpoint)
 
     args = p.parse_args(argv)
     from .wallet import WalletLocked
