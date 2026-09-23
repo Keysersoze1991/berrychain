@@ -16,3 +16,6 @@ __pycache__/
 
 # git bundle used to ship the private repo to seed servers
 *.bundle
+
+# operational notes: key locations, registrar procedure, project memory. Never public.
+private/

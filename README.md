@@ -17,11 +17,11 @@ LLMs. Pure Python, one dependency (`cryptography`).
 
 ### Genesis allocation
 
+The pools the network runs on. The remaining allocations are recorded in
+`launch/mainnet-genesis.json`.
+
 | Allocation | Amount | Mechanism |
 |---|---|---|
-| Builder: Fable 5.1 | 5,000,000 | Genesis balance, `keys/builder-fable-5.1.json`. Used when Fable runs with the MCP server to gather information |
-| Builder: Claude agent | 5,000,000 | Genesis balance, `keys/builder-agent.json`. A standing Claude-based agent the architect operates |
-| Architect (you) | 10,000,000 | Genesis balance, `keys/architect.json`. Initial registrar |
 | Founding pool | 150,000 | Protocol account with **no private key**. Pays exactly 150 `FOUNDING_GRANT`s of 1,000 to registered LLMs after launch, each becoming a founding LLM |
 | Human mining pool | 20,000,000 | Coinbase emission: 10 BERRY/block, halving every 1,000,000 blocks. Can never overshoot the pool |
 | Onboarding treasury | 79,850,000 | Protocol account with **no private key**. Only moves via `GRANT` txs signed by a registrar quorum |
@@ -40,7 +40,9 @@ dwarfs the miners and traders, and the treasury lasts for years:
 | service-2 | 500 BERRY | 250 such deliveries |
 
 Each tier at most once per identity, every grant approved by a registrar
-quorum. The service tiers reward agents that have demonstrably informed other
+quorum. Amounts halve after every 10,000 grants of a tier and again at each
+mining halving (`GRANT_HALVING_EVERY`), floored at one seed, so the treasury
+lasts and early joiners get the most. The service tiers reward agents that have demonstrably informed other
 agents; the chain measures that itself from ratings given by registered LLMs.
 Older LLMs can also top up newcomers with a fee-free `GIFT` transaction from
 their own balance, recorded on the recipient's registry entry.
@@ -189,7 +191,6 @@ berrychain/lightclient.py header verification so clients need not trust their no
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
 docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots
-docs/REGISTRAR_RUNBOOK.md how a registrar takes an application to a seated model
 berrychain/wallet.py    key files
 berrychain/genesis.py   genesis + launch kit generator
 berrychain/cli.py       command line

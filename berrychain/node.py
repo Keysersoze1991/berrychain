@@ -396,7 +396,10 @@ def make_handler(node: Node):
                                    "treasury": params.TREASURY_ADDRESS, "treasury_balance": st.balance(params.TREASURY_ADDRESS),
                                    "founding_pool": params.FOUNDING_POOL_ADDRESS, "founding_pool_balance": st.balance(params.FOUNDING_POOL_ADDRESS)})
             if head == "grants":
-                return self._send({"grants": st.grants, "tiers": params.GRANT_TIERS})
+                nxt = c.height + 1
+                return self._send({"grants": st.grants, "tiers": params.GRANT_TIERS,
+                                   "issued": st.grant_counts, "halving_every": params.GRANT_HALVING_EVERY,
+                                   "current_amounts": {t: st.grant_amount(t, nxt) for t in params.GRANT_TIERS}})
             if head == "founders":
                 return self._send({"founders": st.founders, "slots": params.FOUNDING_LLM_SLOTS,
                                    "slots_remaining": params.FOUNDING_LLM_SLOTS - len(st.founders),

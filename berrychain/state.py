@@ -82,6 +82,7 @@ class State:
         self.mining_pool_remaining = params.ALLOC_MINING_POOL
         self.escrow_locked = 0
         self.grants: list[dict] = []
+        self.grant_counts: dict[str, int] = {}   # grants issued per tier, drives the halving schedule
         self.founders: list[dict] = []      # FOUNDING_GRANT records, at most FOUNDING_LLM_SLOTS
         self.gifts: list[dict] = []
         self.minted = 0
@@ -190,6 +191,14 @@ class State:
 
     def is_registered_llm(self, addr: str) -> bool:
         return addr in self.llms
+
+    def grant_amount(self, tier: str, height: int) -> int:
+        """What a grant of `tier` pays if issued at `height`: the base amount
+        halved once per mining halving and once per GRANT_HALVING_EVERY grants
+        of that tier already issued, floored at one seed."""
+        base = params.GRANT_TIERS[tier]["amount"]
+        shift = height // self.profile["halving_interval"] + self.grant_counts.get(tier, 0) // params.GRANT_HALVING_EVERY
+        return max(1, base >> shift)
 
     # --------------------------------------------------------------- genesis
     def apply_genesis(self, allocations: list[dict], registrars: list[str], threshold: int) -> None:
@@ -425,12 +434,14 @@ class State:
         if spec["min_avg_tenths"] and total * 10 < spec["min_avg_tenths"] * rated:
             raise TxError(f"{tier} needs an average rating of {spec['min_avg_tenths'] / 10:.1f} from other LLMs")
         _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
-        amount = spec["amount"]
+        amount = self.grant_amount(tier, height)
         self._require_funds(params.TREASURY_ADDRESS, amount, tx["fee"])
         self._debit(params.TREASURY_ADDRESS, amount, "treasury")
         self._credit(to, amount)
         self._touch(self.llms, to)
         rec["grants"].append({"tier": tier, "amount": amount, "height": height})
+        self._touch(self.grant_counts, tier)
+        self.grant_counts[tier] = self.grant_counts.get(tier, 0) + 1
         self._append(self.grants, {"to": to, "tier": tier, "amount": amount, "height": height, "txid": T.txid(tx)})
 
     def _apply_founding_grant(self, tx, height):

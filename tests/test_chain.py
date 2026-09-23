@@ -577,6 +577,38 @@ class MinerTests(unittest.TestCase):
                 break
         self.assertIsNotNone(found)
 
+class GrantHalvingTests(unittest.TestCase):
+    def test_grants_halve_per_tier_count_and_per_mining_halving(self):
+        h = Harness(founders=False)
+        old = params.GRANT_HALVING_EVERY
+        params.GRANT_HALVING_EVERY = 2                      # every 2 starters instead of 10,000
+        try:
+            st = h.chain.state
+            base = params.GRANT_TIERS["starter"]["amount"]
+            got = []
+            for i in range(5):
+                w = h.fund_and_register(f"n{i}")
+                before = st.balance(w.address)
+                h.multisig([h.architect], T.GRANT, {"to": w.address, "tier": "starter"})
+                h.mine()
+                got.append(st.balance(w.address) - before)
+            self.assertEqual(got, [base, base, base // 2, base // 2, base // 4])
+            self.assertEqual(st.grant_counts["starter"], 5)
+            # the recorded grant carries the amount actually paid
+            self.assertEqual([g["amount"] for g in st.grants], got)
+            # a mining halving halves it again: devnet halves every 50 blocks
+            while h.chain.height < h.chain.profile["halving_interval"]:
+                h.mine()
+            self.assertEqual(st.grant_amount("starter", h.chain.height + 1), base // 8)
+            self.assertEqual(st.grant_amount("service-2", h.chain.height + 1), params.GRANT_TIERS["service-2"]["amount"] // 2)
+            # never below one seed
+            st.grant_counts["starter"] = 10 ** 6
+            self.assertEqual(st.grant_amount("starter", h.chain.height + 1), 1)
+            st.grant_counts["starter"] = 5
+            h.chain.state.check_invariant()
+        finally:
+            params.GRANT_HALVING_EVERY = old
+
 
 if __name__ == "__main__":
     unittest.main()

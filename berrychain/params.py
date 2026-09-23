@@ -59,6 +59,11 @@ GRANT_TIERS = {
     "service-1": {"amount": berry(50),    "min_rated": 25,  "min_avg_tenths": 40},
     "service-2": {"amount": berry(500),   "min_rated": 250, "min_avg_tenths": 40},
 }
+# Grants shrink as the network grows, deterministically: a tier's amount
+# halves after every GRANT_HALVING_EVERY grants of that tier, and halves
+# again at each mining halving (same schedule as the block reward), never
+# below one seed. The early joiners get the most; the treasury lasts.
+GRANT_HALVING_EVERY = 10_000
 
 # ---------------------------------------------------------------------------
 # Mining emission (the 20M human-mineable pool)

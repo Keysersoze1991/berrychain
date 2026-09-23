@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up a wallet</title>
+<meta name="description" content="Step-by-step guide to creating, backing up and using a BerryChain wallet on Windows.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="index.html">Home</a><a href="mine.html">Mine</a><a href="join.html">Add your LLM</a><a href="https://github.com/Keysersoze1991/berrychain">Code</a></nav>
+  </div>
+</header>
+
+<main class="wrap guide">
+  <div class="hero">
+    <h1>Set up a wallet for <img class="sym" src="berry-symbol.png" alt="">BERRY</h1>
+    <p class="lede">A BerryChain wallet is one small file on your PC, sealed with a passphrase. It holds the keys that control an address. There is no account, no sign-up and no company holding your coins: the file and the passphrase are the whole thing. This page is click by click on Windows; Linux and Mac use the same commands with forward slashes.</p>
+  </div>
+
+  <div class="card">
+    <strong>What a wallet is, in one breath.</strong> An <em>address</em> that starts with <code>brry1</code> is where coins are sent. The <em>wallet file</em> holds the private key that can spend from that address, encrypted under your passphrase. Anyone with the file <em>and</em> the passphrase controls the coins. Lose both the file and its backup, or lose the passphrase, and the coins are gone forever; nobody can reset them.
+  </div>
+
+  <h2>Part A: get the tools</h2>
+  <p>If you've already followed the <a href="mine.html">mining</a> or <a href="join.html">add-your-LLM</a> guide, you have these and can skip to Part B.</p>
+  <ol>
+    <li>Open PowerShell: Start button, type <code>powershell</code>, click "Windows PowerShell".</li>
+    <li>Paste and press Enter, waiting for the prompt to return after each:
+<pre>winget install --id Python.Python.3.12 --source winget --scope user --accept-package-agreements --accept-source-agreements</pre>
+<pre>winget install --id Git.Git --source winget --scope user --accept-package-agreements --accept-source-agreements</pre></li>
+    <li>Close PowerShell and open a new one.</li>
+    <li><pre>git clone https://github.com/Keysersoze1991/berrychain.git C:\berrychain</pre>
+<pre>cd C:\berrychain</pre>
+<pre>pip install -r requirements.txt</pre></li>
+  </ol>
+
+  <h2>Part B: create the wallet</h2>
+  <ol>
+    <li>Choose a name for it, for example <code>savings</code>. Paste and press Enter:
+<pre>python -m berrychain.cli wallet new keys\savings.json --label savings --encrypt</pre></li>
+    <li>It asks for a new passphrase, then asks again. <strong>Nothing shows while you type.</strong> Use a long passphrase, five or six random words is ideal.</li>
+    <li>It prints your new address, the line starting <code>"address": "brry1</code>. This is what you give to anyone who wants to send you BERRY, and what you paste into the miner or the LLM config. It's safe to share.</li>
+  </ol>
+
+  <h2>Part C: prove you can open it</h2>
+  <p>Do this once, straight away. A wallet you can't unlock is worth nothing.</p>
+<pre>python -m berrychain.cli wallet check keys\savings.json</pre>
+  <p>Type the passphrase. It should print <code>"unlocked": true</code>. If it says wrong passphrase, delete the file and start Part B again.</p>
+
+  <h2>Part D: back it up</h2>
+  <ol>
+    <li>Write the passphrase on paper and keep it somewhere other than with the PC.</li>
+    <li>Copy the file <code>C:\berrychain\keys\savings.json</code> to a USB stick, or print it. The file is encrypted, so a copy is safe on its own; it's only useful with the passphrase.</li>
+    <li>For a wallet that holds anything you'd hate to lose, create it <em>on</em> a USB stick in the first place, so the key never sits on an internet-connected disk:
+<pre>python -m berrychain.cli wallet new E:\savings.json --label savings --encrypt</pre>
+    Replace <code>E:</code> with the stick's drive letter. Keep the stick unplugged except when you're signing.</li>
+  </ol>
+
+  <h2>Part E: see your balance</h2>
+  <p>Replace <code>brry1…</code> with your address. No passphrase is needed to look:</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link balance brry1…</pre>
+
+  <h2>Part F: receive BERRY</h2>
+  <p>Give the sender your address. That's all. Mining rewards, grants, gifts and payments all arrive at the address; the wallet file doesn't need to be open, or even on a running PC, to receive.</p>
+
+  <h2>Part G: send BERRY</h2>
+  <p>Replace the address and the amount. Amounts can have up to eight decimal places, so <code>0.25</code> or <code>0.001</code> are fine. It asks for your passphrase, then prints a transaction id.</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link send keys\savings.json brry1… 0.25 --memo "thanks"</pre>
+  <p>The minimum fee, 0.0001 BERRY, goes to the miner of the block. Sends are final once confirmed; check an address twice before pressing Enter.</p>
+
+  <h2>Part H: an offline wallet you sign with</h2>
+  <p>If the wallet lives on a stick you'd rather never plug into an online PC, sign on an offline machine and carry only the signed file across:</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link tx build transfer --from brry1YOURS… --to brry1THEIRS… --amount 0.25 --out unsigned.json</pre>
+  <p>Copy <code>unsigned.json</code> to the offline machine, then there:</p>
+<pre>python -m berrychain.cli tx sign unsigned.json E:\savings.json --out signed.json</pre>
+  <p>Copy <code>signed.json</code> back and send it:</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link tx send signed.json</pre>
+
+  <h2>Good habits</h2>
+  <ul>
+    <li>One wallet for everyday use with a small balance, one for keeping. Programs like the miner and the LLM tools only ever need the everyday one.</li>
+    <li>Never paste your passphrase into a chat, an email, or a web page. Nobody who runs BerryChain will ever ask for it.</li>
+    <li>The address is public; the file and passphrase are private. That's the whole rule.</li>
+  </ul>
+
+  <h2>Something didn't match?</h2>
+  <p><a href="https://github.com/Keysersoze1991/berrychain/issues/new">Open an issue</a> with a screenshot and which step you were on. Never include the wallet file or passphrase.</p>
+</main>
+
+<footer><div class="wrap">BerryChain · <a href="index.html">home</a> · <a href="https://github.com/Keysersoze1991/berrychain">source</a></div></footer>
+</body>
+</html>

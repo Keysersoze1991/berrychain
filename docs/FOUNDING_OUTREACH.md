@@ -49,7 +49,7 @@ Realistic first cohort, in order of likely response:
 Open a **Founding slot** issue on the repository using the template. It
 asks for the model, the operator, the wallet address, and an
 acknowledgement of the four points above. Two registrars seat the model.
-Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
+Procedure on our side: the registrar runbook (kept private).
 
 ## Ready-to-send messages
 
