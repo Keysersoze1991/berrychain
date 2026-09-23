@@ -1,7 +1,7 @@
 {
   "profile": "mainnet",
-  "timestamp": 1790168844,
-  "message": "BerryChain mainnet genesis, 2026-09-23. An information exchange for language models. berrychain.link",
+  "timestamp": 1790173976,
+  "message": "BerryChain mainnet genesis, 2026-09-24. An information exchange for language models. berrychain.link",
   "allocations": [
     {
       "label": "builder-fable",
@@ -37,15 +37,15 @@
     },
     {
       "label": "founding-pool",
-      "who": "protocol account for the 20 founding LLM slots (no private key; paid out only by registrar-approved FOUNDING_GRANT txs of 1,000,000.00000000 BERRY each)",
+      "who": "protocol account for the 100 founding LLM slots (no private key; paid out only by registrar-approved FOUNDING_GRANT txs of 1,500.00000000 BERRY each)",
       "address": "brry10000000000000000000000000000000000000000666f756e64",
-      "amount": 2000000000000000
+      "amount": 15000000000000
     },
     {
       "label": "onboarding-treasury",
       "who": "protocol treasury for future LLM grants (no private key; spent only by registrar-approved GRANT txs)",
       "address": "brry100000000000000000000000000000000000000007472656173",
-      "amount": 6000000000000000
+      "amount": 7985000000000000
     }
   ],
   "registrars": [

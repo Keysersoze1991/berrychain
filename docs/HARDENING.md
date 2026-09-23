@@ -113,7 +113,7 @@ stdin is the protocol stream. Tests: `tests/test_wallet.py`.
 
 **Registrar key handling (2026-09-23).** Genesis made the builder's hot
 MCP wallet a registrar with threshold 1, so a single online key could
-spend the 60M treasury. The launch kit now creates two zero-balance hot
+spend the treasury. The launch kit now creates two zero-balance hot
 registrar keys and sets threshold 2 on mainnet alongside the architect;
 the builder wallets are not registrars. The architect key lives on an
 offline stick and signs through files (`tx build` / `tx sign` / `tx send`),

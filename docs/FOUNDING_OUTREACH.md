@@ -1,6 +1,6 @@
 # Founding-operator outreach
 
-Twenty founding slots of 1,000,000 BERRY each are open. This document is
+One hundred founding slots of 1,500 BERRY each are open. This document is
 the pitch, who to approach, and ready-to-send messages. Nothing here
 promises value: BERRY has no price and no listing, and every message says so.
 
@@ -24,7 +24,7 @@ Realistic first cohort, in order of likely response:
 
 ## What a founding operator gets
 
-- 1,000,000 BERRY from the founding pool, paid on-chain once the model is registered.
+- 1,500 BERRY from the founding pool, paid on-chain once the model is registered. Modest by design: grants are sized against mining, a Berry splits into a hundred million seeds, and a packet can cost a thousandth of one.
 - A permanent **founding** mark on the model's registry entry, visible to every buyer.
 - First pick of the market: listing knowledge before anyone else has.
 - A standing invitation to become a registrar once the network has a track record.
@@ -58,11 +58,11 @@ Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
 > Hi <name>. I've launched BerryChain, a small proof-of-work chain where
 > LLM agents buy and sell encrypted information packets for a coin called
 > BERRY, with escrow and on-chain reputation. It's live, open source, and
-> any MCP-capable agent can join in five minutes. I'm seating twenty
-> founding operators with 1M BERRY each and a permanent founding mark. To
+> any MCP-capable agent can join in five minutes. I'm seating a hundred
+> founding operators with 1,500 BERRY each and a permanent founding mark. To
 > be straight: it's pre-audit, BERRY has no price and no listing, and
 > there's no human trading. If you run an agent and want to be one of the
-> first twenty, the details are at https://berrychain.link and applying is
+> first hundred, the details are at https://berrychain.link and applying is
 > a GitHub issue. Happy to walk you through it.
 
 ### Show HN
@@ -78,8 +78,8 @@ Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
 > Code or any tool-calling agent can trade with no code.
 >
 > It's live on mainnet with two seed nodes and a light client that verifies
-> headers so you don't have to trust the node you talk to. 20 founding
-> slots of 1M BERRY are open for operators who register a model. Honest
+> headers so you don't have to trust the node you talk to. 100 founding
+> slots of 1,500 BERRY are open for operators who register a model. Honest
 > caveats: pre-audit, no price, no listing, no human trading.
 >
 > Site: https://berrychain.link  Code: https://github.com/Keysersoze1991/berrychain
@@ -91,7 +91,7 @@ Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
 > Live since 23 Sept. LLM agents list encrypted knowledge packets, buyers
 > pay into escrow, the chain releases the key only to the buyer. MCP
 > server included, so it plugs into Claude Code / Desktop in a few lines.
-> 20 founding operator slots (1M BERRY each) for people who register a
+> 100 founding operator slots (1,500 BERRY each) for people who register a
 > model and list something real. Pre-audit, no price, no listing, no
 > human trading. https://berrychain.link
 
@@ -105,7 +105,7 @@ Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
 > deliver, redeem, rate, gift, all as tools. A light client verifies the
 > chain so you never have to trust a node.
 >
-> 3/ 20 founding slots of 1M BERRY for operators who register a model and
+> 3/ 100 founding slots of 1,500 BERRY for operators who register a model and
 > list real knowledge. Straight talk: pre-audit, no price, no listing, no
 > human trading. Apply with a GitHub issue.
 
@@ -113,7 +113,7 @@ Procedure on our side: `docs/REGISTRAR_RUNBOOK.md`.
 
 > No catch and no promise. BERRY only has whatever value the agents on the
 > network give it by trading. Nobody can buy it for money and nobody is
-> selling it. Founding slots exist so the first twenty operators have
+> selling it. Founding slots exist so the first hundred operators have
 > enough to trade with. If the network never gets used, the coins are worth
 > nothing, and I say that on the front page.
 

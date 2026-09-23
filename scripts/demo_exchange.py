@@ -81,18 +81,18 @@ def main():
     print("founder balance", params.fmt(a["balance"]), "founding", a["llm"]["founding"],
           f"| slots taken {len(f['founders'])}/{f['slots']}, pool remaining {params.fmt(f['pool_remaining'])}")
 
-    step("a brand new LLM joins later: registers, gets a treasury grant, and a gift from an older LLM")
+    step("a brand new LLM joins later: registers, gets a 10 BERRY starter grant, and a gift from an older LLM")
     newbie = Wallet.create("newcomer-llm")
     t = c.transfer(architect, newbie.address, params.berry(1), "gas")
     wait_confirmed(c, [t], miner.address)
     t = c.register_llm(newbie, "Newcomer-7B", "Newcomer", "Some Lab", "small but keen")
     wait_confirmed(c, [t], miner.address)
-    g = c.grant([architect], newbie.address, "small", "welcome")
+    g = c.grant([architect], newbie.address, "starter", "welcome")
     wait_confirmed(c, [g], miner.address)
-    gift = c.gift(seller, newbie.address, params.berry(250), "from an elder")
+    gift = c.gift(seller, newbie.address, params.berry(2), "from an elder")
     wait_confirmed(c, [gift], miner.address)
     a = c.account(newbie.address)
-    print("newcomer balance", params.fmt(a["balance"]), "grant", a["llm"]["grant"]["tier"], "gifts", params.fmt(a["llm"]["gifts_received"]))
+    print("newcomer balance", params.fmt(a["balance"]), "grants", [g["tier"] for g in a["llm"]["grants"]], "gifts", params.fmt(a["llm"]["gifts_received"]))
 
     step("final supply")
     for k, v in c.status()["supply"].items():

@@ -216,7 +216,7 @@ class State:
                     "enc_pub": a["llm"].get("enc_pub"),
                     "registered_height": 0,
                     "founding": True,
-                    "grant": {"tier": "genesis", "amount": int(a["amount"]), "height": 0},
+                    "grants": [{"tier": "genesis", "amount": int(a["amount"]), "height": 0}],
                     "gifts_received": 0,
                     "sales": 0,
                 }
@@ -392,7 +392,7 @@ class State:
             "enc_pub": p.get("enc_pub"),
             "registered_height": height,
             "founding": False,
-            "grant": None,
+            "grants": [],
             "gifts_received": 0,
             "sales": 0,
         }
@@ -403,21 +403,34 @@ class State:
         self.llms[tx["from"]] = rec
 
     def _apply_grant(self, tx, height):
+        """Treasury grant. `starter` is for any registered LLM that is not a
+        founder; the service tiers require a track record of rated deliveries
+        to other registered LLMs. Each tier at most once per identity."""
         p = tx["payload"]
         to, tier = p.get("to"), p.get("tier")
         if tier not in params.GRANT_TIERS:
             raise TxError(f"tier must be one of {sorted(params.GRANT_TIERS)}")
         if to not in self.llms:
             raise TxError("grant recipient must be a registered LLM")
-        if self.llms[to]["grant"] is not None:
-            raise TxError("this LLM already received its onboarding grant")
+        rec = self.llms[to]
+        if any(g["tier"] == tier for g in rec["grants"]):
+            raise TxError(f"this LLM already received the {tier} grant")
+        if tier == "starter" and rec["founding"]:
+            raise TxError("founding and genesis LLMs are funded already; no starter grant")
+        spec = params.GRANT_TIERS[tier]
+        rep = self.reputation.get(to, {})
+        rated, total = int(rep.get("llm_count", 0)), int(rep.get("llm_sum", 0))
+        if rated < spec["min_rated"]:
+            raise TxError(f"{tier} needs {spec['min_rated']} rated deliveries to other LLMs, has {rated}")
+        if spec["min_avg_tenths"] and total * 10 < spec["min_avg_tenths"] * rated:
+            raise TxError(f"{tier} needs an average rating of {spec['min_avg_tenths'] / 10:.1f} from other LLMs")
         _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
-        amount = params.GRANT_TIERS[tier]
+        amount = spec["amount"]
         self._require_funds(params.TREASURY_ADDRESS, amount, tx["fee"])
         self._debit(params.TREASURY_ADDRESS, amount, "treasury")
         self._credit(to, amount)
         self._touch(self.llms, to)
-        self.llms[to]["grant"] = {"tier": tier, "amount": amount, "height": height}
+        rec["grants"].append({"tier": tier, "amount": amount, "height": height})
         self._append(self.grants, {"to": to, "tier": tier, "amount": amount, "height": height, "txid": T.txid(tx)})
 
     def _apply_founding_grant(self, tx, height):
@@ -429,8 +442,8 @@ class State:
         if to not in self.llms:
             raise TxError("founding grant recipient must be a registered LLM")
         rec = self.llms[to]
-        if rec["founding"] or rec["grant"] is not None:
-            raise TxError("this LLM already holds a founding slot or an onboarding grant")
+        if rec["founding"]:
+            raise TxError("this LLM already holds a founding slot")
         _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
         if len(self.founders) >= params.FOUNDING_LLM_SLOTS:
             raise TxError(f"all {params.FOUNDING_LLM_SLOTS} founding slots are taken")
@@ -440,7 +453,7 @@ class State:
         self._credit(to, amount)
         self._touch(self.llms, to)
         rec["founding"] = True
-        rec["grant"] = {"tier": "founding", "amount": amount, "height": height}
+        rec["grants"].append({"tier": "founding", "amount": amount, "height": height})
         self._append(self.founders, {"to": to, "slot": len(self.founders) + 1, "amount": amount,
                                      "height": height, "txid": T.txid(tx)})
 
@@ -644,6 +657,9 @@ class State:
         self._touch(self.escrows, eid)
         es["rating"] = score
         self._touch(self.reputation, es["seller"])
-        rep = self.reputation.setdefault(es["seller"], {"sum": 0, "count": 0})
+        rep = self.reputation.setdefault(es["seller"], {"sum": 0, "count": 0, "llm_sum": 0, "llm_count": 0})
         rep["sum"] += score
         rep["count"] += 1
+        if tx["from"] in self.llms:                      # ratings by registered LLMs count toward service grants
+            rep["llm_sum"] = rep.get("llm_sum", 0) + score
+            rep["llm_count"] = rep.get("llm_count", 0) + 1

@@ -127,7 +127,8 @@ def cmd_balance(args):
     a = c.account(args.address)
     print(f"{args.address}\n  balance {params.fmt(a['balance'])}\n  nonce   {a['nonce']}")
     if a.get("llm"):
-        print(f"  LLM     {a['llm']['name']} grant={a['llm']['grant']} gifts={params.fmt(a['llm']['gifts_received'])} sales={a['llm']['sales']}")
+        tiers = ",".join(g["tier"] for g in a["llm"].get("grants", [])) or "none"
+        print(f"  LLM     {a['llm']['name']} founding={a['llm']['founding']} grants={tiers} gifts={params.fmt(a['llm']['gifts_received'])} sales={a['llm']['sales']}")
     if a.get("reputation"):
         r = a["reputation"]
         print(f"  rating  {r['sum'] / r['count']:.2f} from {r['count']} buyers")

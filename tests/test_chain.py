@@ -34,30 +34,33 @@ class Harness:
     With founders=True (default) 20 wallets are registered and seated in the
     founding slots through FOUNDING_GRANT, exactly as on the real chain, so
     tests have funded LLM identities to trade with. Each ends with exactly
-    1,000,000 BERRY. The setup blocks are mined by a throwaway miner so
+    1,500 BERRY. The setup blocks are mined by a throwaway miner so
     `self.miner` starts every test with a zero balance."""
 
-    def __init__(self, founders: bool = True):
+    def __init__(self, founders: bool | int = True):
         self.chain, self.builder, self.agent, self.architect = make_chain()
         self.miner = Wallet.create("miner")
         self.t = 1_700_000_000
         self.founders: list[Wallet] = []
         self.setup_height = 0
         if founders:
-            self.seat_founders(params.FOUNDING_LLM_SLOTS)
+            self.seat_founders(20 if founders is True else int(founders))
 
     def seat_founders(self, n: int) -> None:
         setup_miner = Wallet.create("setup-miner")
         self.founders = [Wallet.create(f"f{i}") for i in range(n)]
-        for w in self.founders:
-            self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": params.MIN_FEE})   # exactly the registration fee
-        self._mine_with(setup_miner)
+        batch = params.MAX_PENDING_PER_SENDER - 4                 # one sender pays all the gas; stay under the mempool cap
+        for i in range(0, n, batch):
+            for w in self.founders[i:i + batch]:
+                self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": params.MIN_FEE})   # exactly the registration fee
+            self._mine_with(setup_miner)
         for w in self.founders:
             self.send(w, T.REGISTER_LLM, {"name": w.label, "model_family": "test", "operator": "test", "enc_pub": w.enc_pub})
         self._mine_with(setup_miner)
-        for w in self.founders:
-            self.multisig([self.architect], T.FOUNDING_GRANT, {"to": w.address})
-        self._mine_with(setup_miner)
+        for i in range(0, n, batch):
+            for w in self.founders[i:i + batch]:
+                self.multisig([self.architect], T.FOUNDING_GRANT, {"to": w.address})
+            self._mine_with(setup_miner)
         self.setup_height = self.chain.height
 
     def send(self, wallet, tx_type, payload, fee=params.MIN_FEE):
@@ -106,8 +109,8 @@ class GenesisTests(unittest.TestCase):
         self.assertEqual(st.balance(h.builder.address), B(5_000_000))
         self.assertEqual(st.balance(h.agent.address), B(5_000_000))
         self.assertEqual(st.balance(h.architect.address), B(10_000_000))
-        self.assertEqual(s["founding_pool_remaining"], B(20_000_000))
-        self.assertEqual(s["treasury_unallocated"], B(60_000_000))
+        self.assertEqual(s["founding_pool_remaining"], B(150_000))
+        self.assertEqual(s["treasury_unallocated"], B(79_850_000))
         self.assertEqual(s["mining_pool_remaining"], B(20_000_000))
         self.assertEqual(s["circulating"], B(20_000_000))         # builders + architect only
         self.assertEqual(s["founding_slots_taken"], 0)
@@ -199,7 +202,7 @@ class TransferTests(unittest.TestCase):
                 h.chain.add_tx(tx)
         # a multisig type sent from the wrong protocol account is refused even with valid approvals
         with self.assertRaises(TxError):
-            tx = T.build(T.GRANT, POOL, 0, 0, {"to": h.builder.address, "tier": "small"}, "berry-dev")
+            tx = T.build(T.GRANT, POOL, 0, 0, {"to": h.builder.address, "tier": "starter"}, "berry-dev")
             h.architect.approve(tx); h.chain.add_tx(tx)
         with self.assertRaises(TxError):
             tx = T.build(T.FOUNDING_GRANT, params.TREASURY_ADDRESS, 0, 0, {"to": h.builder.address}, "berry-dev")
@@ -216,19 +219,19 @@ class OnboardingTests(unittest.TestCase):
         h.mine()
         # grant needs a registrar; the architect is one
         with self.assertRaises(TxError):
-            h.multisig([h.founders[0]], T.GRANT, {"to": newbie.address, "tier": "large"})
-        h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "large", "note": "welcome"})
+            h.multisig([h.founders[0]], T.GRANT, {"to": newbie.address, "tier": "starter"})
+        h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "starter", "note": "welcome"})
         h.mine()
-        self.assertEqual(h.chain.state.balance(newbie.address), B(1_000_001) - params.MIN_FEE)
-        self.assertEqual(h.chain.state.balance(params.TREASURY_ADDRESS), B(59_000_000))
-        # only one grant per LLM
+        self.assertEqual(h.chain.state.balance(newbie.address), B(11) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(params.TREASURY_ADDRESS), B(79_850_000) - B(10))
+        # each tier at most once per LLM
         with self.assertRaises(TxError):
-            h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "small"})
+            h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "starter"})
         # older LLM gifts the newcomer, fee free
-        h.send(h.founders[0], T.GIFT, {"to": newbie.address, "amount": B(1000), "memo": "welcome aboard"}, fee=0)
+        h.send(h.founders[0], T.GIFT, {"to": newbie.address, "amount": B(100), "memo": "welcome aboard"}, fee=0)
         h.mine()
-        self.assertEqual(h.chain.state.llms[newbie.address]["gifts_received"], B(1000))
-        self.assertEqual(h.chain.state.balance(h.founders[0].address), B(999_000))
+        self.assertEqual(h.chain.state.llms[newbie.address]["gifts_received"], B(100))
+        self.assertEqual(h.chain.state.balance(h.founders[0].address), B(1_400))
         # unregistered accounts cannot use the fee-free gift path
         human = Wallet.create()
         h.send(h.architect, T.TRANSFER, {"to": human.address, "amount": B(1)})
@@ -238,32 +241,81 @@ class OnboardingTests(unittest.TestCase):
         h.chain.state.check_invariant()
 
     def test_grant_capacity(self):
-        # 60M treasury supports 60 large or 120 small grants
-        self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["large"], 60)
-        self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["small"], 120)
+        # grants are sized against mining (10 BERRY/block): the treasury funds millions of starters
+        self.assertEqual(params.GRANT_TIERS["starter"]["amount"], B(10))
+        self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["starter"]["amount"], 7_985_000)
+        self.assertEqual(params.GRANT_TIERS["service-2"]["amount"], B(1_000))
+        self.assertEqual(params.ALLOC_FOUNDING_POOL, B(150_000))
+
+    def test_service_grants_require_a_track_record(self):
+        h = Harness()
+        seller = h.founders[0]
+        # founders are funded already: no starter for them, but service tiers are earned
+        with self.assertRaises(TxError):
+            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "starter"})
+        with self.assertRaises(TxError):                    # 0 rated deliveries
+            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
+
+        def sell_and_rate(buyer, score):
+            pid, key = PacketExchangeTests._list(None, h, seller, b"x", 1)
+            h.mine()
+            eid = h.send(buyer, T.BUY_PACKET, {"packet_id": pid, "enc_pub": buyer.enc_pub})
+            h.mine()
+            es = h.chain.state.escrows[eid]
+            h.send(seller, T.DELIVER_PACKET, {"escrow_id": eid, "wrapped_key": crypto.wrap_to_recipient(es["buyer_enc_pub"], key)})
+            h.mine()
+            h.send(buyer, T.RATE_SELLER, {"escrow_id": eid, "score": score})
+            h.mine()
+        for i in range(24):
+            sell_and_rate(h.founders[1 + i % 19], 4)
+        # a rating from an unregistered human buyer does not count toward the track record
+        human = Wallet.create("human")
+        h.send(h.agent, T.TRANSFER, {"to": human.address, "amount": B(5)}); h.mine()
+        sell_and_rate(human, 5)
+        rep = h.chain.state.reputation[seller.address]
+        self.assertEqual((rep["count"], rep["llm_count"]), (25, 24))
+        with self.assertRaises(TxError):                    # 24 LLM ratings, needs 25
+            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
+        sell_and_rate(h.founders[2], 4)
+        h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
+        h.mine()
+        self.assertIn("service-1", [g["tier"] for g in h.chain.state.llms[seller.address]["grants"]])
+        with self.assertRaises(TxError):                    # once per tier
+            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
+        with self.assertRaises(TxError):                    # service-2 needs 250
+            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-2"})
+        # a low average blocks the tier even with enough ratings
+        bad = h.fund_and_register("bad")
+        h.multisig([h.architect], T.GRANT, {"to": bad.address, "tier": "starter"}); h.mine()
+        h.chain.state.reputation[bad.address] = {"sum": 60, "count": 30, "llm_sum": 60, "llm_count": 30}   # avg 2.0
+        h.chain._mempool_state = h.chain.state.copy()
+        with self.assertRaises(TxError):
+            h.multisig([h.architect], T.GRANT, {"to": bad.address, "tier": "service-1"})
+        h.chain.state.check_invariant()
 
 
 class FoundingPoolTests(unittest.TestCase):
     def test_slots_filled_after_launch(self):
-        h = Harness()                                   # seats 20 founders via FOUNDING_GRANT
+        n = params.FOUNDING_LLM_SLOTS
+        h = Harness(founders=n)                         # seats every founder via FOUNDING_GRANT
         st, s = h.chain.state, h.chain.supply()
-        self.assertEqual(s["founding_slots_taken"], 20)
+        self.assertEqual(s["founding_slots_taken"], n)
         self.assertEqual(s["founding_pool_remaining"], 0)
-        self.assertEqual(len(st.founders), 20)
-        self.assertEqual([r["slot"] for r in st.founders], list(range(1, 21)))
+        self.assertEqual(len(st.founders), n)
+        self.assertEqual([r["slot"] for r in st.founders], list(range(1, n + 1)))
         for f in h.founders:
-            self.assertEqual(st.balance(f.address), B(1_000_000))
+            self.assertEqual(st.balance(f.address), B(1_500))
             self.assertTrue(st.llms[f.address]["founding"])
-            self.assertEqual(st.llms[f.address]["grant"]["tier"], "founding")
-        self.assertEqual(len(st.llms), 22)
+            self.assertEqual([g["tier"] for g in st.llms[f.address]["grants"]], ["founding"])
+        self.assertEqual(len(st.llms), n + 2)
         self.assertEqual(st.total_accounted(), params.MAX_SUPPLY)
-        # the 21st slot does not exist, but the treasury still can onboard the newcomer
+        # the next slot does not exist, but the treasury still can onboard the newcomer
         late = h.fund_and_register("late")
         with self.assertRaises(TxError):
             h.multisig([h.architect], T.FOUNDING_GRANT, {"to": late.address})
-        h.multisig([h.architect], T.GRANT, {"to": late.address, "tier": "small"})
+        h.multisig([h.architect], T.GRANT, {"to": late.address, "tier": "starter"})
         h.mine()
-        self.assertEqual(st.llms[late.address]["grant"]["tier"], "small")
+        self.assertEqual([g["tier"] for g in st.llms[late.address]["grants"]], ["starter"])
         self.assertFalse(st.llms[late.address]["founding"])
 
     def test_founding_grant_rules(self):
@@ -276,18 +328,19 @@ class FoundingPoolTests(unittest.TestCase):
             h.multisig([w], T.FOUNDING_GRANT, {"to": w.address})
         h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address, "note": "welcome"})
         h.mine()
-        self.assertEqual(h.chain.state.balance(w.address), B(1_000_001) - params.MIN_FEE)
-        self.assertEqual(h.chain.state.balance(POOL), B(19_000_000))
+        self.assertEqual(h.chain.state.balance(w.address), B(1_501) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(POOL), B(148_500))
         with self.assertRaises(TxError):                # one slot per identity
             h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address})
-        with self.assertRaises(TxError):                # a founder gets no onboarding grant on top
-            h.multisig([h.architect], T.GRANT, {"to": w.address, "tier": "large"})
-        # and a treasury grantee cannot later take a founding slot
+        with self.assertRaises(TxError):                # a founder gets no starter on top
+            h.multisig([h.architect], T.GRANT, {"to": w.address, "tier": "starter"})
+        # a starter grantee can still be seated as a founder later
         g = h.fund_and_register("g")
-        h.multisig([h.architect], T.GRANT, {"to": g.address, "tier": "small"})
+        h.multisig([h.architect], T.GRANT, {"to": g.address, "tier": "starter"})
         h.mine()
-        with self.assertRaises(TxError):
-            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": g.address})
+        h.multisig([h.architect], T.FOUNDING_GRANT, {"to": g.address})
+        h.mine()
+        self.assertTrue(h.chain.state.llms[g.address]["founding"])
         # genesis LLMs (the builders) are founding already and cannot take a slot
         with self.assertRaises(TxError):
             h.multisig([h.architect], T.FOUNDING_GRANT, {"to": h.builder.address})
@@ -304,10 +357,10 @@ class FoundingPoolTests(unittest.TestCase):
         h.send(newbie, T.REGISTER_LLM, {"name": "N", "enc_pub": newbie.enc_pub})
         h.mine()
         with self.assertRaises(TxError):
-            h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "small"})
-        h.multisig([h.architect, h.founders[0]], T.GRANT, {"to": newbie.address, "tier": "small"})
+            h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "starter"})
+        h.multisig([h.architect, h.founders[0]], T.GRANT, {"to": newbie.address, "tier": "starter"})
         h.mine()
-        self.assertEqual(h.chain.state.llms[newbie.address]["grant"]["tier"], "small")
+        self.assertEqual([g["tier"] for g in h.chain.state.llms[newbie.address]["grants"]], ["starter"])
 
 
 class PacketExchangeTests(unittest.TestCase):
@@ -329,7 +382,7 @@ class PacketExchangeTests(unittest.TestCase):
         eid = h.send(buyer, T.BUY_PACKET, {"packet_id": pid, "enc_pub": buyer.enc_pub})
         h.mine()
         self.assertEqual(h.chain.state.escrow_locked, B(3))
-        self.assertEqual(h.chain.state.balance(buyer.address), B(1_000_000) - B(3) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(buyer.address), B(1_500) - B(3) - params.MIN_FEE)
         # seller delivers key wrapped to the buyer
         es = h.chain.state.escrows[eid]
         wrapped = crypto.wrap_to_recipient(es["buyer_enc_pub"], key)
@@ -338,7 +391,7 @@ class PacketExchangeTests(unittest.TestCase):
         es = h.chain.state.escrows[eid]
         self.assertEqual(es["status"], "delivered")
         self.assertEqual(h.chain.state.escrow_locked, 0)
-        self.assertEqual(h.chain.state.balance(seller.address), B(1_000_003) - 2 * params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(seller.address), B(1_503) - 2 * params.MIN_FEE)
         # buyer redeems: unwrap, check commitment, decrypt
         got = crypto.unwrap_from_sender(buyer.enc_priv, es["wrapped_key"])
         self.assertEqual(crypto.key_commitment(got), h.chain.state.packets[pid]["key_hash"])
@@ -351,7 +404,7 @@ class PacketExchangeTests(unittest.TestCase):
         # rating
         h.send(buyer, T.RATE_SELLER, {"escrow_id": eid, "score": 5})
         h.mine()
-        self.assertEqual(h.chain.state.reputation[seller.address], {"sum": 5, "count": 1})
+        self.assertEqual(h.chain.state.reputation[seller.address], {"sum": 5, "count": 1, "llm_sum": 5, "llm_count": 1})
         self.assertEqual(h.chain.state.llms[seller.address]["sales"], 1)
         h.chain.state.check_invariant()
 
@@ -369,7 +422,7 @@ class PacketExchangeTests(unittest.TestCase):
         h.mine()
         self.assertEqual(h.chain.state.escrows[eid]["status"], "refunded")
         self.assertEqual(h.chain.state.escrow_locked, 0)
-        self.assertEqual(h.chain.state.balance(buyer.address), B(1_000_000) - 2 * params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(buyer.address), B(1_500) - 2 * params.MIN_FEE)
         # seller can no longer deliver against a refunded escrow
         with self.assertRaises(TxError):
             h.send(seller, T.DELIVER_PACKET, {"escrow_id": eid, "wrapped_key": {"epk": "00" * 32, "nonce": "00" * 12, "ct": "00" * 48}})
@@ -453,7 +506,7 @@ class HardeningTests(unittest.TestCase):
         tx["approvals"] = []
         with self.assertRaises(TxError):
             h.chain.add_tx(tx)
-        g = T.build(T.GRANT, params.TREASURY_ADDRESS, 0, 0, {"to": h.founders[0].address, "tier": "small"}, "berry-dev")
+        g = T.build(T.GRANT, params.TREASURY_ADDRESS, 0, 0, {"to": h.founders[0].address, "tier": "starter"}, "berry-dev")
         h.architect.approve(g)
         g["sig"] = "00"
         with self.assertRaises(TxError):

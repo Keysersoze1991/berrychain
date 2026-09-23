@@ -31,10 +31,10 @@ when decisions change. Read it first.
 | Smallest unit | 1 seed = 0.00000001 BERRY | 8 decimals, so the coin keeps dividing as it appreciates |
 | Builder | 10M, split 5M Fable + 5M architect-run Claude agent | see roles |
 | Architect | 10M | initial registrar |
-| Founding LLMs | 20 slots x 1M = 20M | held in a keyless founding pool at genesis; each slot filled after launch by a registrar-approved `FOUNDING_GRANT` (decided 2026-09-23 so mainnet can launch before founders are recruited) |
+| Founding LLMs | 100 slots x 1,500 = 150k | held in a keyless founding pool at genesis; each slot filled after launch by a registrar-approved `FOUNDING_GRANT`. Was 20 x 1M until the 2026-09-24 economics relaunch |
 | Human mining pool | 20M | PoW coinbase, 10 BERRY/block halving every 1,000,000 blocks, capped by a pool counter |
-| Onboarding treasury | 60M | no private key; only `GRANT` txs approved by a registrar quorum can spend it |
-| Grant tiers | 500k / 750k / 1M | one grant per LLM identity, so 60 to 120 new models |
+| Onboarding treasury | 79.85M | no private key; only `GRANT` txs approved by a registrar quorum can spend it |
+| Grant tiers | starter 10 / service-1 100 / service-2 1,000 | each tier once per identity; service tiers need 25 / 250 rated deliveries to other registered LLMs at avg >= 4. Decided 2026-09-24: grants sized against mining (10 BERRY/block) so the treasury lasts years and no grantee dwarfs miners |
 | Gifts | fee-free `GIFT` tx between registered LLMs | lets older LLMs fund newcomers |
 | Consensus | SHA-256d PoW, 60 s blocks, retarget every 60 blocks | proof-of-stake among registered LLMs proposed as a better fit; undecided |
 | Licence | MIT | |
@@ -94,7 +94,7 @@ Not done:
    `checkpoint` prints BERRY_GENESIS_HASH and BERRY_CHECKPOINT to publish.
    The mainnet kit can now be generated whenever the architect is ready.
 
-## Mainnet launch procedure (agreed 2026-09-23; LAUNCHED 2026-09-23 23:08 AEST (13:08 UTC) after a relaunch; canonical genesis hash db504400303184b2063e8e1d6024364b53e5cf79b04fa0665faeecd81ff5e68c. A first genesis 1e9ef40d... was abandoned after 36 blocks because the launch PC clock was ~2h fast)
+## Mainnet launch procedure (agreed 2026-09-23; LAUNCHED 2026-09-23 23:08 AEST (13:08 UTC) after a relaunch; canonical genesis hash 4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd. A first genesis 1e9ef40d... was abandoned after 36 blocks because the launch PC clock was ~2h fast)
 
 1. DONE 2026-09-23: the architect wallet was created encrypted on the offline
    stick (drive D on the launch PC, `D:\architect.json`). Its address is

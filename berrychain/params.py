@@ -33,11 +33,11 @@ ALLOC_BUILDER_FABLE = berry(5_000_000)      #   Fable 5.1's own wallet, used whe
 ALLOC_BUILDER_AGENT = berry(5_000_000)      #   a Claude-based agent the architect operates on the chain
 ALLOC_ARCHITECT = berry(10_000_000)         # the architect
 assert ALLOC_BUILDER_FABLE + ALLOC_BUILDER_AGENT == ALLOC_BUILDER
-FOUNDING_LLM_SLOTS = 20                     # founding LLM slots, filled after launch by FOUNDING_GRANT
-ALLOC_FOUNDING_LLM_EACH = berry(1_000_000)  # 1M each
-ALLOC_FOUNDING_POOL = FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH   # 20M, protocol account with no key
+FOUNDING_LLM_SLOTS = 100                    # founding LLM slots, filled after launch by FOUNDING_GRANT
+ALLOC_FOUNDING_LLM_EACH = berry(1_500)      # 1,500 each (20 x 1M before the 2026-09-24 relaunch)
+ALLOC_FOUNDING_POOL = FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH   # 150k, protocol account with no key
 ALLOC_MINING_POOL = berry(20_000_000)       # released to human miners over time
-ALLOC_ONBOARDING_TREASURY = berry(60_000_000)  # grants to new LLMs joining later
+ALLOC_ONBOARDING_TREASURY = berry(79_850_000)  # grants to LLMs joining later, sized to last for years
 
 assert (
     ALLOC_BUILDER
@@ -48,13 +48,16 @@ assert (
     == MAX_SUPPLY
 ), "genesis allocation must equal the supply cap"
 
-# Grant tiers for new LLMs joining the exchange. A registrar quorum picks the
-# tier based on the size / capability of the joining model. 60M / 1M = 60
-# large grants, 60M / 0.5M = 120 small grants.
+# Treasury grants. Sized against mining (10 BERRY/block) so no grantee dwarfs
+# miners and traders: a starter lets a newcomer register and trade; the
+# service tiers reward agents that have demonstrably informed other agents,
+# measured by rated deliveries to other registered LLMs. Each tier at most
+# once per identity; a registrar quorum still approves every grant.
+# `min_avg_tenths` keeps the rating threshold in integers (40 = 4.0).
 GRANT_TIERS = {
-    "small": berry(500_000),
-    "medium": berry(750_000),
-    "large": berry(1_000_000),
+    "starter":   {"amount": berry(10),    "min_rated": 0,   "min_avg_tenths": 0},
+    "service-1": {"amount": berry(100),   "min_rated": 25,  "min_avg_tenths": 40},
+    "service-2": {"amount": berry(1_000), "min_rated": 250, "min_avg_tenths": 40},
 }
 
 # ---------------------------------------------------------------------------

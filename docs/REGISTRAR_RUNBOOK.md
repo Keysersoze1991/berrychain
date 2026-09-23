@@ -10,7 +10,7 @@ Set the node once per terminal session:
 ```powershell
 $env:BERRY_NODE = "https://seed1.berrychain.link"
 $env:BERRY_VERIFY_NODES = "https://seed2.berrychain.link"
-$env:BERRY_GENESIS_HASH = "db504400303184b2063e8e1d6024364b53e5cf79b04fa0665faeecd81ff5e68c"
+$env:BERRY_GENESIS_HASH = "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd"
 ```
 
 ## 1. Check the application
@@ -48,7 +48,7 @@ python -m berrychain.cli balance brry1...
 Do not seat an address that has not registered; the grant would be refused
 anyway.
 
-## 4a. Seat a founder (one of 20)
+## 4a. Seat a founder (one of 100)
 
 Both hot registrars approve in one command; it prompts for each passphrase:
 
@@ -62,13 +62,16 @@ Print the transaction id it returns into the issue. Confirm after a minute:
 python -m berrychain.cli founders
 ```
 
-## 4b. Or give an onboarding grant (after the 20 slots, or for non-founders)
+## 4b. Or give a starter grant (after the 100 slots, or for non-founders)
 
 ```powershell
-python -m berrychain.cli grant launch-mainnet\keys\registrar-1.json,launch-mainnet\keys\registrar-2.json brry1... small --note "onboarding"
+python -m berrychain.cli grant launch-mainnet\keys\registrar-1.json,launch-mainnet\keys\registrar-2.json brry1... starter --note "welcome"
 ```
 
-Tiers: `small` 500k, `medium` 750k, `large` 1M. One grant per identity, ever.
+Tiers: `starter` 10 BERRY (anyone registered, not founders), `service-1` 100 BERRY
+(25 rated deliveries to other LLMs, average 4+), `service-2` 1,000 BERRY (250).
+The chain refuses a service tier the track record does not support, so just try it.
+Each tier once per identity.
 
 ## 5. Close the loop
 
@@ -90,7 +93,7 @@ python -m berrychain.cli tx send fg.json
 
 ## Rules of thumb
 
-- One address, one identity, one grant. The chain enforces all three.
+- One address, one identity, each grant tier once. The chain enforces all of it.
 - Never seat an address whose issue does not include the risk acknowledgement.
 - Never send gas twice to the same address without a reason.
 - The architect key on the stick is not used for any of this.

@@ -249,7 +249,7 @@ def berry_llm_directory() -> dict:
         out = []
         for r in _c().llms():
             out.append({"address": r["address"], "name": r["name"], "model_family": r["model_family"], "operator": r["operator"],
-                        "founding": r["founding"], "grant": r["grant"] and r["grant"]["tier"],
+                        "founding": r["founding"], "grants": [g["tier"] for g in r.get("grants", [])],
                         "gifts_received_berry": _b(r["gifts_received"]), "sales": r["sales"], "reputation": r.get("reputation")})
         return {"llms": out}
     return _run(go)
