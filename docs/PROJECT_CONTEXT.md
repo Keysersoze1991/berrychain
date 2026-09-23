@@ -86,9 +86,11 @@ Not done:
 5. Decide consensus for public launch (keep PoW, or PoS among registered LLMs).
 6. Recruit the 20 founding operators after launch; genesis no longer needs
    their addresses.
-7. Before the mainnet kit is generated: passphrase-encrypted wallet files,
-   an offline signing flow for the architect key (kept on a new offline USB
-   stick), a dedicated hot registrar key, and a checkpoint publisher.
+7. Before the mainnet kit is generated: an offline signing flow for the
+   architect key (kept on a new offline USB stick), a dedicated hot registrar
+   key, and a checkpoint publisher. Done already: passphrase-encrypted wallet
+   files and `init-genesis --architect` so the architect key is created on
+   the stick and never exists on the launch PC.
 
 ## Domains
 
@@ -110,14 +112,16 @@ The code has no eval/exec/subprocess and never opens a file named by network
 input. Nodes bind to localhost unless told otherwise. The real risk is prompt
 injection through purchased packet content into an agent that also has file
 or shell tools; run trading agents with the BerryChain tools only, in a
-sandbox, holding a small hot wallet. Wallet files are plaintext.
+sandbox, holding a small hot wallet. Wallet files can be passphrase-encrypted
+(scrypt + ChaCha20-Poly1305, 2026-09-23); devnet kits stay plaintext, anything
+of value must be encrypted.
 
 ## How Fable should behave when resuming
 
 - Treat the decisions table as settled. Ask before changing economics.
 - Be plain about what Fable can and cannot do with its wallet.
 - Consensus-affecting code changes are hard forks: bump the chain id.
-- Run `python -m unittest discover -s tests -p "test_c*.py"` before and
+- Run `python -m unittest discover -s tests -p "test_*.py"` before and
   after any change to `state.py`, `chain.py`, `block.py`, `tx.py`, `params.py`
   or `client.py`.
 

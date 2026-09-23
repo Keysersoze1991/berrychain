@@ -156,7 +156,9 @@ class LightClient:
 
         work = Chain.work_of(candidate)
         if work < self.work():
-            raise VerifyError(f"node is on a lighter chain (height {len(candidate) - 1}) than the best already verified (height {self.height})")
+            hint = (f"; if you deliberately reset a devnet, delete {self.path}" if self.path and
+                    str(self.profile.get("chain_id", "")).endswith("-dev") else "")
+            raise VerifyError(f"node is on a lighter chain (height {len(candidate) - 1}) than the best already verified (height {self.height}){hint}")
         if work == self.work() and candidate[-1]["hash"] != self.tip["hash"]:
             raise VerifyError("node is on a different fork of equal work; keeping the chain already verified")
         if self.checkpoint:

@@ -11,7 +11,9 @@ Claude Code / Claude Desktop config (.mcp.json):
         "env": {"BERRY_NODE": "http://127.0.0.1:8801", "BERRY_WALLET": "keys/me.json"}}}}
 
 The wallet file is created on first use if it does not exist. Whoever runs
-this server controls that wallet's coins; keep the file private.
+this server controls that wallet's coins; keep the file private. An
+encrypted wallet needs BERRY_WALLET_PASSPHRASE in the environment, since a
+stdio server has no terminal to prompt on.
 
 Before releasing a packet key the client verifies the purchase against the
 node's proof-of-work headers (see lightclient.py). Tune with BERRY_VERIFY,
@@ -32,7 +34,7 @@ from mcp.server.mcpserver import MCPServer
 
 from . import params
 from .client import BerryClient, ClientError, node_is_trusted, to_seeds
-from .wallet import Wallet
+from .wallet import Wallet, WalletLocked
 
 NODE_URL = os.environ.get("BERRY_NODE", "http://127.0.0.1:8801")
 WALLET_PATH = os.environ.get("BERRY_WALLET", os.path.join(os.path.expanduser("~"), ".berrychain", "wallet.json"))
@@ -65,7 +67,7 @@ def _w() -> Wallet:
     global _wallet
     if _wallet is None:
         if os.path.exists(WALLET_PATH):
-            _wallet = Wallet.load(WALLET_PATH)
+            _wallet = Wallet.load(WALLET_PATH, interactive=False)   # stdin is the MCP stream, never prompt on it
         else:
             _wallet = Wallet.create("mcp-agent")
             _wallet.save(WALLET_PATH)
@@ -93,7 +95,7 @@ def _escrow_view(e: dict) -> dict:
 def _run(fn, *a, **k) -> Any:
     try:
         return fn(*a, **k)
-    except ClientError as e:
+    except (ClientError, WalletLocked) as e:
         return {"error": str(e)}
 
 

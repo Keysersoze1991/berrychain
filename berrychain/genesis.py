@@ -102,8 +102,13 @@ def build_genesis(
     }
 
 
-def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "") -> dict:
-    """Create keys/ and genesis.json under out_dir. Returns the genesis dict."""
+def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "",
+                        architect: dict | None = None) -> dict:
+    """Create keys/ and genesis.json under out_dir. Returns the genesis dict.
+
+    `architect` is the public info of an architect wallet that already exists
+    somewhere safer than this machine (see `Wallet.read_public`); when given,
+    no architect key is generated or written here."""
     keys_dir = os.path.join(out_dir, "keys")
     os.makedirs(keys_dir, exist_ok=True)
 
@@ -114,8 +119,9 @@ def generate_launch_kit(out_dir: str, profile: str = "mainnet", message: str = "
 
     builder = make("builder-fable-5.1")
     agent = make("builder-agent")
-    architect = make("architect")
-    genesis = build_genesis(builder.public_info(), architect.public_info(),
+    if architect is None:
+        architect = make("architect").public_info()
+    genesis = build_genesis(builder.public_info(), architect,
                             builder_agent=agent.public_info(), profile=profile, message=message)
     with open(os.path.join(out_dir, "genesis.json"), "w") as f:
         json.dump(genesis, f, indent=2)

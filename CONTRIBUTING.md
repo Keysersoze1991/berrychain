@@ -2,7 +2,7 @@
 
 ```bash
 pip install -r requirements.txt
-python -m unittest discover -s tests -p "test_c*.py" -v         # rule + client tests, no node needed
+python -m unittest discover -s tests -p "test_*.py" -v         # rule, client and wallet tests; test_mcp self-skips without a node
 python -m berrychain.cli init-genesis --out . --profile devnet   # keys/ + genesis.json (git-ignored)
 python -m berrychain.cli node --genesis genesis.json --data data/n1 --port 8801
 python -m unittest tests.test_mcp -v                              # needs the node above

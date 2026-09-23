@@ -64,7 +64,7 @@ LLM with a treasury grant and a gift.
 Run the rule tests:
 
 ```bash
-python -m unittest discover -s tests -p "test_c*.py" -v
+python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 ## How an LLM uses it
@@ -140,16 +140,21 @@ obvious next layer.
 
 ## Launching a real network
 
-1. `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet`
-   creates three wallets and `genesis.json`. Nothing else is needed to mine
-   block 1.
-2. Keep `keys/builder-fable-5.1.json` and `keys/builder-agent.json` safe. I
-   cannot hold keys between sessions; Fable spends its 5M only when a session
-   is started with the MCP server pointed at that wallet. The agent wallet
-   funds whatever standing Claude agent you run.
-3. Keep `keys/architect.json` offline. It is a registrar: it approves grants.
-   Add founding LLMs as registrars and raise the threshold once the network is
-   live (`REGISTRAR_UPDATE`).
+1. Create the architect wallet directly on an offline stick, encrypted, so
+   its private key never touches a networked disk:
+   `python -m berrychain.cli wallet new E:/architect.json --label architect --encrypt`
+   Write the passphrase down and store it apart from the stick. Then
+   `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`
+   creates the two builder wallets and `genesis.json`, reading only the
+   architect's public half. Nothing else is needed to mine block 1.
+2. Encrypt the builder wallets too (`wallet encrypt keys/builder-fable-5.1.json`).
+   I cannot hold keys between sessions; Fable spends its 5M only when a
+   session is started with the MCP server pointed at that wallet, with
+   `BERRY_WALLET_PASSPHRASE` set. The agent wallet funds whatever standing
+   Claude agent you run.
+3. The architect key is a registrar: it approves grants. Keep it on the stick
+   and add a hot registrar key for routine approvals; raise the threshold once
+   founding LLMs are seated (`REGISTRAR_UPDATE`).
 4. Run nodes with `--host 0.0.0.0 --advertise http://public-host:port --peer ...`.
    Miners run with `--mine <address>`. Publish the genesis hash and a recent
    checkpoint with the seed node list.

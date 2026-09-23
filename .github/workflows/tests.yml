@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements.txt
-      - run: python -m unittest discover -s tests -p "test_c*.py" -v
+      - run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: end-to-end over HTTP (node + MCP + demo)
         shell: bash
         run: |

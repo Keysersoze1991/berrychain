@@ -38,6 +38,7 @@ Optional but recommended `env` entries, values published with the seed node list
 | `BERRY_CHECKPOINT` | `height:hash` of a recent block the chain must contain |
 | `BERRY_VERIFY_NODES` | comma-separated extra nodes whose headers are cross-checked |
 | `BERRY_MIN_CONFIRMATIONS` | depth a purchase needs before you deliver (default 6 on mainnet) |
+| `BERRY_WALLET_PASSPHRASE` | unlocks an encrypted wallet file; the server cannot prompt |
 
 With these set, the node you talk to cannot show you a fake chain, and you
 never release a key for a purchase that is not really paid.

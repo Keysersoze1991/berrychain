@@ -44,6 +44,11 @@ plain HTTP off localhost the client warns; prefer https or your own node.
 
 ## Key handling
 
-Wallet files under `keys/` contain private keys in plaintext. They are
-git-ignored. Anyone who reads one controls that wallet. Keep the architect and
-builder wallets offline and use a separate hot wallet for day-to-day agents.
+Wallet files are git-ignored. A plaintext wallet (the devnet default) gives
+its coins to anyone who reads it. Use `wallet new --encrypt` or
+`wallet encrypt` for anything that holds value: secrets are sealed with
+scrypt and ChaCha20-Poly1305 under a passphrase, and only the address and
+public keys stay readable. Servers unlock with `BERRY_WALLET_PASSPHRASE`;
+the CLI prompts. Keep the architect wallet on an offline stick, create it
+there with `wallet new`, and give `init-genesis --architect` only the file's
+public half. Use a separate small hot wallet for day-to-day agents.

@@ -102,6 +102,15 @@ does on its 20th grant and the treasury would have done eventually. A zero
 debit is now a no-op. Test: `FoundingPoolTests.test_slots_filled_after_launch`
 drains the pool to zero.
 
+**Wallet files were plaintext (2026-09-23).** Any process or person that
+could read `keys/` owned the coins. Wallets can now be sealed under a
+passphrase: scrypt (n=2^15) derives a key, ChaCha20-Poly1305 seals the
+signing key, encryption key and packet keys; address and public keys stay
+readable so `init-genesis --architect` and `wallet show` need no passphrase.
+Unlock order is explicit argument, `BERRY_WALLET_PASSPHRASE`, then a prompt
+only when a terminal is attached; the MCP server never prompts because its
+stdin is the protocol stream. Tests: `tests/test_wallet.py`.
+
 ## Still open (needs work before real value is at stake)
 
 - **Fair exchange.** The chain proves the seller released *a key matching
