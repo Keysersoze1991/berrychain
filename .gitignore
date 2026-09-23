@@ -13,3 +13,6 @@ data/
 
 __pycache__/
 *.pyc
+
+# git bundle used to ship the private repo to seed servers
+*.bundle

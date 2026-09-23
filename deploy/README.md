@@ -74,3 +74,21 @@ bash /opt/berrychain/deploy/install.sh   # same env vars; pulls, reinstalls, res
 
 Consensus changes are hard forks and need a chain id bump; do not roll
 those out this way.
+
+## While the repository is private
+
+The installer clones with git. Until the repo is public, ship it as a git
+bundle instead of giving the servers GitHub credentials:
+
+```bash
+git bundle create berrychain.bundle main            # on the launch PC
+scp berrychain.bundle root@seed1.berrychain.link:/root/
+```
+
+then on the server pass the bundle as the repository:
+
+```bash
+REPO=/root/berrychain.bundle SEED_HOST=seed1.berrychain.link ... bash install.sh
+```
+
+Re-running the installer with a fresh bundle updates the code the same way.
