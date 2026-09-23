@@ -508,5 +508,20 @@ class ConsensusTests(unittest.TestCase):
         self.assertGreaterEqual(t1, t0)
 
 
+
+
+class MinerTests(unittest.TestCase):
+    def test_retries_do_not_repeat_the_same_nonces(self):
+        """With a pinned timestamp every template is identical; a miner that
+        restarted from nonce 0 would search the same range forever."""
+        h = Harness(founders=False)
+        found = None
+        for _ in range(400):                              # 1 hash per round, ~1/16 chance each on devnet
+            found = h.chain.mine_block(h.miner.address, max_iters=1, timestamp=h.t + 1)
+            if found:
+                break
+        self.assertIsNotNone(found)
+
+
 if __name__ == "__main__":
     unittest.main()

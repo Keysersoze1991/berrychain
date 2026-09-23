@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import threading
 import time
 
@@ -300,7 +301,11 @@ class Chain:
                 cb = T.coinbase(h, miner, self.subsidy(h, st) + fees, self.profile["chain_id"])
             finally:
                 st.rollback()
-            return B.make_block(h, self.tip["hash"], ts, self.target_for_height(h), [cb] + chosen)
+            # Start the nonce search at a random point. A miner whose clock is
+            # behind the chain gets the same minimum timestamp on every
+            # template; starting from 0 each time would retry the same nonces.
+            return B.make_block(h, self.tip["hash"], ts, self.target_for_height(h), [cb] + chosen,
+                                nonce=random.getrandbits(48))
 
     def mine_block(self, miner: str, max_iters: int | None = None, should_stop=None, timestamp: int | None = None) -> dict | None:
         blk = self.block_template(miner, timestamp)

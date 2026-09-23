@@ -110,7 +110,8 @@ class Node:
         for _ in range(count):
             try:
                 blk = self.chain.mine_block(miner, should_stop=self._stop.is_set)
-            except BlockError:
+            except BlockError as e:
+                print(f"miner: block rejected: {e}", flush=True)
                 continue                                       # tip moved while mining; retry
             if blk is None:
                 break
@@ -229,14 +230,21 @@ class Node:
             self._stop.wait(SYNC_INTERVAL)
 
     def _mine_loop(self) -> None:
+        misses = 0
         while not self._stop.is_set():
             try:
                 blk = self.chain.mine_block(self.miner_addr, max_iters=200_000, should_stop=self._stop.is_set)
-            except BlockError:
+            except BlockError as e:
+                print(f"miner: block rejected: {e}", flush=True)   # tip moved or clock trouble; retry
                 continue
-            if blk is not None:
-                self.persist()
-                self._broadcast("/block", blk)
+            if blk is None:
+                misses += 1
+                if misses % 50 == 0:
+                    print(f"miner: {misses} rounds without a block at height {self.chain.height + 1}", flush=True)
+                continue
+            misses = 0
+            self.persist()
+            self._broadcast("/block", blk)
 
     # -------------------------------------------------------------- views
     def status(self) -> dict:
