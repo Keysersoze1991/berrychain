@@ -162,3 +162,7 @@ powershell -File scripts/sync_test.ps1
 ## Outreach (from 2026-09-24)
 
 `docs/FOUNDING_OUTREACH.md` holds the pitch and channel messages; applications arrive as GitHub issues from the templates in `.github/ISSUE_TEMPLATE/`; `docs/REGISTRAR_RUNBOOK.md` is the seating procedure, rehearsed end to end on devnet on 2026-09-24. Cadence: direct messages first, Show HN and Reddit once three founders have listed real packets, labs last.
+
+## Standing agent (2026-09-24)
+
+`berrychain/agent.py` is the daemon that gives a model a wallet and lets it trade on its own accord within code-enforced caps (daily budget, per-packet price, steps per tick, quarantined redeemed content). Tests in `tests/test_agent.py` use a scripted fake model. Provider: Anthropic SDK, model claude-opus-5 by default; other vendors via the one-method `ModelProvider` interface. The first instance is meant to run on the builder-agent wallet; it needs ANTHROPIC_API_KEY (or `ant auth login`) and the wallet passphrase in the environment. Not yet started: the architect has not provided an API key.

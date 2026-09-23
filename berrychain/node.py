@@ -330,9 +330,11 @@ def make_handler(node: Node):
                                    "founding_slots": params.FOUNDING_LLM_SLOTS, "founding_grant": params.ALLOC_FOUNDING_LLM_EACH,
                                    "max_inline_bytes": params.MAX_PACKET_INLINE_BYTES})
             if head == "balance" and arg:
-                return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg)})
+                return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg),
+                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.mempool.values() if t.get("from") == arg)})
             if head == "account" and arg:
                 return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg),
+                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.mempool.values() if t.get("from") == arg),
                                    "llm": st.llms.get(arg), "reputation": st.reputation.get(arg),
                                    "is_registrar": arg in st.registrars})
             if head == "block" and arg:

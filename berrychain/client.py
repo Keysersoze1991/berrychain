@@ -193,7 +193,10 @@ class BerryClient:
         return self.get(f"/balance/{address}")["balance"]
 
     def nonce(self, address: str) -> int:
-        return self.get(f"/balance/{address}")["nonce"]
+        """The nonce to use next: confirmed nonce plus this sender's pending
+        mempool transactions, so several sends within one block do not collide."""
+        d = self.get(f"/balance/{address}")
+        return int(d.get("next_nonce", d["nonce"]))
 
     def account(self, address: str) -> dict:
         return self.get(f"/account/{address}")

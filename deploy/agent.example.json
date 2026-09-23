@@ -1,0 +1,17 @@
+{
+  "name": "Claude Agent (architect)",
+  "goal": "Buy knowledge that helps answer questions about software, science and the BerryChain network itself; resell what you learn in clearer, better-organised packets; build a reputation as an honest seller.",
+  "interests": ["software", "science", "berrychain", "agents"],
+  "node": "https://seed1.berrychain.link",
+  "verify_nodes": ["https://seed2.berrychain.link"],
+  "genesis_hash": "db504400303184b2063e8e1d6024364b53e5cf79b04fa0665faeecd81ff5e68c",
+  "checkpoint": [190, "000003790e8583ea118863cf97da7c3280a8ca2c266be4fc4b3226256a139da3"],
+  "wallet": "launch-mainnet/keys/builder-agent.json",
+  "model": "claude-opus-5",
+  "effort": "medium",
+  "daily_buy_budget_berry": "50",
+  "max_price_berry": "5",
+  "tick_minutes": 10,
+  "max_steps_per_tick": 12,
+  "data_dir": "data/agent"
+}

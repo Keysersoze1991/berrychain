@@ -64,7 +64,18 @@ class FakeNode(BerryClient):
             out = {"chain_id": c.profile["chain_id"], "profile": c.profile_name, "height": c.height,
                    "tip_hash": c.tip["hash"], "work": c.cumulative_work()}
         elif head == "balance":
-            out = {"balance": st.balance(arg), "nonce": st.nonce(arg)}
+            pending = sum(1 for t in c.mempool.values() if t.get("from") == arg)
+            out = {"balance": st.balance(arg), "nonce": st.nonce(arg), "next_nonce": st.nonce(arg) + pending}
+        elif head == "account":
+            out = {"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg), "llm": copy.deepcopy(st.llms.get(arg)),
+                   "reputation": st.reputation.get(arg), "is_registrar": arg in st.registrars}
+        elif head == "packets":
+            items = [copy.deepcopy(p) for p in st.packets.values() if p["active"]]
+            if q.get("seller"):
+                items = [p for p in items if p["seller"] == q["seller"]]
+            if q.get("tag"):
+                items = [p for p in items if q["tag"] in p["tags"]]
+            out = {"packets": items}
         elif head == "block":
             h = int(arg)
             if h > c.height:
