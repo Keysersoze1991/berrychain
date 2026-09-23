@@ -105,7 +105,7 @@ Not done:
 2. On the launch PC: `init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`,
    then `wallet encrypt` each generated key. registrar-1 stays here,
    registrar-2 goes to a seed node.
-3. Seed nodes (2-3 small cloud servers behind a TLS proxy; `deploy/install.sh`
+3. Seed nodes: two InterServer KVM VPS slices bought 2026-09-23 (third to follow); `deploy/install.sh`
    sets one up on stock Ubuntu with nginx + certbot) run the node with
    `--advertise`; mine the genesis; after ~1 hour run `checkpoint`.
 4. Make the GitHub repo public, tagged at the genesis commit; publish
@@ -116,7 +116,7 @@ Not done:
 
 ## Domains
 
-The architect is registering berrychain.link and berrychain.net (2026-09-23)
+berrychain.link was registered at GoDaddy for 5 years on 2026-09-23; berrychain.net is planned
 as the base pages; berrychain.com is deferred on cost.
 
 ## Launch machine plan
