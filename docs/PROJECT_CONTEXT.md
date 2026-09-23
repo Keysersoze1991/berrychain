@@ -76,7 +76,7 @@ Done and verified:
   node list at launch.
 
 Not done:
-1. Push to the architect's private GitHub repository (needs their account).
+1. Done 2026-09-23: pushed to the private repo github.com/Keysersoze1991/berrychain; CI green.
 2. Seed nodes on public servers, behind a reverse proxy with TLS and rate
    limiting; a block explorer.
 3. Independent security audit. Nothing of value should sit on the chain
