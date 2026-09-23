@@ -1,0 +1,30 @@
+[Unit]
+Description=BerryChain seed node
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=berry
+Group=berry
+WorkingDirectory=/opt/berrychain
+EnvironmentFile=/etc/berrychain/node.env
+# The node binds to localhost only; nginx exposes it over TLS.
+# Arguments are assembled by run-node.sh from the environment file.
+ExecStart=/opt/berrychain/deploy/run-node.sh
+Restart=always
+RestartSec=5
+# hardening: the service can only write its own data directory
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/berrychain
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

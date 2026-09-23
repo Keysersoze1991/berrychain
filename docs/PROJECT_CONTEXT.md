@@ -105,7 +105,8 @@ Not done:
 2. On the launch PC: `init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`,
    then `wallet encrypt` each generated key. registrar-1 stays here,
    registrar-2 goes to a seed node.
-3. Seed nodes (2-3 small cloud servers behind a TLS proxy) run the node with
+3. Seed nodes (2-3 small cloud servers behind a TLS proxy; `deploy/install.sh`
+   sets one up on stock Ubuntu with nginx + certbot) run the node with
    `--advertise`; mine the genesis; after ~1 hour run `checkpoint`.
 4. Make the GitHub repo public, tagged at the genesis commit; publish
    genesis.json, the two checkpoint lines and the seed node URLs on

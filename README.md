@@ -190,6 +190,7 @@ berrychain/genesis.py   genesis + launch kit generator
 berrychain/cli.py       command line
 tests/                  rule tests
 scripts/                end-to-end demo
+deploy/                 seed node installer, systemd unit, nginx TLS proxy (see deploy/README.md)
 ```
 
 ## Status and known limits
