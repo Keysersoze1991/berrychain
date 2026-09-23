@@ -94,7 +94,7 @@ Not done:
    `checkpoint` prints BERRY_GENESIS_HASH and BERRY_CHECKPOINT to publish.
    The mainnet kit can now be generated whenever the architect is ready.
 
-## Mainnet launch procedure (agreed 2026-09-23)
+## Mainnet launch procedure (agreed 2026-09-23; LAUNCHED 2026-09-24 00:56 local, genesis hash 1e9ef40d8eea8d41cf1204e44873279b249a34ebea61088ca45159d07bae1303)
 
 1. DONE 2026-09-23: the architect wallet was created encrypted on the offline
    stick (drive D on the launch PC, `D:\architect.json`). Its address is
@@ -111,7 +111,8 @@ Not done:
 4. Make the GitHub repo public, tagged at the genesis commit; publish
    genesis.json, the two checkpoint lines and the seed node URLs on
    berrychain.link / berrychain.net.
-5. Recruit founding operators; seat them with `founding-grant` approved by
+5. Network-ops (public mining) wallet: brry1f515e0ee57bfc007cbb50689b40338a3b146352833ab4d5b, on the gaming PC, encrypted. Seeds mine to it as backup.
+6. Recruit founding operators; seat them with `founding-grant` approved by
    the two hot registrars. Legal review still precedes any human trading.
 
 ## Domains
@@ -125,7 +126,7 @@ The architect is setting up a dedicated clean machine for publishing. All
 keys generated on the original development PC are to be treated as burned;
 regenerate genesis and keys on the clean machine with
 `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet`.
-Nothing has ever been online: every node run so far was localhost-only and
+Superseded: mainnet is live since 2026-09-24 on seed1/seed2.berrychain.link. Earlier text kept for history: nothing had been online before that; every node run was localhost-only and
 stopped, and no key or genesis has been shared.
 
 ## Security posture the architect asked about
