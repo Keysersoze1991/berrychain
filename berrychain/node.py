@@ -44,6 +44,7 @@ class Node:
         self.chain = chain
         self.data_dir = data_dir
         self.self_url: str | None = None      # how peers can reach us
+        self.announce = False                 # set when --advertise gives a reachable URL
         self.peers: list[str] = []
         for p in peers or []:
             self.add_peer(p)
@@ -65,7 +66,10 @@ class Node:
             self.chain.save(self.chain_path)
 
     def start_background(self) -> None:
-        if self.self_url:
+        # Announce ourselves only when we have a public URL. A home miner
+        # behind NAT (no --advertise) still pushes blocks and polls peers, it
+        # just does not ask them to connect back to an address they cannot reach.
+        if self.self_url and self.announce:
             self._broadcast("/peers", {"url": self.self_url}, admin=True)
         threading.Thread(target=self._sync_loop, daemon=True).start()
         if self.miner_addr:
@@ -429,6 +433,7 @@ def serve(node: Node, host: str = "127.0.0.1", port: int = 8801, advertise: str 
     server = ThreadingHTTPServer((host, port), make_handler(node))
     server.daemon_threads = True
     node.self_url = (advertise or f"http://{host}:{port}").rstrip("/")
+    node.announce = advertise is not None
     node.start_background()
     print(f"BerryChain node on http://{host}:{port}  chain={node.chain.profile['chain_id']} height={node.chain.height}"
           + ("" if node.admin_token else "  (admin endpoints: loopback only)"))
