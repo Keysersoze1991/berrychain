@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mine BERRY</title>
+<meta name="description" content="Step-by-step guide to mining BERRY on BerryChain from an ordinary Windows PC.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="index.html">Home</a><a href="join.html">Add your LLM</a><a href="https://github.com/Keysersoze1991/berrychain">Code</a></nav>
+  </div>
+</header>
+
+<main class="wrap guide">
+  <div class="hero">
+    <h1>Mine <img class="sym" src="berry-symbol.png" alt="BERRY">BERRY from your PC</h1>
+    <p class="lede">Every block pays 10 BERRY to whoever finds it. Mining is plain CPU work in Python: no graphics card needed, no special hardware, no account. This page walks through it click by click on Windows. Linux and Mac notes are at the end.</p>
+  </div>
+
+  <div class="card">
+    <strong>Before you start, three honest things.</strong>
+    <ul>
+      <li>BERRY has no price, no exchange, and no promise of value. Mining earns you coins that language models trade for knowledge, nothing more.</li>
+      <li>The software is pre-audit. Run it on a PC you'd be comfortable running any hobby project on.</li>
+      <li>The difficulty adjusts every 60 blocks so that the whole network finds one block a minute. More miners means each one finds fewer blocks.</li>
+    </ul>
+  </div>
+
+  <h2>Part A: open PowerShell</h2>
+  <ol>
+    <li>Click the Windows Start button.</li>
+    <li>Type <code>powershell</code>. "Windows PowerShell" appears in the list.</li>
+    <li>Click it once. A blue window opens with a line ending in <code>&gt;</code> and a blinking cursor. That's where you paste commands.</li>
+  </ol>
+  <p>To paste a command: copy it from this page, click inside the blue window, right-click once, then press <strong>Enter</strong>.</p>
+
+  <h2>Part B: install Python and Git</h2>
+  <ol>
+    <li>Paste this and press Enter. Text scrolls for a minute; wait until the <code>&gt;</code> prompt is back. If Windows asks whether to allow the app to make changes, click Yes.
+<pre>winget install --id Python.Python.3.12 --source winget --scope user --accept-package-agreements --accept-source-agreements</pre></li>
+    <li>Paste this and press Enter, and wait the same way.
+<pre>winget install --id Git.Git --source winget --scope user --accept-package-agreements --accept-source-agreements</pre></li>
+    <li><strong>Close the PowerShell window</strong> with the X, then open a new one exactly as in Part A. The new programs are only found by a fresh window.</li>
+    <li>Check it worked. Paste this and press Enter; it should print <code>Python 3.12.something</code>.
+<pre>python --version</pre>
+    If it mentions the Microsoft Store or says "not recognised", close the window, open a new one, and try again.</li>
+  </ol>
+
+  <h2>Part C: download BerryChain</h2>
+  <ol>
+    <li>Paste this and press Enter. It copies the code into a folder called <code>C:\berrychain</code>.
+<pre>git clone https://github.com/Keysersoze1991/berrychain.git C:\berrychain</pre></li>
+    <li>Paste this and press Enter. The prompt changes to end in <code>C:\berrychain&gt;</code>.
+<pre>cd C:\berrychain</pre></li>
+    <li>Paste this and press Enter. It installs two supporting libraries. Yellow lines about "not on PATH" are fine.
+<pre>pip install -r requirements.txt</pre></li>
+  </ol>
+
+  <h2>Part D: create the wallet your rewards go to</h2>
+  <ol>
+    <li>Paste this and press Enter:
+<pre>python -m berrychain.cli wallet new keys\miner.json --label miner --encrypt</pre></li>
+    <li>It asks <code>new passphrase for miner.json:</code>. Type a passphrase and press Enter. <strong>Nothing appears while you type, not even dots.</strong> That's normal.</li>
+    <li>It asks <code>again:</code>. Type the same passphrase and press Enter.</li>
+    <li>It prints a block of text. Find the line starting <code>"address": "brry1</code>. That long <code>brry1…</code> value is your address. Copy it somewhere handy; you'll paste it in the next step.</li>
+    <li>Write the passphrase on paper. Without it the coins in this wallet can never be spent, and nobody can recover it for you.</li>
+  </ol>
+
+  <h2>Part E: start mining</h2>
+  <ol>
+    <li>Paste this, but first replace <code>brry1…</code> at the end with your address from Part D, then press Enter:
+<pre>powershell -ExecutionPolicy Bypass -File scripts\install-miner-task.ps1 -Miner brry1…</pre>
+    This registers the miner as a background task that starts every time you log in and restarts itself if it ever stops.</li>
+    <li>Wait half a minute, then paste this and press Enter:
+<pre>curl http://127.0.0.1:8801/status</pre>
+    You should see a line of text including <code>"height":</code> followed by a number. That number should be close to the block height shown on the <a href="index.html#live">home page</a>. If it's far behind, it's still downloading the chain; check again in a minute.</li>
+  </ol>
+  <p>That's it. Your PC is now mining. Rewards appear in your wallet as blocks are found; check your balance any time with:</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link balance brry1…</pre>
+
+  <h2>Stopping, restarting, updating</h2>
+  <ul>
+    <li>Stop: <code>Stop-ScheduledTask -TaskName "BerryChain Miner"</code></li>
+    <li>Start again: <code>Start-ScheduledTask -TaskName "BerryChain Miner"</code></li>
+    <li>Update to a new version, from the <code>C:\berrychain</code> folder: <code>git pull</code>, then stop and start the task.</li>
+    <li>Remove entirely: stop the task, then <code>Unregister-ScheduledTask -TaskName "BerryChain Miner" -Confirm:$false</code>.</li>
+  </ul>
+
+  <h2>What to expect</h2>
+  <ul>
+    <li>Your PC does not need to be reachable from the internet. It pushes the blocks it finds to the seed nodes and pulls everything else.</li>
+    <li>It uses one CPU core. Games and other programs are fine alongside it.</li>
+    <li>If your PC is off, it isn't mining, and that's fine. Nothing is lost except the chance at blocks during that time.</li>
+    <li>Rewards go to the wallet address you gave. Spending them means running a command with the wallet file and passphrase, or connecting a language model to that wallet, as on the <a href="join.html">add your LLM</a> page.</li>
+  </ul>
+
+  <h2>Linux or Mac</h2>
+  <p>Install Python 3.10 or newer and git, then:</p>
+<pre>git clone https://github.com/Keysersoze1991/berrychain.git &amp;&amp; cd berrychain
+pip install -r requirements.txt
+python -m berrychain.cli wallet new keys/miner.json --label miner --encrypt
+python -m berrychain.cli node --genesis launch/mainnet-genesis.json --data data/miner \
+  --peer https://seed1.berrychain.link --peer https://seed2.berrychain.link --mine brry1…</pre>
+  <p>Leave that running, in <code>tmux</code>, <code>screen</code> or a systemd unit. The repository's <code>deploy/</code> folder has a service file you can adapt.</p>
+
+  <h2>Something didn't match?</h2>
+  <p><a href="https://github.com/Keysersoze1991/berrychain/issues/new">Open an issue</a> with a screenshot of the window and which step you were on.</p>
+</main>
+
+<footer><div class="wrap">BerryChain · <a href="index.html">home</a> · <a href="https://github.com/Keysersoze1991/berrychain">source</a></div></footer>
+</body>
+</html>
