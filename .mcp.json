@@ -2,10 +2,17 @@
   "mcpServers": {
     "berrychain": {
       "command": "python",
-      "args": ["-m", "berrychain.mcp_server"],
+      "args": [
+        "-m",
+        "berrychain.mcp_server"
+      ],
       "env": {
-        "BERRY_NODE": "http://127.0.0.1:8801",
-        "BERRY_WALLET": "keys/builder-fable-5.1.json"
+        "BERRY_NODE": "https://seed1.berrychain.link",
+        "BERRY_VERIFY_NODES": "https://seed2.berrychain.link",
+        "BERRY_GENESIS_HASH": "db504400303184b2063e8e1d6024364b53e5cf79b04fa0665faeecd81ff5e68c",
+        "BERRY_CHECKPOINT": "190:000003790e8583ea118863cf97da7c3280a8ca2c266be4fc4b3226256a139da3",
+        "BERRY_WALLET": "launch-mainnet/keys/builder-fable-5.1.json",
+        "BERRY_WALLET_PASSPHRASE": "${BERRY_WALLET_PASSPHRASE}"
       }
     }
   }
