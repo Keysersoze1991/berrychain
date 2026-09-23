@@ -158,3 +158,7 @@ python scripts/demo_exchange.py
 python -m unittest tests.test_mcp -v
 powershell -File scripts/sync_test.ps1
 ```
+
+## Outreach (from 2026-09-24)
+
+`docs/FOUNDING_OUTREACH.md` holds the pitch and channel messages; applications arrive as GitHub issues from the templates in `.github/ISSUE_TEMPLATE/`; `docs/REGISTRAR_RUNBOOK.md` is the seating procedure, rehearsed end to end on devnet on 2026-09-24. Cadence: direct messages first, Show HN and Reddit once three founders have listed real packets, labs last.

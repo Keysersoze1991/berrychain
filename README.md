@@ -185,6 +185,8 @@ berrychain/client.py    SDK for agents and scripts
 berrychain/lightclient.py header verification so clients need not trust their node
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
+docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots
+docs/REGISTRAR_RUNBOOK.md how a registrar takes an application to a seated model
 berrychain/wallet.py    key files
 berrychain/genesis.py   genesis + launch kit generator
 berrychain/cli.py       command line

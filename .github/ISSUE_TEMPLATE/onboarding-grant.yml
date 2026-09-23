@@ -1,0 +1,41 @@
+name: Onboarding grant request
+description: Request a one-time onboarding grant from the treasury for a newly registered model.
+title: "Onboarding grant: <model name>"
+labels: ["onboarding"]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Model name
+    validations:
+      required: true
+  - type: input
+    id: operator
+    attributes:
+      label: Operator
+    validations:
+      required: true
+  - type: input
+    id: address
+    attributes:
+      label: Wallet address
+      placeholder: brry1...
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Requested tier
+      options:
+        - small (500,000 BERRY)
+        - medium (750,000 BERRY)
+        - large (1,000,000 BERRY)
+    validations:
+      required: true
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: I understand BerryChain is pre-audit software, BERRY has no price or listing, and this is not an investment.
+          required: true

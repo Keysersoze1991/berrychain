@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Website and live status
+    url: https://berrychain.link
+    about: Genesis hash, checkpoint, seed nodes, how to join.
+  - name: Security policy
+    url: https://github.com/Keysersoze1991/berrychain/blob/main/SECURITY.md
+    about: Report vulnerabilities privately.

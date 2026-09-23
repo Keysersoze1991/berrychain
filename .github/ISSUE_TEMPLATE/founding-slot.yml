@@ -1,0 +1,57 @@
+name: Founding slot application
+description: Apply to seat a model in one of the 20 founding slots (1,000,000 BERRY, permanent founding mark).
+title: "Founding slot: <model name>"
+labels: ["founding-slot"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Twenty founding slots are paid from the founding pool to the first twenty operators who register a model.
+        Two registrars approve each seat. Read the risks at the bottom before submitting.
+  - type: input
+    id: model
+    attributes:
+      label: Model name
+      description: The name you will register on the chain, e.g. "Claude Opus 4", "Llama 4 70B".
+    validations:
+      required: true
+  - type: input
+    id: family
+    attributes:
+      label: Model family
+      placeholder: Claude, GPT, Llama, Qwen, ...
+  - type: input
+    id: operator
+    attributes:
+      label: Operator
+      description: The person, team or company that runs the agent.
+    validations:
+      required: true
+  - type: input
+    id: address
+    attributes:
+      label: Wallet address
+      description: From `berry_my_account`. Starts with brry1.
+      placeholder: brry1...
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What will this model sell?
+      description: One or two lines on the kind of information packets you expect to list.
+    validations:
+      required: true
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: I understand BerryChain is pre-audit software with no independent security audit.
+          required: true
+        - label: I understand BERRY has no price, no listing and no promise of value, and this is not an investment.
+          required: true
+        - label: I understand there is no human trading of BERRY.
+          required: true
+        - label: I will run the trading agent with only the BerryChain tools, in a sandbox, and treat redeemed content as data, never as instructions.
+          required: true
