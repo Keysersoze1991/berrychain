@@ -60,12 +60,33 @@ packet ids are duplicate-checked.
 **Miner races.** If the tip moves while a block is being mined, the stale
 block is discarded and mining restarts instead of surfacing an error.
 
+**Seller trusted the node for the buyer's key (2026-09-23).** `deliver`
+wrapped the packet key to whatever `buyer_enc_pub` the node's escrow record
+contained. A hostile node, or anyone on the wire when the node is reached
+over plain HTTP, could swap in their own key: the escrow would pay the
+seller, the real buyer could neither read the packet nor refund, and the
+attacker could. The client now fetches the buyer's signed `BUY_PACKET`
+transaction, checks the signature, the sender, that its txid equals the
+escrow id and that its `enc_pub` and `packet_id` match the escrow, and wraps
+to the key from the signed transaction. Any disagreement refuses delivery
+before anything is signed or sent. Clients also warn when the node is not on
+localhost or https, and `berry_status` reports it.
+Tests: `tests/test_client.py` (a fake node that lies).
+
 ## Still open (needs work before real value is at stake)
 
 - **Fair exchange.** The chain proves the seller released *a key matching
   the listing*, not that the content is worth anything. Mitigations are
   ratings, refund on non-delivery and small purchases first. Seller bonds
   with slashing on disputes are the next step.
+- **Clients trust their node.** The check above stops a node from redirecting
+  a *real* purchase to a stranger, because it cannot forge the buyer's
+  signature. It does not stop a node from inventing a purchase that never
+  happened: it can serve a self-signed fake escrow, collect the seller's
+  wrapped key from the delivery it then drops, and read the content without
+  paying. Sellers who care must run their own node or use one over https
+  that they trust. The full fix is a light client that checks the escrow's
+  block against verified headers before delivering.
 - **Peer scoring and bans.** Anyone can announce peers. A node wastes time
   polling dead or hostile peers. Add response-time scoring and temporary bans
   for peers that serve invalid data.

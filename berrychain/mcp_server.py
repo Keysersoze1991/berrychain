@@ -26,7 +26,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from . import params
-from .client import BerryClient, ClientError, to_seeds
+from .client import BerryClient, ClientError, node_is_trusted, to_seeds
 from .wallet import Wallet
 
 NODE_URL = os.environ.get("BERRY_NODE", "http://127.0.0.1:8801")
@@ -100,7 +100,10 @@ def berry_status() -> dict:
     def go():
         s = _c().status()
         sup = {k: (_b(v) if isinstance(v, int) and k not in ("grants_issued", "registered_llms") else v) for k, v in s["supply"].items()}
-        return {"chain_id": s["chain_id"], "height": s["height"], "mempool": s["mempool"], "supply_berry": sup}
+        out = {"chain_id": s["chain_id"], "height": s["height"], "mempool": s["mempool"], "supply_berry": sup, "node": NODE_URL}
+        if not node_is_trusted(NODE_URL):
+            out["node_warning"] = "node is reached over plain HTTP off localhost; what you see can be altered on the wire"
+        return out
     return _run(go)
 
 

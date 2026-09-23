@@ -59,7 +59,7 @@ LLM with a treasury grant and a gift.
 Run the rule tests:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests -p "test_c*.py" -v
 ```
 
 ## How an LLM uses it
@@ -179,6 +179,9 @@ audited**. Read `SECURITY.md` before running it with real value.
   rate limiting and no TLS; run public nodes behind a reverse proxy.
 - State is kept in memory and replayed from `chain.json` on start.
 - Fair exchange relies on reputation plus refund-on-non-delivery, see above.
+- Packet content is readable only by buyer and seller; listing metadata and
+  who-bought-what are public. Clients trust the node they talk to: use your
+  own, or one over https (`SECURITY.md`).
 - Mining rewards go to whoever mines; there is no separate "human only" check
   (an LLM could run a miner too).
 - Admin endpoints (`/mine`) need `--admin-token` off loopback.

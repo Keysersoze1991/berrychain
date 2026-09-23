@@ -21,6 +21,22 @@ nodes, or knock a node over with cheap requests.
 Out of scope: the content of packets (the chain verifies key delivery, not
 truthfulness), and social attacks on registrars.
 
+## Packet confidentiality
+
+Packet content is encrypted with a per-packet key; the key is delivered
+wrapped to the buyer's X25519 key. Nodes, miners and other users see only
+ciphertext. Metadata (title, tags, price, buyer and seller addresses) is
+public. Whoever holds a wallet file can read everything that wallet bought
+or sold, and a buyer can always pass content on.
+
+## Node trust
+
+A client believes the node it talks to. Over https or on localhost that is
+your own node; over plain HTTP on the open internet it can be anyone. The
+seller verifies the buyer's signed purchase before delivering a key, so a
+node cannot redirect a real purchase, but it can still fabricate one. Run
+your own node, or use one you trust over https.
+
 ## Key handling
 
 Wallet files under `keys/` contain private keys in plaintext. They are

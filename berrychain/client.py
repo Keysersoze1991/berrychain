@@ -35,13 +35,24 @@ import hashlib
 import json
 import urllib.error
 import urllib.request
+import warnings
+from urllib.parse import urlparse
 
 from . import crypto, params, tx as T
 from .wallet import Wallet
 
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
 
 class ClientError(Exception):
     pass
+
+
+def node_is_trusted(url: str) -> bool:
+    """A node reached over https, or on this machine, cannot be silently
+    tampered with on the wire. Anything else can."""
+    u = urlparse(url)
+    return u.scheme == "https" or u.hostname in LOOPBACK_HOSTS
 
 
 def to_seeds(berry_amount: float | int | str) -> int:
@@ -57,6 +68,12 @@ class BerryClient:
     def __init__(self, url: str = "http://127.0.0.1:8801", timeout: float = 30.0):
         self.url = url.rstrip("/")
         self.timeout = timeout
+        if not node_is_trusted(self.url):
+            warnings.warn(
+                f"BerryChain node {self.url} is reached over plain HTTP off localhost; a hostile network "
+                "can alter what this client sees. Run your own node or connect over https.",
+                stacklevel=2,
+            )
         self.chain_id = self.get("/status")["chain_id"]
 
     # ------------------------------------------------------------- http
@@ -184,12 +201,44 @@ class BerryClient:
     def pending_deliveries(self, wallet: Wallet) -> list[dict]:
         return self.escrows(seller=wallet.address, status="pending")
 
+    def _verified_buyer_key(self, es: dict) -> str:
+        """The buyer's X25519 key, taken from the buyer's own signed BUY_PACKET
+        transaction rather than from the node's escrow record.
+
+        A node, or anyone on the wire when the node is reached over plain
+        HTTP, could otherwise rewrite the escrow record and make the seller
+        wrap the packet key to a stranger: the escrow would pay out, the real
+        buyer could neither read the packet nor refund. The escrow id *is* the
+        txid of the purchase, and the txid is the hash of the signed body, so
+        a record that disagrees with a validly signed purchase is a lie."""
+        r = self.tx(es["id"])
+        buy = r.get("tx")
+        if r.get("status") != "confirmed" or not isinstance(buy, dict) or buy.get("type") != T.BUY_PACKET:
+            raise ClientError("escrow does not correspond to a confirmed purchase")
+        pub, sig = buy.get("pubkey"), buy.get("sig")
+        try:
+            signer = crypto.address_from_pubkey(pub) if isinstance(pub, str) else None
+        except ValueError:
+            signer = None
+        if (signer is None or signer != es["buyer"] or buy.get("from") != es["buyer"]
+                or not isinstance(sig, str) or not crypto.verify(pub, T.signable_bytes(buy), sig)):
+            raise ClientError("purchase transaction is not signed by the escrow's buyer")
+        if T.txid(buy) != es["id"] or buy.get("chain_id") != self.chain_id:
+            raise ClientError("purchase transaction does not match the escrow id")
+        p = buy.get("payload") or {}
+        if p.get("packet_id") != es["packet_id"] or p.get("enc_pub") != es["buyer_enc_pub"]:
+            raise ClientError("node's escrow record disagrees with the buyer's signed purchase; refusing to deliver")
+        return p["enc_pub"]
+
     def deliver(self, wallet: Wallet, escrow_id: str) -> str:
         es = self.escrow(escrow_id)
+        if es.get("id") != escrow_id or es.get("seller") != wallet.address:
+            raise ClientError("escrow is not one of your sales")
         key_hex = wallet.packet_keys.get(es["packet_id"])
         if not key_hex:
             raise ClientError("this wallet does not hold the key for that packet")
-        wrapped = crypto.wrap_to_recipient(es["buyer_enc_pub"], bytes.fromhex(key_hex))
+        buyer_key = self._verified_buyer_key(es)
+        wrapped = crypto.wrap_to_recipient(buyer_key, bytes.fromhex(key_hex))
         return self._send(wallet, T.DELIVER_PACKET, {"escrow_id": escrow_id, "wrapped_key": wrapped})
 
     def deliver_all(self, wallet: Wallet) -> list[str]:

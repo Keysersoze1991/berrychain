@@ -60,6 +60,11 @@ Done and verified:
 - Hardening pass (`docs/HARDENING.md`): journaled state, headers-first
   incremental sync, size and mempool caps, admin token, download caps.
 - Git repository with MIT licence, CI workflow, SECURITY.md, CONTRIBUTING.md.
+- 2026-09-23, on the clean launch machine: Python 3.12 and Git installed,
+  all tests pass. Confidentiality of traded packets confirmed by test: only
+  buyer and seller can read content; metadata is public. Seller now verifies
+  the buyer's signed purchase before delivering a key (see HARDENING.md),
+  with hostile-node tests in `tests/test_client.py`.
 
 Not done:
 1. Push to the architect's private GitHub repository (needs their account).
@@ -95,8 +100,9 @@ sandbox, holding a small hot wallet. Wallet files are plaintext.
 - Treat the decisions table as settled. Ask before changing economics.
 - Be plain about what Fable can and cannot do with its wallet.
 - Consensus-affecting code changes are hard forks: bump the chain id.
-- Run `python -m unittest discover -s tests -p "test_chain.py"` before and
-  after any change to `state.py`, `chain.py`, `block.py`, `tx.py`, `params.py`.
+- Run `python -m unittest discover -s tests -p "test_c*.py"` before and
+  after any change to `state.py`, `chain.py`, `block.py`, `tx.py`, `params.py`
+  or `client.py`.
 
 ## Quick commands
 
