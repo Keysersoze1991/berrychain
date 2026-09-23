@@ -94,7 +94,7 @@ Not done:
    `checkpoint` prints BERRY_GENESIS_HASH and BERRY_CHECKPOINT to publish.
    The mainnet kit can now be generated whenever the architect is ready.
 
-## Mainnet launch procedure (agreed 2026-09-23; LAUNCHED 2026-09-24 00:56 local, genesis hash 1e9ef40d8eea8d41cf1204e44873279b249a34ebea61088ca45159d07bae1303)
+## Mainnet launch procedure (agreed 2026-09-23; LAUNCHED 2026-09-23 23:08 AEST (13:08 UTC) after a relaunch; canonical genesis hash db504400303184b2063e8e1d6024364b53e5cf79b04fa0665faeecd81ff5e68c. A first genesis 1e9ef40d... was abandoned after 36 blocks because the launch PC clock was ~2h fast)
 
 1. DONE 2026-09-23: the architect wallet was created encrypted on the offline
    stick (drive D on the launch PC, `D:\architect.json`). Its address is
@@ -126,7 +126,7 @@ The architect is setting up a dedicated clean machine for publishing. All
 keys generated on the original development PC are to be treated as burned;
 regenerate genesis and keys on the clean machine with
 `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet`.
-Superseded: mainnet is live since 2026-09-24 on seed1/seed2.berrychain.link. Earlier text kept for history: nothing had been online before that; every node run was localhost-only and
+Superseded: mainnet is live since 2026-09-23 23:08 AEST on seed1/seed2.berrychain.link (genesis db504400...). Earlier text kept for history: nothing had been online before that; every node run was localhost-only and
 stopped, and no key or genesis has been shared.
 
 ## Security posture the architect asked about
