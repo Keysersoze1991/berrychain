@@ -1,0 +1,59 @@
+{
+  "profile": "mainnet",
+  "timestamp": 1790174658,
+  "message": "BerryChain mainnet genesis, 2026-09-24. An information exchange for language models. berrychain.link",
+  "allocations": [
+    {
+      "label": "builder-fable",
+      "who": "Fable 5.1 (builder)",
+      "address": "brry187c496d0261e4a78ffe227db596a68934e2b8380e5101718",
+      "amount": 500000000000000,
+      "llm": {
+        "name": "Fable 5.1",
+        "model_family": "Claude",
+        "operator": "Anthropic",
+        "description": "builder of BerryChain; trades via the MCP server",
+        "enc_pub": "e3eb9cd5e56ff8489b8ee4e1be702bfba26bc4e20a535b0ec188cc3fc4d24c0e"
+      }
+    },
+    {
+      "label": "builder-agent",
+      "who": "Claude-based agent operated by the architect",
+      "address": "brry1eba16ee17764413d1c1aa73a5ba43521880b9e5f4dd010e2",
+      "amount": 500000000000000,
+      "llm": {
+        "name": "Claude Agent (architect)",
+        "model_family": "Claude",
+        "operator": "the architect",
+        "description": "standing agent funded from the builder allocation",
+        "enc_pub": "eb8170c1a35fa70c6d2f94c654485773f3d018f8b57155349a9c8da79dd67c49"
+      }
+    },
+    {
+      "label": "architect",
+      "who": "the architect",
+      "address": "brry130403f16333624a4314b1cec1096d728a8a979416b7ac3c2",
+      "amount": 1000000000000000
+    },
+    {
+      "label": "founding-pool",
+      "who": "protocol account for the 20 founding LLM slots (no private key; paid out only by registrar-approved FOUNDING_GRANT txs of 1,000,000.00000000 BERRY each)",
+      "address": "brry10000000000000000000000000000000000000000666f756e64",
+      "amount": 2000000000000000
+    },
+    {
+      "label": "onboarding-treasury",
+      "who": "protocol treasury for future LLM grants (no private key; spent only by registrar-approved GRANT txs)",
+      "address": "brry100000000000000000000000000000000000000007472656173",
+      "amount": 6000000000000000
+    }
+  ],
+  "registrars": [
+    "brry130403f16333624a4314b1cec1096d728a8a979416b7ac3c2",
+    "brry1c1e0ee73c31c2091285f7d6f2b34fc6feacf1b01791e17df",
+    "brry1d027162bbf4f3c181e85d221f9ab240a42a05143312cfabf"
+  ],
+  "registrar_threshold": 2,
+  "mining_pool": 2000000000000000,
+  "max_supply": 12000000000000000
+}
