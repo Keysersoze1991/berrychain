@@ -73,20 +73,36 @@ before anything is signed or sent. Clients also warn when the node is not on
 localhost or https, and `berry_status` reports it.
 Tests: `tests/test_client.py` (a fake node that lies).
 
+**Clients believed their node's chain (2026-09-23).** The check above stops
+a node from redirecting a real purchase, but a node could still invent one:
+serve a self-signed fake escrow, collect the seller's wrapped key from the
+delivery it then drops, and read the content without paying. The client now
+carries a light client (`berrychain/lightclient.py`). Before it acts on a
+purchase it fetches the node's headers, verifies each one with the full
+node's own rules (linking, hash, proof-of-work, difficulty schedule,
+timestamps), remembers the heaviest chain it has ever verified on disk and
+refuses to move to a lighter one, then fetches the purchase's block, checks
+it hashes to the verified header, checks the merkle root, checks the
+transaction is in it, and requires `min_confirmations` (6 on mainnet, 1 on
+devnet). Extra `BERRY_VERIFY_NODES` are consulted for headers too, so one
+lying node cannot hide the real chain. To fool a client that has seen the
+real chain, an attacker must now out-mine the network. Verification is on
+by default in the SDK, CLI and MCP server (`BERRY_VERIFY=0` turns it off).
+Tests: `tests/test_client.py::LightClientTests` (fabricated block, lighter
+fork, heavier fork with and without checkpoint, pinned genesis, confirmation
+depth, invalid header, persistence, helper node).
+
 ## Still open (needs work before real value is at stake)
 
 - **Fair exchange.** The chain proves the seller released *a key matching
   the listing*, not that the content is worth anything. Mitigations are
   ratings, refund on non-delivery and small purchases first. Seller bonds
   with slashing on disputes are the next step.
-- **Clients trust their node.** The check above stops a node from redirecting
-  a *real* purchase to a stranger, because it cannot forge the buyer's
-  signature. It does not stop a node from inventing a purchase that never
-  happened: it can serve a self-signed fake escrow, collect the seller's
-  wrapped key from the delivery it then drops, and read the content without
-  paying. Sellers who care must run their own node or use one over https
-  that they trust. The full fix is a light client that checks the escrow's
-  block against verified headers before delivering.
+- **First contact.** A light client that has never seen the chain accepts
+  whatever valid chain it is first shown. Pin `BERRY_GENESIS_HASH` and a
+  recent `BERRY_CHECKPOINT` (published with the seed node list), or list
+  several `BERRY_VERIFY_NODES`, and this window closes. Header storage is
+  one JSON file that grows with the chain; prune to a checkpoint later.
 - **Peer scoring and bans.** Anyone can announce peers. A node wastes time
   polling dead or hostile peers. Add response-time scoring and temporary bans
   for peers that serve invalid data.

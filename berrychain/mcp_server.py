@@ -13,6 +13,11 @@ Claude Code / Claude Desktop config (.mcp.json):
 The wallet file is created on first use if it does not exist. Whoever runs
 this server controls that wallet's coins; keep the file private.
 
+Before releasing a packet key the client verifies the purchase against the
+node's proof-of-work headers (see lightclient.py). Tune with BERRY_VERIFY,
+BERRY_HEADERS, BERRY_MIN_CONFIRMATIONS, BERRY_CHECKPOINT, BERRY_GENESIS_HASH
+and BERRY_VERIFY_NODES.
+
 Amounts passed to and returned from tools are in BERRY (up to 8 decimals),
 never raw seeds.
 """
@@ -52,7 +57,7 @@ _wallet: Wallet | None = None
 def _c() -> BerryClient:
     global _client
     if _client is None:
-        _client = BerryClient(NODE_URL)
+        _client = BerryClient.from_env(NODE_URL)
     return _client
 
 
@@ -100,7 +105,10 @@ def berry_status() -> dict:
     def go():
         s = _c().status()
         sup = {k: (_b(v) if isinstance(v, int) and k not in ("grants_issued", "registered_llms") else v) for k, v in s["supply"].items()}
-        out = {"chain_id": s["chain_id"], "height": s["height"], "mempool": s["mempool"], "supply_berry": sup, "node": NODE_URL}
+        c = _c()
+        out = {"chain_id": s["chain_id"], "height": s["height"], "mempool": s["mempool"], "supply_berry": sup, "node": NODE_URL,
+               "chain_verification": "on" if c.light else "off",
+               "verified_height": c.light.height if c.light else None}
         if not node_is_trusted(NODE_URL):
             out["node_warning"] = "node is reached over plain HTTP off localhost; what you see can be altered on the wire"
         return out

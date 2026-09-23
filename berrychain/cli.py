@@ -34,7 +34,7 @@ from .wallet import Wallet
 
 
 def _client(args) -> BerryClient:
-    return BerryClient(args.node)
+    return BerryClient.from_env(args.node, verify=not args.no_verify)
 
 
 def _wallets(spec: str) -> list[Wallet]:
@@ -49,6 +49,12 @@ def cmd_init_genesis(args):
         print(f"  {a['label']:<22} {params.fmt(a['amount']):>28}  {a['address']}")
     print(f"  {'mining pool':<22} {params.fmt(params.ALLOC_MINING_POOL):>28}  (emitted to miners)")
     print(f"registrars: {g['registrars']} threshold {g['registrar_threshold']}")
+    if args.profile == "devnet":
+        # a fresh devnet is a new chain; verified headers of the old one would (correctly) reject it
+        stale = os.path.join(os.path.expanduser("~"), ".berrychain", f"headers-{params.PROFILES['devnet']['chain_id']}.json")
+        if os.path.exists(stale):
+            os.remove(stale)
+            print(f"removed stale devnet light-client headers {stale}")
 
 
 def cmd_node(args):
@@ -151,6 +157,7 @@ def cmd_mine(args):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="berrychain")
     p.add_argument("--node", default="http://127.0.0.1:8801", help="node URL")
+    p.add_argument("--no-verify", action="store_true", help="skip light-client verification of the node's chain (BERRY_* env vars tune it)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("init-genesis"); s.add_argument("--out", default="."); s.add_argument("--profile", default="mainnet", choices=list(params.PROFILES)); s.add_argument("--message"); s.set_defaults(fn=cmd_init_genesis)

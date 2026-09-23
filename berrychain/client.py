@@ -33,12 +33,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import urllib.error
 import urllib.request
 import warnings
 from urllib.parse import urlparse
 
 from . import crypto, params, tx as T
+from .lightclient import LightClient, VerifyError
 from .wallet import Wallet
 
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
@@ -65,7 +67,20 @@ def to_seeds(berry_amount: float | int | str) -> int:
 
 
 class BerryClient:
-    def __init__(self, url: str = "http://127.0.0.1:8801", timeout: float = 30.0):
+    """
+    verify=True (the default) makes the client check the node's chain with a
+    light client before it acts on a purchase: headers are verified for
+    proof-of-work, the heaviest chain seen is remembered under
+    `headers_path`, and a purchase must be buried `min_confirmations` deep
+    in it. `checkpoint=(height, hash)` and `genesis_hash` pin what the client
+    will accept on first contact. `verify_nodes` are extra node URLs whose
+    headers are also consulted, so one lying node cannot hide the real chain.
+    """
+
+    def __init__(self, url: str = "http://127.0.0.1:8801", timeout: float = 30.0, verify: bool = True,
+                 headers_path: str | None = None, min_confirmations: int | None = None,
+                 checkpoint: tuple[int, str] | None = None, genesis_hash: str | None = None,
+                 verify_nodes: list[str] | None = None):
         self.url = url.rstrip("/")
         self.timeout = timeout
         if not node_is_trusted(self.url):
@@ -75,6 +90,51 @@ class BerryClient:
                 stacklevel=2,
             )
         self.chain_id = self.get("/status")["chain_id"]
+        self.min_confirmations = min_confirmations
+        self.verify_node_urls = list(verify_nodes or [])
+        self._verify_clients: list[BerryClient] | None = None
+        self.light: LightClient | None = None
+        if verify:
+            path = headers_path or os.path.join(os.path.expanduser("~"), ".berrychain", f"headers-{self.chain_id}.json")
+            self.light = LightClient(path, checkpoint=checkpoint, genesis_hash=genesis_hash)
+
+    @classmethod
+    def from_env(cls, url: str | None = None, **kw) -> "BerryClient":
+        """Build a client from BERRY_* environment variables:
+        BERRY_NODE, BERRY_VERIFY (0/1), BERRY_HEADERS, BERRY_MIN_CONFIRMATIONS,
+        BERRY_CHECKPOINT ("height:hash"), BERRY_GENESIS_HASH, BERRY_VERIFY_NODES (comma list)."""
+        env = os.environ
+        cp = env.get("BERRY_CHECKPOINT")
+        if cp:
+            h, _, hsh = cp.partition(":")
+            kw.setdefault("checkpoint", (int(h), hsh.strip()))
+        kw.setdefault("verify", env.get("BERRY_VERIFY", "1") not in ("0", "false", "no"))
+        kw.setdefault("headers_path", env.get("BERRY_HEADERS") or None)
+        if env.get("BERRY_MIN_CONFIRMATIONS"):
+            kw.setdefault("min_confirmations", int(env["BERRY_MIN_CONFIRMATIONS"]))
+        kw.setdefault("genesis_hash", env.get("BERRY_GENESIS_HASH") or None)
+        kw.setdefault("verify_nodes", [u.strip() for u in env.get("BERRY_VERIFY_NODES", "").split(",") if u.strip()])
+        return cls(url or env.get("BERRY_NODE", "http://127.0.0.1:8801"), **kw)
+
+    def _helpers(self) -> list["BerryClient"]:
+        if self._verify_clients is None:
+            self._verify_clients = []
+            for u in self.verify_node_urls:
+                try:
+                    self._verify_clients.append(BerryClient(u, timeout=self.timeout, verify=False))
+                except ClientError:
+                    pass
+        return self._verify_clients
+
+    def verify_confirmed(self, txid: str) -> dict:
+        """Prove a transaction sits on the heaviest verified chain with enough
+        confirmations; returns it as its block carries it. Requires verify=True."""
+        if self.light is None:
+            raise ClientError("chain verification is disabled for this client")
+        try:
+            return self.light.verify_tx(self, txid, self.min_confirmations, self._helpers())
+        except VerifyError as e:
+            raise ClientError(f"chain verification failed: {e}") from None
 
     # ------------------------------------------------------------- http
     def get(self, path: str) -> dict:
@@ -210,10 +270,19 @@ class BerryClient:
         wrap the packet key to a stranger: the escrow would pay out, the real
         buyer could neither read the packet nor refund. The escrow id *is* the
         txid of the purchase, and the txid is the hash of the signed body, so
-        a record that disagrees with a validly signed purchase is a lie."""
-        r = self.tx(es["id"])
-        buy = r.get("tx")
-        if r.get("status") != "confirmed" or not isinstance(buy, dict) or buy.get("type") != T.BUY_PACKET:
+        a record that disagrees with a validly signed purchase is a lie.
+
+        With verification on, the transaction is taken from its block after
+        the light client has proved that block sits on the heaviest chain
+        with enough confirmations, so the node cannot invent a purchase."""
+        if self.light is not None:
+            buy = self.verify_confirmed(es["id"])
+        else:
+            r = self.tx(es["id"])
+            buy = r.get("tx")
+            if r.get("status") != "confirmed":
+                buy = None
+        if not isinstance(buy, dict) or buy.get("type") != T.BUY_PACKET:
             raise ClientError("escrow does not correspond to a confirmed purchase")
         pub, sig = buy.get("pubkey"), buy.get("sig")
         try:

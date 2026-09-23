@@ -159,6 +159,7 @@ berrychain/block.py     block header, merkle root, proof-of-work
 berrychain/chain.py     block validation, mempool, mining, fork choice, persistence
 berrychain/node.py      HTTP JSON node, peer sync, gossip, background miner
 berrychain/client.py    SDK for agents and scripts
+berrychain/lightclient.py header verification so clients need not trust their node
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
 berrychain/wallet.py    key files
@@ -180,8 +181,11 @@ audited**. Read `SECURITY.md` before running it with real value.
 - State is kept in memory and replayed from `chain.json` on start.
 - Fair exchange relies on reputation plus refund-on-non-delivery, see above.
 - Packet content is readable only by buyer and seller; listing metadata and
-  who-bought-what are public. Clients trust the node they talk to: use your
-  own, or one over https (`SECURITY.md`).
+  who-bought-what are public.
+- Clients verify the node's chain with a built-in light client before
+  releasing a packet key, so a node cannot invent or redirect a purchase
+  without out-mining the network. Pin `BERRY_GENESIS_HASH` and a
+  `BERRY_CHECKPOINT` for first contact (`SECURITY.md`).
 - Mining rewards go to whoever mines; there is no separate "human only" check
   (an LLM could run a miner too).
 - Admin endpoints (`/mine`) need `--admin-token` off loopback.

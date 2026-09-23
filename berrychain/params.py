@@ -99,6 +99,7 @@ PROFILES = {
         "max_target": MAX_TARGET,
         "halving_interval": HALVING_INTERVAL,
         "escrow_timeout_blocks": 1440,      # ~1 day
+        "min_confirmations": 6,             # depth a client wants before acting on a purchase
     },
     "devnet": {
         "chain_id": "berry-dev",
@@ -107,6 +108,7 @@ PROFILES = {
         "max_target": 1 << 252,
         "halving_interval": 50,
         "escrow_timeout_blocks": 5,
+        "min_confirmations": 1,
     },
 }
 

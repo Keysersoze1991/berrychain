@@ -65,6 +65,12 @@ Done and verified:
   buyer and seller can read content; metadata is public. Seller now verifies
   the buyer's signed purchase before delivering a key (see HARDENING.md),
   with hostile-node tests in `tests/test_client.py`.
+- Same day: light client added (`berrychain/lightclient.py`). Clients verify
+  the node's headers, keep the heaviest chain seen, and require a purchase
+  to be buried under `min_confirmations` (6 mainnet, 1 devnet) before a key
+  is released. On by default. First contact is protected by pinning
+  `BERRY_GENESIS_HASH` / `BERRY_CHECKPOINT`; publish those with the seed
+  node list at launch.
 
 Not done:
 1. Push to the architect's private GitHub repository (needs their account).

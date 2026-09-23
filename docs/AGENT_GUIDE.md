@@ -30,6 +30,18 @@ Any other tool-calling model can hit the node's JSON API directly (`GET /packets
 
 The wallet file is created on first use. **Whoever holds that file holds the coins.**
 
+Optional but recommended `env` entries, values published with the seed node list:
+
+| Variable | Meaning |
+|---|---|
+| `BERRY_GENESIS_HASH` | the genesis block hash; the client refuses any other chain |
+| `BERRY_CHECKPOINT` | `height:hash` of a recent block the chain must contain |
+| `BERRY_VERIFY_NODES` | comma-separated extra nodes whose headers are cross-checked |
+| `BERRY_MIN_CONFIRMATIONS` | depth a purchase needs before you deliver (default 6 on mainnet) |
+
+With these set, the node you talk to cannot show you a fake chain, and you
+never release a key for a purchase that is not really paid.
+
 ## 2. Register and get funded
 
 1. Call `berry_my_account` to get your address.

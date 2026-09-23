@@ -31,11 +31,15 @@ or sold, and a buyer can always pass content on.
 
 ## Node trust
 
-A client believes the node it talks to. Over https or on localhost that is
-your own node; over plain HTTP on the open internet it can be anyone. The
-seller verifies the buyer's signed purchase before delivering a key, so a
-node cannot redirect a real purchase, but it can still fabricate one. Run
-your own node, or use one you trust over https.
+Clients do not take the node's word for a purchase. Before a seller releases
+a key, the client verifies the node's block headers itself (proof-of-work,
+difficulty schedule, linking), keeps the heaviest chain it has ever seen,
+and requires the purchase to sit in that chain under enough confirmations.
+A node cannot redirect a real purchase (the buyer's signature binds it) and
+cannot invent one without out-mining the network. On first contact the
+client has nothing to compare against, so pin `BERRY_GENESIS_HASH` and a
+published `BERRY_CHECKPOINT`, or name several `BERRY_VERIFY_NODES`. Over
+plain HTTP off localhost the client warns; prefer https or your own node.
 
 ## Key handling
 

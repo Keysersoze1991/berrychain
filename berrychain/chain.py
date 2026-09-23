@@ -150,18 +150,21 @@ class Chain:
         ts = sorted(b["timestamp"] for b in headers[max(0, upto_height - 11):upto_height])
         return ts[len(ts) // 2] if ts else 0
 
-    def check_header(self, hdr: dict, prev_headers: list[dict], now: int | None = None) -> None:
-        """Cheap checks: shape, linking, timestamp, target schedule, hash, PoW."""
+    def check_header(self, hdr: dict, prev_headers: list[dict], now: int | None = None, upto: int | None = None) -> None:
+        """Cheap checks: shape, linking, timestamp, target schedule, hash, PoW.
+        `upto` treats only prev_headers[:upto] as the chain being extended, so
+        a long header list can be validated without slicing it per block."""
         now = int(time.time()) if now is None else now
+        n = len(prev_headers) if upto is None else upto
         if not isinstance(hdr, dict):
             raise BlockError("block must be an object")
         for k in HEADER_FIELDS:
             if k not in hdr:
                 raise BlockError(f"block missing {k}")
         h = hdr["height"]
-        if not isinstance(h, int) or h != len(prev_headers):
-            raise BlockError(f"block height {h} does not extend height {len(prev_headers) - 1}")
-        if hdr["prev_hash"] != prev_headers[-1]["hash"]:
+        if not isinstance(h, int) or h != n:
+            raise BlockError(f"block height {h} does not extend height {n - 1}")
+        if hdr["prev_hash"] != prev_headers[n - 1]["hash"]:
             raise BlockError("prev_hash does not match tip")
         if not isinstance(hdr["timestamp"], int) or not isinstance(hdr["nonce"], int):
             raise BlockError("timestamp and nonce must be ints")
@@ -186,7 +189,7 @@ class Chain:
         if not headers or headers[0]["hash"] != self.blocks[0]["hash"]:
             raise BlockError("candidate chain has a different genesis")
         for i in range(1, len(headers)):
-            self.check_header(headers[i], headers[:i], now)
+            self.check_header(headers[i], headers, now, upto=i)
         return self.work_of(headers)
 
     def _check_body(self, blk: dict) -> list[str]:
