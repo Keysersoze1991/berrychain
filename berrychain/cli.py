@@ -6,6 +6,7 @@ Command line for BerryChain.
     python -m berrychain.cli wallet new keys/me.json --label me [--encrypt]
     python -m berrychain.cli wallet encrypt keys/me.json          (seal an existing plaintext wallet)
     python -m berrychain.cli wallet show keys/me.json             (public fields; no passphrase needed)
+    python -m berrychain.cli wallet check keys/me.json            (unlock with the passphrase to prove it works)
     python -m berrychain.cli status
     python -m berrychain.cli balance ADDR
     python -m berrychain.cli send keys/me.json ADDR 1.5 [--memo ...]
@@ -103,6 +104,9 @@ def cmd_wallet(args):
             raise SystemExit(f"refusing to overwrite existing wallet {args.path}")
         w.save(args.path)
         print(json.dumps({**w.public_info(), "encrypted": bool(w.passphrase), "file": args.path}, indent=2))
+    elif args.action == "check":
+        w = Wallet.load(args.path)              # prompts if encrypted; proves the passphrase works
+        print(json.dumps({"address": w.address, "encrypted": bool(w.passphrase), "unlocked": True}, indent=2))
     elif args.action == "encrypt":
         if Wallet.is_encrypted(args.path):
             raise SystemExit("wallet is already encrypted")
@@ -286,7 +290,7 @@ def main(argv=None):
 
     s = sub.add_parser("init-genesis"); s.add_argument("--out", default="."); s.add_argument("--profile", default="mainnet", choices=list(params.PROFILES)); s.add_argument("--message"); s.add_argument("--architect", help="existing architect wallet file (e.g. on an offline stick); only its public fields are read"); s.set_defaults(fn=cmd_init_genesis)
     s = sub.add_parser("node"); s.add_argument("--genesis", default="genesis.json"); s.add_argument("--data"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8801); s.add_argument("--peer", action="append"); s.add_argument("--mine", help="address to mine to continuously"); s.add_argument("--advertise", help="public URL peers should use to reach this node"); s.add_argument("--admin-token", help="required for /mine and /peers from non-loopback clients (or BERRY_ADMIN_TOKEN)"); s.set_defaults(fn=cmd_node)
-    s = sub.add_parser("wallet"); s.add_argument("action", choices=["new", "show", "encrypt"]); s.add_argument("path"); s.add_argument("--label"); s.add_argument("--encrypt", action="store_true", help="seal the new wallet under a passphrase (prompted, or BERRY_WALLET_PASSPHRASE)"); s.set_defaults(fn=cmd_wallet)
+    s = sub.add_parser("wallet"); s.add_argument("action", choices=["new", "show", "check", "encrypt"]); s.add_argument("path"); s.add_argument("--label"); s.add_argument("--encrypt", action="store_true", help="seal the new wallet under a passphrase (prompted, or BERRY_WALLET_PASSPHRASE)"); s.set_defaults(fn=cmd_wallet)
     s = sub.add_parser("status"); s.set_defaults(fn=cmd_status)
     s = sub.add_parser("balance"); s.add_argument("address"); s.set_defaults(fn=cmd_balance)
     s = sub.add_parser("send"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_send)

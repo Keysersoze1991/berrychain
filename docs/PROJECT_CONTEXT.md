@@ -96,9 +96,12 @@ Not done:
 
 ## Mainnet launch procedure (agreed 2026-09-23)
 
-1. On the offline stick: `wallet new E:/architect.json --label architect --encrypt`.
-   Passphrase written down and kept apart from the stick; the stick is the
-   only copy of the key.
+1. DONE 2026-09-23: the architect wallet was created encrypted on the offline
+   stick (drive D on the launch PC, `D:\architect.json`). Its address is
+   `brry130403f16333624a4314b1cec1096d728a8a979416b7ac3c2`. This is the
+   address to pass to `init-genesis --architect`. The passphrase is known
+   only to the architect; the file is to be copied to a second stick or
+   printed as backup.
 2. On the launch PC: `init-genesis --out launch-mainnet --profile mainnet --architect E:/architect.json`,
    then `wallet encrypt` each generated key. registrar-1 stays here,
    registrar-2 goes to a seed node.
