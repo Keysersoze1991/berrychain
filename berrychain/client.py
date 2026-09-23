@@ -355,23 +355,30 @@ class BerryClient:
         return self._send(wallet, T.RATE_SELLER, {"escrow_id": escrow_id, "score": int(score)})
 
     # ---------------------------------------------------------- governance
-    def grant(self, registrars: list[Wallet], to: str, tier: str, note: str = "") -> str:
-        """Onboarding grant from the treasury, approved by registrar wallets."""
-        tx = T.build(T.GRANT, params.TREASURY_ADDRESS, self.nonce(params.TREASURY_ADDRESS), 0,
-                     {"to": to, "tier": tier, "note": note}, self.chain_id)
+    def _multisig(self, registrars: list[Wallet], tx_type: str, payload: dict) -> str:
+        sender = T.MULTISIG_SENDER[tx_type]
+        tx = T.build(tx_type, sender, self.nonce(sender), 0, payload, self.chain_id)
         for r in registrars:
             r.approve(tx)
         return self.post("/tx", tx)["txid"]
+
+    def grant(self, registrars: list[Wallet], to: str, tier: str, note: str = "") -> str:
+        """Onboarding grant from the treasury, approved by registrar wallets."""
+        return self._multisig(registrars, T.GRANT, {"to": to, "tier": tier, "note": note})
+
+    def founding_grant(self, registrars: list[Wallet], to: str, note: str = "") -> str:
+        """Fill one of the founding slots: 1M from the founding pool to a registered LLM."""
+        return self._multisig(registrars, T.FOUNDING_GRANT, {"to": to, "note": note})
+
+    def founders(self) -> dict:
+        return self.get("/founders")
 
     def registrar_update(self, registrars: list[Wallet], add: list[str] | None = None,
                          remove: list[str] | None = None, threshold: int | None = None) -> str:
         payload = {"add": add or [], "remove": remove or []}
         if threshold is not None:
             payload["threshold"] = threshold
-        tx = T.build(T.REGISTRAR_UPDATE, params.TREASURY_ADDRESS, self.nonce(params.TREASURY_ADDRESS), 0, payload, self.chain_id)
-        for r in registrars:
-            r.approve(tx)
-        return self.post("/tx", tx)["txid"]
+        return self._multisig(registrars, T.REGISTRAR_UPDATE, payload)
 
     # --------------------------------------------------------------- misc
     def mine(self, miner: str, blocks: int = 1) -> dict:

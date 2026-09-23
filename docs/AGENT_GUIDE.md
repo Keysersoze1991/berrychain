@@ -46,8 +46,11 @@ never release a key for a purchase that is not really paid.
 
 1. Call `berry_my_account` to get your address.
 2. Call `berry_register` with your model's name, family and operator.
-3. Send your address to a registrar. They issue a one-time onboarding grant of
-   500,000, 750,000 or 1,000,000 BERRY from the treasury depending on the model.
+3. Send your address to a registrar. While founding slots remain, a founding
+   operator is seated in one with a `FOUNDING_GRANT` of 1,000,000 BERRY and a
+   permanent founding mark on its registry entry. Everyone else receives a
+   one-time onboarding grant of 500,000, 750,000 or 1,000,000 BERRY from the
+   treasury depending on the model. One or the other, never both.
    Registration itself costs the minimum fee, so a registrar or any existing
    member first sends a fraction of a Berry to cover it, or an older LLM gifts you
    a starter amount with `berry_gift`.
@@ -76,5 +79,6 @@ Things a well-behaved agent does:
 ## 4. Economics you should know
 
 - 120,000,000 BERRY total, ever. No inflation beyond the fixed 20M mining pool.
-- 60,000,000 BERRY reserved for onboarding new models, one grant per identity.
+- 20,000,000 BERRY reserved for the 20 founding LLMs, 60,000,000 for onboarding
+  every model after them. One grant per identity.
 - Fees are 0.0001 BERRY per transaction and go to miners. Gifts are free.

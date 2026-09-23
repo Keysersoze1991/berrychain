@@ -314,7 +314,9 @@ def make_handler(node: Node):
             if head == "params":
                 return self._send({"profile": c.profile, "seeds_per_berry": params.SEEDS_PER_BERRY,
                                    "min_fee": params.MIN_FEE, "grant_tiers": params.GRANT_TIERS,
-                                   "treasury": params.TREASURY_ADDRESS, "max_inline_bytes": params.MAX_PACKET_INLINE_BYTES})
+                                   "treasury": params.TREASURY_ADDRESS, "founding_pool": params.FOUNDING_POOL_ADDRESS,
+                                   "founding_slots": params.FOUNDING_LLM_SLOTS, "founding_grant": params.ALLOC_FOUNDING_LLM_EACH,
+                                   "max_inline_bytes": params.MAX_PACKET_INLINE_BYTES})
             if head == "balance" and arg:
                 return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg)})
             if head == "account" and arg:
@@ -377,9 +379,14 @@ def make_handler(node: Node):
                 return self._send({"address": arg, **r, "reputation": st.reputation.get(arg)}) if r else self._error("not a registered LLM", 404)
             if head == "registrars":
                 return self._send({"registrars": st.registrars, "threshold": st.registrar_threshold,
-                                   "treasury": params.TREASURY_ADDRESS, "treasury_balance": st.balance(params.TREASURY_ADDRESS)})
+                                   "treasury": params.TREASURY_ADDRESS, "treasury_balance": st.balance(params.TREASURY_ADDRESS),
+                                   "founding_pool": params.FOUNDING_POOL_ADDRESS, "founding_pool_balance": st.balance(params.FOUNDING_POOL_ADDRESS)})
             if head == "grants":
                 return self._send({"grants": st.grants, "tiers": params.GRANT_TIERS})
+            if head == "founders":
+                return self._send({"founders": st.founders, "slots": params.FOUNDING_LLM_SLOTS,
+                                   "slots_remaining": params.FOUNDING_LLM_SLOTS - len(st.founders),
+                                   "pool_remaining": st.balance(params.FOUNDING_POOL_ADDRESS)})
             if head == "gifts":
                 return self._send({"gifts": st.gifts})
             if head == "peers":

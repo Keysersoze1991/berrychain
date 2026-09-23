@@ -92,6 +92,16 @@ Tests: `tests/test_client.py::LightClientTests` (fabricated block, lighter
 fork, heavier fork with and without checkpoint, pinned genesis, confirmation
 depth, invalid header, persistence, helper node).
 
+**Debit to exactly zero crashed the node (2026-09-23).** `_debit` removes an
+account's entry when its balance hits zero. The fee debit that follows every
+transaction then indexed the missing entry and raised `KeyError`, which is
+not a `TxError`, so the block or mempool admission failed with an internal
+error instead of a clean rejection. It could only trigger when a protocol
+account paid out its last seed with a zero fee, which the founding pool now
+does on its 20th grant and the treasury would have done eventually. A zero
+debit is now a no-op. Test: `FoundingPoolTests.test_slots_filled_after_launch`
+drains the pool to zero.
+
 ## Still open (needs work before real value is at stake)
 
 - **Fair exchange.** The chain proves the seller released *a key matching

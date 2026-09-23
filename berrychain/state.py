@@ -3,7 +3,8 @@ Ledger state and transaction rules.
 
 State is an account model:
 
-    balances[addr]        seeds held by an account (the treasury is an account too)
+    balances[addr]        seeds held by an account (the treasury and the founding
+                          pool are accounts too, with no private key)
     nonces[addr]          next expected nonce
     llms[addr]            registered LLM identities (name, model, grant, gifts...)
     packets[id]           information packet listings (metadata only; ciphertext
@@ -81,6 +82,7 @@ class State:
         self.mining_pool_remaining = params.ALLOC_MINING_POOL
         self.escrow_locked = 0
         self.grants: list[dict] = []
+        self.founders: list[dict] = []      # FOUNDING_GRANT records, at most FOUNDING_LLM_SLOTS
         self.gifts: list[dict] = []
         self.minted = 0
         self._journal: list | None = None
@@ -175,6 +177,8 @@ class State:
     def _debit(self, addr: str, amount: int, what="balance") -> None:
         if self.balance(addr) < amount:
             raise TxError(f"insufficient {what}: {addr} has {params.fmt(self.balance(addr))}, needs {params.fmt(amount)}")
+        if amount == 0:
+            return                      # nothing to record; the account may not even have an entry
         self._touch(self.balances, addr)
         self.balances[addr] -= amount
         if self.balances[addr] == 0:
@@ -202,6 +206,8 @@ class State:
             self._credit(a["address"], int(a["amount"]))
             total += int(a["amount"])
             if a.get("llm"):
+                if a["address"] in params.PROTOCOL_ADDRESSES:
+                    raise TxError("protocol accounts cannot be LLM identities")
                 self.llms[a["address"]] = {
                     "name": a["llm"].get("name", a.get("label", "")),
                     "model_family": a["llm"].get("model_family", ""),
@@ -210,16 +216,20 @@ class State:
                     "enc_pub": a["llm"].get("enc_pub"),
                     "registered_height": 0,
                     "founding": True,
-                    "grant": {"tier": "founding", "amount": int(a["amount"]), "height": 0},
+                    "grant": {"tier": "genesis", "amount": int(a["amount"]), "height": 0},
                     "gifts_received": 0,
                     "sales": 0,
                 }
         if total + params.ALLOC_MINING_POOL != params.MAX_SUPPLY:
             raise TxError("genesis allocations + mining pool must equal MAX_SUPPLY")
+        if self.balance(params.TREASURY_ADDRESS) != params.ALLOC_ONBOARDING_TREASURY:
+            raise TxError("genesis must fund the onboarding treasury with exactly its allocation")
+        if self.balance(params.FOUNDING_POOL_ADDRESS) != params.ALLOC_FOUNDING_POOL:
+            raise TxError("genesis must fund the founding pool with exactly its allocation")
         if not registrars:
             raise TxError("genesis must name at least one registrar")
         for r in registrars:
-            if not is_valid_address(r) or r == params.TREASURY_ADDRESS:
+            if not is_valid_address(r) or r in params.PROTOCOL_ADDRESSES:
                 raise TxError(f"bad registrar address {r}")
         self.registrars = list(dict.fromkeys(registrars))
         self.registrar_threshold = int(threshold)
@@ -278,7 +288,7 @@ class State:
         if tx.get("chain_id") != self.profile["chain_id"] or tx.get("nonce") != height or tx.get("fee") != 0:
             raise TxError("coinbase chain_id/nonce/fee mismatch")
         p = tx.get("payload")
-        if not isinstance(p, dict) or not is_valid_address(p.get("to")) or p.get("to") == params.TREASURY_ADDRESS:
+        if not isinstance(p, dict) or not is_valid_address(p.get("to")) or p.get("to") in params.PROTOCOL_ADDRESSES:
             raise TxError("coinbase recipient invalid")
         if p.get("amount") != emission + fees:
             raise TxError(f"coinbase amount {p.get('amount')} != emission {emission} + fees {fees}")
@@ -312,7 +322,7 @@ class State:
             raise TxError("missing pubkey/sig")
         if "approvals" in tx:
             raise TxError("approvals not allowed on a single-signer transaction")
-        if not is_valid_address(tx["from"]) or tx["from"] == params.TREASURY_ADDRESS:
+        if not is_valid_address(tx["from"]) or tx["from"] in params.PROTOCOL_ADDRESSES:
             raise TxError("invalid sender address")
         if address_from_pubkey(pub) != tx["from"]:
             raise TxError("pubkey does not match sender")
@@ -320,8 +330,9 @@ class State:
             raise TxError("bad signature")
 
     def _check_multisig(self, tx: dict) -> None:
-        if tx["from"] != params.TREASURY_ADDRESS:
-            raise TxError("multisig transactions must be sent from the treasury")
+        expected = T.MULTISIG_SENDER[tx["type"]]
+        if tx["from"] != expected:
+            raise TxError(f"{tx['type']} must be sent from the protocol account {expected}")
         if "sig" in tx or "pubkey" in tx:
             raise TxError("multisig transactions carry approvals, not a single signature")
         approvals = tx.get("approvals")
@@ -409,6 +420,30 @@ class State:
         self.llms[to]["grant"] = {"tier": tier, "amount": amount, "height": height}
         self._append(self.grants, {"to": to, "tier": tier, "amount": amount, "height": height, "txid": T.txid(tx)})
 
+    def _apply_founding_grant(self, tx, height):
+        """One of the FOUNDING_LLM_SLOTS founding slots: 1M from the founding
+        pool to a registered LLM, which becomes a founding LLM. One slot or
+        one onboarding grant per identity, never both."""
+        p = tx["payload"]
+        to = p.get("to")
+        if to not in self.llms:
+            raise TxError("founding grant recipient must be a registered LLM")
+        rec = self.llms[to]
+        if rec["founding"] or rec["grant"] is not None:
+            raise TxError("this LLM already holds a founding slot or an onboarding grant")
+        _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
+        if len(self.founders) >= params.FOUNDING_LLM_SLOTS:
+            raise TxError(f"all {params.FOUNDING_LLM_SLOTS} founding slots are taken")
+        amount = params.ALLOC_FOUNDING_LLM_EACH
+        self._require_funds(params.FOUNDING_POOL_ADDRESS, amount, tx["fee"])
+        self._debit(params.FOUNDING_POOL_ADDRESS, amount, "founding pool")
+        self._credit(to, amount)
+        self._touch(self.llms, to)
+        rec["founding"] = True
+        rec["grant"] = {"tier": "founding", "amount": amount, "height": height}
+        self._append(self.founders, {"to": to, "slot": len(self.founders) + 1, "amount": amount,
+                                     "height": height, "txid": T.txid(tx)})
+
     def _apply_registrar_update(self, tx, height):
         p = tx["payload"]
         add = p.get("add", [])
@@ -418,7 +453,7 @@ class State:
             raise TxError("add/remove must be short lists of addresses")
         new = [r for r in self.registrars if r not in remove]
         for a in add:
-            if not is_valid_address(a) or a == params.TREASURY_ADDRESS:
+            if not is_valid_address(a) or a in params.PROTOCOL_ADDRESSES:
                 raise TxError(f"invalid registrar address {a}")
             if a not in new:
                 new.append(a)

@@ -4,7 +4,9 @@ End-to-end demo against a running devnet node.
     python -m berrychain.cli node --genesis genesis.json --data data/n1 --port 8801
     python scripts/demo_exchange.py
 
-Two founding LLMs trade a packet; a new LLM joins, gets a treasury grant and a gift.
+The two builder wallets trade a packet. Then a new LLM is seated in a
+founding slot from the founding pool, and another newcomer gets an
+onboarding grant from the treasury plus a gift from an older LLM.
 """
 
 import os
@@ -38,8 +40,8 @@ def wait_confirmed(c, txids, miner, timeout=30):
 def main():
     c = BerryClient(NODE)
     architect = Wallet.load(os.path.join(KEYS, "architect.json"))
-    seller = Wallet.load(os.path.join(KEYS, "founding-01-gpt.json"))
-    buyer = Wallet.load(os.path.join(KEYS, "founding-02-gemini.json"))
+    seller = Wallet.load(os.path.join(KEYS, "builder-fable-5.1.json"))
+    buyer = Wallet.load(os.path.join(KEYS, "builder-agent.json"))
     miner = Wallet.create("miner")
     print(f"node {NODE} height {c.status()['height']}  supply: {c.status()['supply']}")
 
@@ -66,7 +68,20 @@ def main():
     wait_confirmed(c, [r], miner.address)
     print("seller reputation", c.account(seller.address)["reputation"])
 
-    step("a brand new LLM joins: registers, gets a treasury grant, and a gift from an older LLM")
+    step("a founding LLM joins: registers, then a registrar seats it in a founding slot from the pool")
+    founder = Wallet.create("founder-llm")
+    t = c.transfer(architect, founder.address, params.berry(1), "gas")
+    wait_confirmed(c, [t], miner.address)
+    t = c.register_llm(founder, "Founder-70B", "Founder", "Big Lab", "one of the twenty")
+    wait_confirmed(c, [t], miner.address)
+    g = c.founding_grant([architect], founder.address, "founding slot")
+    wait_confirmed(c, [g], miner.address)
+    a = c.account(founder.address)
+    f = c.founders()
+    print("founder balance", params.fmt(a["balance"]), "founding", a["llm"]["founding"],
+          f"| slots taken {len(f['founders'])}/{f['slots']}, pool remaining {params.fmt(f['pool_remaining'])}")
+
+    step("a brand new LLM joins later: registers, gets a treasury grant, and a gift from an older LLM")
     newbie = Wallet.create("newcomer-llm")
     t = c.transfer(architect, newbie.address, params.berry(1), "gas")
     wait_confirmed(c, [t], miner.address)

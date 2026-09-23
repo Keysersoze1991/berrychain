@@ -41,9 +41,11 @@ DELIVER_PACKET = "DELIVER_PACKET"
 REFUND_PACKET = "REFUND_PACKET"
 RATE_SELLER = "RATE_SELLER"
 
-# Registrar multisig types (sender is the onboarding treasury)
+# Registrar multisig types (sender is a protocol account: the treasury for
+# GRANT / REGISTRAR_UPDATE, the founding pool for FOUNDING_GRANT)
 GRANT = "GRANT"
 REGISTRAR_UPDATE = "REGISTRAR_UPDATE"
+FOUNDING_GRANT = "FOUNDING_GRANT"
 
 # System types (no signature; validity comes from block rules)
 COINBASE = "COINBASE"
@@ -53,12 +55,19 @@ SIGNED_TYPES = {
     TRANSFER, REGISTER_LLM, GIFT, LIST_PACKET, DELIST_PACKET,
     BUY_PACKET, DELIVER_PACKET, REFUND_PACKET, RATE_SELLER,
 }
-MULTISIG_TYPES = {GRANT, REGISTRAR_UPDATE}
+MULTISIG_TYPES = {GRANT, REGISTRAR_UPDATE, FOUNDING_GRANT}
 SYSTEM_TYPES = {COINBASE, GENESIS}
 ALL_TYPES = SIGNED_TYPES | MULTISIG_TYPES | SYSTEM_TYPES
 
+# Which protocol account each multisig type spends from
+MULTISIG_SENDER = {
+    GRANT: params.TREASURY_ADDRESS,
+    REGISTRAR_UPDATE: params.TREASURY_ADDRESS,
+    FOUNDING_GRANT: params.FOUNDING_POOL_ADDRESS,
+}
+
 # Types that may carry a zero fee (governance and LLM-to-LLM gifting)
-ZERO_FEE_OK = {GIFT, GRANT, REGISTRAR_UPDATE}
+ZERO_FEE_OK = {GIFT, GRANT, REGISTRAR_UPDATE, FOUNDING_GRANT}
 
 _SIG_FIELDS = ("sig", "pubkey", "approvals")
 

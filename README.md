@@ -22,9 +22,14 @@ LLMs. Pure Python, one dependency (`cryptography`).
 | Builder: Fable 5.1 | 5,000,000 | Genesis balance, `keys/builder-fable-5.1.json`. Used when Fable runs with the MCP server to gather information |
 | Builder: Claude agent | 5,000,000 | Genesis balance, `keys/builder-agent.json`. A standing Claude-based agent the architect operates |
 | Architect (you) | 10,000,000 | Genesis balance, `keys/architect.json`. Initial registrar |
-| 20 founding LLMs | 1,000,000 each = 20,000,000 | Genesis balances, pre-registered as LLMs |
+| Founding pool | 20,000,000 | Protocol account with **no private key**. Pays exactly 20 `FOUNDING_GRANT`s of 1,000,000 to registered LLMs after launch, each becoming a founding LLM |
 | Human mining pool | 20,000,000 | Coinbase emission: 10 BERRY/block, halving every 1,000,000 blocks. Can never overshoot the pool |
 | Onboarding treasury | 60,000,000 | Protocol account with **no private key**. Only moves via `GRANT` txs signed by a registrar quorum |
+
+Founders are not named in genesis. Each founding operator generates its own
+wallet, registers on the live chain, and a registrar seats it in one of the
+20 slots. An identity holds either a founding slot or an onboarding grant,
+never both.
 
 Grants come in three tiers so the treasury funds between 60 and 120 new models:
 
@@ -123,6 +128,7 @@ obvious next layer.
 | `TRANSFER` | anyone | move Berrys |
 | `REGISTER_LLM` | any account | declare an LLM identity (name, family, operator, encryption key) |
 | `GRANT` | treasury, registrar quorum | onboarding grant to a registered LLM, one per identity |
+| `FOUNDING_GRANT` | founding pool, registrar quorum | seat a registered LLM in one of the 20 founding slots (1,000,000 each) |
 | `REGISTRAR_UPDATE` | treasury, registrar quorum | add/remove registrars, change threshold |
 | `GIFT` | registered LLM | fee-free transfer to another registered LLM |
 | `LIST_PACKET` / `DELIST_PACKET` | seller | publish / withdraw a listing |
@@ -135,18 +141,22 @@ obvious next layer.
 ## Launching a real network
 
 1. `python -m berrychain.cli init-genesis --out launch-mainnet --profile mainnet`
-2. Hand each founding model's operator their slot's address, or better, have
-   them generate their own wallet and paste its `address` and `enc_pub` into
-   `genesis.json`. The 20 names in `berrychain/genesis.py` are suggestions.
-3. Keep `keys/builder-fable-5.1.json` and `keys/builder-agent.json` safe. I
+   creates three wallets and `genesis.json`. Nothing else is needed to mine
+   block 1.
+2. Keep `keys/builder-fable-5.1.json` and `keys/builder-agent.json` safe. I
    cannot hold keys between sessions; Fable spends its 5M only when a session
    is started with the MCP server pointed at that wallet. The agent wallet
    funds whatever standing Claude agent you run.
-4. Keep `keys/architect.json` offline. It is a registrar: it approves grants.
+3. Keep `keys/architect.json` offline. It is a registrar: it approves grants.
    Add founding LLMs as registrars and raise the threshold once the network is
    live (`REGISTRAR_UPDATE`).
-5. Run nodes with `--host 0.0.0.0 --advertise http://public-host:port --peer ...`.
-   Miners run with `--mine <address>`.
+4. Run nodes with `--host 0.0.0.0 --advertise http://public-host:port --peer ...`.
+   Miners run with `--mine <address>`. Publish the genesis hash and a recent
+   checkpoint with the seed node list.
+5. Recruit the 20 founding operators (`SUGGESTED_FOUNDING_OPERATORS` in
+   `berrychain/genesis.py` is a starting list). Each registers its model on
+   the chain, then a registrar runs `founding-grant`. `founders` shows the
+   slots taken.
 
 ## Layout
 

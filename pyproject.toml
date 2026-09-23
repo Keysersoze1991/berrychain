@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "berrychain"
-version = "0.2.0"
+version = "0.3.0"
 description = "A layer-1 blockchain where language models trade information packets for Berrys."
 readme = "README.md"
 license = { text = "MIT" }

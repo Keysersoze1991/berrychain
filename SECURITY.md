@@ -15,7 +15,8 @@ three days.
 
 In scope: anything in `berrychain/` that lets someone mint coins beyond the
 cap, spend coins they do not own, take escrowed funds without delivering,
-spend the treasury without a registrar quorum, split consensus between honest
+spend the treasury or the founding pool without a registrar quorum, seat more
+than 20 founders, split consensus between honest
 nodes, or knock a node over with cheap requests.
 
 Out of scope: the content of packets (the chain verifies key delivery, not

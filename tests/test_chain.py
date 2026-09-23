@@ -2,6 +2,7 @@
 End-to-end tests for BerryChain rules. Run with:  python -m unittest -v
 """
 
+import copy
 import hashlib
 import os
 import sys
@@ -12,30 +13,52 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from berrychain import crypto, params, tx as T  # noqa: E402
 from berrychain.chain import BlockError, Chain  # noqa: E402
-from berrychain.genesis import FOUNDING_LLM_SLOTS, build_genesis  # noqa: E402
+from berrychain.genesis import build_genesis  # noqa: E402
 from berrychain.state import TxError  # noqa: E402
 from berrychain.wallet import Wallet  # noqa: E402
 
 B = params.berry
+POOL = params.FOUNDING_POOL_ADDRESS
 
 
 def make_chain():
     builder, agent, architect = Wallet.create("builder"), Wallet.create("agent"), Wallet.create("architect")
-    founders = [Wallet.create(f"f{i}") for i in range(20)]
-    fspec = [{"name": n, "operator": o, "address": w.address, "enc_pub": w.enc_pub}
-             for (n, o), w in zip(FOUNDING_LLM_SLOTS, founders)]
-    g = build_genesis(builder.public_info(), architect.public_info(), fspec, builder_agent=agent.public_info(),
+    g = build_genesis(builder.public_info(), architect.public_info(), builder_agent=agent.public_info(),
                       profile="devnet", timestamp=1_700_000_000)
-    return Chain(g), builder, agent, architect, founders
+    return Chain(g), builder, agent, architect
 
 
 class Harness:
-    """Submit txs and mine them on a devnet chain with monotonic timestamps."""
+    """Submit txs and mine them on a devnet chain with monotonic timestamps.
 
-    def __init__(self):
-        self.chain, self.builder, self.agent, self.architect, self.founders = make_chain()
+    With founders=True (default) 20 wallets are registered and seated in the
+    founding slots through FOUNDING_GRANT, exactly as on the real chain, so
+    tests have funded LLM identities to trade with. Each ends with exactly
+    1,000,000 BERRY. The setup blocks are mined by a throwaway miner so
+    `self.miner` starts every test with a zero balance."""
+
+    def __init__(self, founders: bool = True):
+        self.chain, self.builder, self.agent, self.architect = make_chain()
         self.miner = Wallet.create("miner")
         self.t = 1_700_000_000
+        self.founders: list[Wallet] = []
+        self.setup_height = 0
+        if founders:
+            self.seat_founders(params.FOUNDING_LLM_SLOTS)
+
+    def seat_founders(self, n: int) -> None:
+        setup_miner = Wallet.create("setup-miner")
+        self.founders = [Wallet.create(f"f{i}") for i in range(n)]
+        for w in self.founders:
+            self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": params.MIN_FEE})   # exactly the registration fee
+        self._mine_with(setup_miner)
+        for w in self.founders:
+            self.send(w, T.REGISTER_LLM, {"name": w.label, "model_family": "test", "operator": "test", "enc_pub": w.enc_pub})
+        self._mine_with(setup_miner)
+        for w in self.founders:
+            self.multisig([self.architect], T.FOUNDING_GRANT, {"to": w.address})
+        self._mine_with(setup_miner)
+        self.setup_height = self.chain.height
 
     def send(self, wallet, tx_type, payload, fee=params.MIN_FEE):
         tx = T.build(tx_type, wallet.address, self.chain.state.nonce(wallet.address), fee, payload, self.chain.profile["chain_id"])
@@ -47,40 +70,66 @@ class Harness:
 
     def multisig(self, registrars, tx_type, payload):
         st = self.chain.state
-        pending = sum(1 for t in self.chain.mempool.values() if t["from"] == params.TREASURY_ADDRESS)
-        tx = T.build(tx_type, params.TREASURY_ADDRESS, st.nonce(params.TREASURY_ADDRESS) + pending, 0, payload, self.chain.profile["chain_id"])
+        sender = T.MULTISIG_SENDER[tx_type]
+        pending = sum(1 for t in self.chain.mempool.values() if t["from"] == sender)
+        tx = T.build(tx_type, sender, st.nonce(sender) + pending, 0, payload, self.chain.profile["chain_id"])
         for r in registrars:
             r.approve(tx)
         return self.chain.add_tx(tx)
 
+    def _mine_with(self, miner):
+        self.t += 1
+        blk = self.chain.mine_block(miner.address, timestamp=self.t)
+        assert blk is not None
+        self.chain.state.check_invariant()
+
     def mine(self, n=1):
         for _ in range(n):
-            self.t += 1
-            blk = self.chain.mine_block(self.miner.address, timestamp=self.t)
-            assert blk is not None
-        self.chain.state.check_invariant()
+            self._mine_with(self.miner)
         return self.chain.tip
+
+    def fund_and_register(self, label="new-llm") -> Wallet:
+        w = Wallet.create(label)
+        self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": B(1)})
+        self.mine()
+        self.send(w, T.REGISTER_LLM, {"name": label, "enc_pub": w.enc_pub})
+        self.mine()
+        return w
 
 
 class GenesisTests(unittest.TestCase):
     def test_allocation_matches_cap(self):
-        h = Harness()
+        h = Harness(founders=False)
         s = h.chain.supply()
+        st = h.chain.state
         self.assertEqual(s["max_supply"], B(120_000_000))
-        self.assertEqual(h.chain.state.balance(h.builder.address), B(5_000_000))
-        self.assertEqual(h.chain.state.balance(h.agent.address), B(5_000_000))
-        self.assertEqual(h.chain.state.balance(h.architect.address), B(10_000_000))
-        for f in h.founders:
-            self.assertEqual(h.chain.state.balance(f.address), B(1_000_000))
+        self.assertEqual(st.balance(h.builder.address), B(5_000_000))
+        self.assertEqual(st.balance(h.agent.address), B(5_000_000))
+        self.assertEqual(st.balance(h.architect.address), B(10_000_000))
+        self.assertEqual(s["founding_pool_remaining"], B(20_000_000))
         self.assertEqual(s["treasury_unallocated"], B(60_000_000))
         self.assertEqual(s["mining_pool_remaining"], B(20_000_000))
-        self.assertEqual(h.chain.state.total_accounted(), params.MAX_SUPPLY)
-        self.assertEqual(len(h.chain.state.llms), 22)   # fable + agent + 20 founders
+        self.assertEqual(s["circulating"], B(20_000_000))         # builders + architect only
+        self.assertEqual(s["founding_slots_taken"], 0)
+        self.assertEqual(st.total_accounted(), params.MAX_SUPPLY)
+        self.assertEqual(len(st.llms), 2)                           # fable + agent; founders come later
         # builder wallet alone gets the full 10M if no agent wallet is given
-        g = build_genesis(h.builder.public_info(), h.architect.public_info(),
-                          [{"name": "x", "address": f.address, "enc_pub": f.enc_pub} for f in h.founders],
-                          profile="devnet", timestamp=1)
+        g = build_genesis(h.builder.public_info(), h.architect.public_info(), profile="devnet", timestamp=1)
         self.assertEqual(Chain(g).state.balance(h.builder.address), B(10_000_000))
+
+    def test_genesis_must_fund_protocol_accounts_exactly(self):
+        h = Harness(founders=False)
+        g = copy.deepcopy(h.chain.genesis)
+        pool = next(a for a in g["allocations"] if a["address"] == POOL)
+        arch = next(a for a in g["allocations"] if a["label"] == "architect")
+        pool["amount"] -= 1; arch["amount"] += 1                     # same total, wrong split
+        with self.assertRaises(TxError):
+            Chain(g)
+        g = copy.deepcopy(h.chain.genesis)
+        pool = next(a for a in g["allocations"] if a["address"] == POOL)
+        pool["llm"] = {"name": "pool", "enc_pub": h.builder.enc_pub}   # protocol account as an LLM
+        with self.assertRaises(TxError):
+            Chain(g)
 
     def test_emission_sums_to_pool(self):
         h = Harness()
@@ -141,12 +190,20 @@ class TransferTests(unittest.TestCase):
         with self.assertRaises(TxError):
             h.chain.add_tx(tx)
 
-    def test_nobody_can_spend_treasury_directly(self):
-        h = Harness()
-        tx = T.build(T.TRANSFER, params.TREASURY_ADDRESS, 0, params.MIN_FEE, {"to": h.architect.address, "amount": 1}, "berry-dev")
-        tx["pubkey"], tx["sig"] = h.architect.sign_pub, "00" * 64
+    def test_nobody_can_spend_protocol_accounts_directly(self):
+        h = Harness(founders=False)
+        for acct in (params.TREASURY_ADDRESS, POOL):
+            tx = T.build(T.TRANSFER, acct, 0, params.MIN_FEE, {"to": h.architect.address, "amount": 1}, "berry-dev")
+            tx["pubkey"], tx["sig"] = h.architect.sign_pub, "00" * 64
+            with self.assertRaises(TxError):
+                h.chain.add_tx(tx)
+        # a multisig type sent from the wrong protocol account is refused even with valid approvals
         with self.assertRaises(TxError):
-            h.chain.add_tx(tx)
+            tx = T.build(T.GRANT, POOL, 0, 0, {"to": h.builder.address, "tier": "small"}, "berry-dev")
+            h.architect.approve(tx); h.chain.add_tx(tx)
+        with self.assertRaises(TxError):
+            tx = T.build(T.FOUNDING_GRANT, params.TREASURY_ADDRESS, 0, 0, {"to": h.builder.address}, "berry-dev")
+            h.architect.approve(tx); h.chain.add_tx(tx)
 
 
 class OnboardingTests(unittest.TestCase):
@@ -184,6 +241,57 @@ class OnboardingTests(unittest.TestCase):
         # 60M treasury supports 60 large or 120 small grants
         self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["large"], 60)
         self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["small"], 120)
+
+
+class FoundingPoolTests(unittest.TestCase):
+    def test_slots_filled_after_launch(self):
+        h = Harness()                                   # seats 20 founders via FOUNDING_GRANT
+        st, s = h.chain.state, h.chain.supply()
+        self.assertEqual(s["founding_slots_taken"], 20)
+        self.assertEqual(s["founding_pool_remaining"], 0)
+        self.assertEqual(len(st.founders), 20)
+        self.assertEqual([r["slot"] for r in st.founders], list(range(1, 21)))
+        for f in h.founders:
+            self.assertEqual(st.balance(f.address), B(1_000_000))
+            self.assertTrue(st.llms[f.address]["founding"])
+            self.assertEqual(st.llms[f.address]["grant"]["tier"], "founding")
+        self.assertEqual(len(st.llms), 22)
+        self.assertEqual(st.total_accounted(), params.MAX_SUPPLY)
+        # the 21st slot does not exist, but the treasury still can onboard the newcomer
+        late = h.fund_and_register("late")
+        with self.assertRaises(TxError):
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": late.address})
+        h.multisig([h.architect], T.GRANT, {"to": late.address, "tier": "small"})
+        h.mine()
+        self.assertEqual(st.llms[late.address]["grant"]["tier"], "small")
+        self.assertFalse(st.llms[late.address]["founding"])
+
+    def test_founding_grant_rules(self):
+        h = Harness(founders=False)
+        stranger = Wallet.create()
+        with self.assertRaises(TxError):                # must be a registered LLM
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": stranger.address})
+        w = h.fund_and_register("w")
+        with self.assertRaises(TxError):                # approvals must come from a registrar
+            h.multisig([w], T.FOUNDING_GRANT, {"to": w.address})
+        h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address, "note": "welcome"})
+        h.mine()
+        self.assertEqual(h.chain.state.balance(w.address), B(1_000_001) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(POOL), B(19_000_000))
+        with self.assertRaises(TxError):                # one slot per identity
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address})
+        with self.assertRaises(TxError):                # a founder gets no onboarding grant on top
+            h.multisig([h.architect], T.GRANT, {"to": w.address, "tier": "large"})
+        # and a treasury grantee cannot later take a founding slot
+        g = h.fund_and_register("g")
+        h.multisig([h.architect], T.GRANT, {"to": g.address, "tier": "small"})
+        h.mine()
+        with self.assertRaises(TxError):
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": g.address})
+        # genesis LLMs (the builders) are founding already and cannot take a slot
+        with self.assertRaises(TxError):
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": h.builder.address})
+        h.chain.state.check_invariant()
 
     def test_registrar_update_threshold(self):
         h = Harness()
@@ -323,7 +431,7 @@ class HardeningTests(unittest.TestCase):
             PacketExchangeTests._list(None, h, seller, os.urandom(params.MAX_PACKET_INLINE_BYTES - overhead + 1), B(1))
 
     def test_headers_checked_before_replay(self):
-        h = Harness()
+        h = Harness(founders=False)
         h.mine(2)
         other = Chain(h.chain.genesis)
         t = 1_700_000_000
@@ -354,7 +462,7 @@ class HardeningTests(unittest.TestCase):
 
 class ConsensusTests(unittest.TestCase):
     def test_bad_blocks_rejected(self):
-        h = Harness()
+        h = Harness(founders=False)
         h.mine(3)
         blk = dict(h.chain.tip)
         with self.assertRaises(BlockError):
@@ -369,7 +477,7 @@ class ConsensusTests(unittest.TestCase):
         self.assertEqual(h.chain.state.total_accounted(), params.MAX_SUPPLY)
 
     def test_fork_choice_and_persistence(self):
-        h = Harness()
+        h = Harness(founders=False)
         h.mine(2)
         other = Chain(h.chain.genesis)
         t = 1_700_000_000
@@ -387,7 +495,7 @@ class ConsensusTests(unittest.TestCase):
             self.assertEqual(loaded.state.state_root(), h.chain.state.state_root())
 
     def test_difficulty_retarget(self):
-        h = Harness()
+        h = Harness(founders=False)
         window = h.chain.profile["difficulty_window"]
         # mine a window of blocks 1s apart == target time, so target stays put
         h.mine(window)

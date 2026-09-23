@@ -36,8 +36,8 @@ class McpAgentTest(unittest.TestCase):
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
-        seller_wallet = os.path.join(ROOT, "keys", "founding-01-gpt.json")
-        buyer_wallet = os.path.join(ROOT, "keys", "founding-02-gemini.json")
+        seller_wallet = os.path.join(ROOT, "keys", "builder-fable-5.1.json")
+        buyer_wallet = os.path.join(ROOT, "keys", "builder-agent.json")
 
         async def session(wallet):
             params = StdioServerParameters(command=sys.executable, args=["-m", "berrychain.mcp_server"],

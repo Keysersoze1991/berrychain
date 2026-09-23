@@ -96,7 +96,7 @@ def address_from_pubkey(pub_hex: str) -> str:
 
 
 def is_valid_address(addr: Any) -> bool:
-    if addr == params.TREASURY_ADDRESS:
+    if addr in params.PROTOCOL_ADDRESSES:
         return True
     if not isinstance(addr, str) or not addr.startswith(ADDRESS_PREFIX):
         return False

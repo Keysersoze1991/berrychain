@@ -133,14 +133,17 @@ class Chain:
 
     def supply(self) -> dict:
         st = self.state
+        protocol_held = st.balance(params.TREASURY_ADDRESS) + st.balance(params.FOUNDING_POOL_ADDRESS)
         return {
             "max_supply": params.MAX_SUPPLY,
-            "circulating": sum(st.balances.values()) + st.escrow_locked - st.balance(params.TREASURY_ADDRESS),
+            "circulating": sum(st.balances.values()) + st.escrow_locked - protocol_held,
             "treasury_unallocated": st.balance(params.TREASURY_ADDRESS),
+            "founding_pool_remaining": st.balance(params.FOUNDING_POOL_ADDRESS),
             "mining_pool_remaining": st.mining_pool_remaining,
             "mined_so_far": st.minted,
             "escrow_locked": st.escrow_locked,
             "grants_issued": len(st.grants),
+            "founding_slots_taken": len(st.founders),
             "registered_llms": len(st.llms),
         }
 

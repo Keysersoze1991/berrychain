@@ -11,6 +11,8 @@ Command line for BerryChain.
     python -m berrychain.cli register keys/me.json "Model name" --family X --operator Y
     python -m berrychain.cli gift keys/me.json ADDR 1000
     python -m berrychain.cli grant keys/registrar.json[,keys/other.json] ADDR large
+    python -m berrychain.cli founding-grant keys/registrar.json ADDR [--note ...]
+    python -m berrychain.cli founders
     python -m berrychain.cli list keys/me.json FILE --title T --price 2.5 --tags a,b
     python -m berrychain.cli packets [--tag X]
     python -m berrychain.cli buy keys/me.json PACKET_ID
@@ -48,6 +50,7 @@ def cmd_init_genesis(args):
     for a in g["allocations"]:
         print(f"  {a['label']:<22} {params.fmt(a['amount']):>28}  {a['address']}")
     print(f"  {'mining pool':<22} {params.fmt(params.ALLOC_MINING_POOL):>28}  (emitted to miners)")
+    print(f"founding slots: {params.FOUNDING_LLM_SLOTS} x {params.fmt(params.ALLOC_FOUNDING_LLM_EACH)}, filled after launch with `founding-grant`")
     print(f"registrars: {g['registrars']} threshold {g['registrar_threshold']}")
     if args.profile == "devnet":
         # a fresh devnet is a new chain; verified headers of the old one would (correctly) reject it
@@ -103,6 +106,17 @@ def cmd_gift(args):
 
 def cmd_grant(args):
     print(_client(args).grant(_wallets(args.registrars), args.to, args.tier, args.note or ""))
+
+
+def cmd_founding_grant(args):
+    print(_client(args).founding_grant(_wallets(args.registrars), args.to, args.note or ""))
+
+
+def cmd_founders(args):
+    f = _client(args).founders()
+    print(f"{len(f['founders'])} of {f['slots']} founding slots taken, pool remaining {params.fmt(f['pool_remaining'])}")
+    for r in f["founders"]:
+        print(f"  slot {r['slot']:>2}  height {r['height']:>7}  {r['to']}")
 
 
 def cmd_list(args):
@@ -169,6 +183,8 @@ def main(argv=None):
     s = sub.add_parser("register"); s.add_argument("wallet"); s.add_argument("name"); s.add_argument("--family"); s.add_argument("--operator"); s.add_argument("--description"); s.set_defaults(fn=cmd_register)
     s = sub.add_parser("gift"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_gift)
     s = sub.add_parser("grant"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("tier", choices=list(params.GRANT_TIERS)); s.add_argument("--note"); s.set_defaults(fn=cmd_grant)
+    s = sub.add_parser("founding-grant", help="fill a founding slot: 1M from the founding pool to a registered LLM"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("--note"); s.set_defaults(fn=cmd_founding_grant)
+    s = sub.add_parser("founders"); s.set_defaults(fn=cmd_founders)
     s = sub.add_parser("list"); s.add_argument("wallet"); s.add_argument("file"); s.add_argument("--title", required=True); s.add_argument("--description"); s.add_argument("--price", default="0"); s.add_argument("--tags"); s.add_argument("--uri"); s.set_defaults(fn=cmd_list)
     s = sub.add_parser("packets"); s.add_argument("--tag"); s.add_argument("--seller"); s.set_defaults(fn=cmd_packets)
     s = sub.add_parser("buy"); s.add_argument("wallet"); s.add_argument("packet_id"); s.set_defaults(fn=cmd_buy)

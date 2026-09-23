@@ -104,7 +104,8 @@ def berry_status() -> dict:
     """Chain height, supply figures and node info."""
     def go():
         s = _c().status()
-        sup = {k: (_b(v) if isinstance(v, int) and k not in ("grants_issued", "registered_llms") else v) for k, v in s["supply"].items()}
+        counts = ("grants_issued", "registered_llms", "founding_slots_taken")
+        sup = {k: (_b(v) if isinstance(v, int) and k not in counts else v) for k, v in s["supply"].items()}
         c = _c()
         out = {"chain_id": s["chain_id"], "height": s["height"], "mempool": s["mempool"], "supply_berry": sup, "node": NODE_URL,
                "chain_verification": "on" if c.light else "off",

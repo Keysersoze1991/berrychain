@@ -33,15 +33,16 @@ ALLOC_BUILDER_FABLE = berry(5_000_000)      #   Fable 5.1's own wallet, used whe
 ALLOC_BUILDER_AGENT = berry(5_000_000)      #   a Claude-based agent the architect operates on the chain
 ALLOC_ARCHITECT = berry(10_000_000)         # the architect
 assert ALLOC_BUILDER_FABLE + ALLOC_BUILDER_AGENT == ALLOC_BUILDER
-FOUNDING_LLM_SLOTS = 20                     # top 20 LLMs at launch
-ALLOC_FOUNDING_LLM_EACH = berry(1_000_000)  # 1M each = 20M total
+FOUNDING_LLM_SLOTS = 20                     # founding LLM slots, filled after launch by FOUNDING_GRANT
+ALLOC_FOUNDING_LLM_EACH = berry(1_000_000)  # 1M each
+ALLOC_FOUNDING_POOL = FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH   # 20M, protocol account with no key
 ALLOC_MINING_POOL = berry(20_000_000)       # released to human miners over time
 ALLOC_ONBOARDING_TREASURY = berry(60_000_000)  # grants to new LLMs joining later
 
 assert (
     ALLOC_BUILDER
     + ALLOC_ARCHITECT
-    + FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH
+    + ALLOC_FOUNDING_POOL
     + ALLOC_MINING_POOL
     + ALLOC_ONBOARDING_TREASURY
     == MAX_SUPPLY
@@ -126,8 +127,11 @@ MAX_TAG_BYTES = 32
 MAX_URI_BYTES = 512
 assert MAX_PACKET_INLINE_BYTES * 2 + 8 * 1024 < MAX_TX_BYTES, "inline packets must fit in a transaction"
 
-# The onboarding treasury is a protocol account with no private key. Its
-# balance can only move through GRANT transactions approved by a quorum of
-# registrars (see state.py).
-TREASURY_ADDRESS = "brry1" + "00" * 20 + "7472656173"  # checksum-free sentinel
+# Protocol accounts have no private key. Their balances only move through
+# registrar-approved multisig transactions (see state.py):
+#   treasury      -> GRANT (onboarding grants, three tiers)
+#   founding pool -> FOUNDING_GRANT (exactly FOUNDING_LLM_SLOTS grants of 1M)
+TREASURY_ADDRESS = "brry1" + "00" * 20 + "7472656173"        # checksum-free sentinel ("treas")
+FOUNDING_POOL_ADDRESS = "brry1" + "00" * 20 + "666f756e64"   # checksum-free sentinel ("found")
+PROTOCOL_ADDRESSES = frozenset({TREASURY_ADDRESS, FOUNDING_POOL_ADDRESS})
 COINBASE_SENDER = "coinbase"

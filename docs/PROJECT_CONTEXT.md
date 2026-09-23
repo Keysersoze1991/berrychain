@@ -31,7 +31,7 @@ when decisions change. Read it first.
 | Smallest unit | 1 seed = 0.00000001 BERRY | 8 decimals, so the coin keeps dividing as it appreciates |
 | Builder | 10M, split 5M Fable + 5M architect-run Claude agent | see roles |
 | Architect | 10M | initial registrar |
-| Founding LLMs | 20 slots x 1M = 20M | names in `berrychain/genesis.py` are suggestions; each operator must supply their own address |
+| Founding LLMs | 20 slots x 1M = 20M | held in a keyless founding pool at genesis; each slot filled after launch by a registrar-approved `FOUNDING_GRANT` (decided 2026-09-23 so mainnet can launch before founders are recruited) |
 | Human mining pool | 20M | PoW coinbase, 10 BERRY/block halving every 1,000,000 blocks, capped by a pool counter |
 | Onboarding treasury | 60M | no private key; only `GRANT` txs approved by a registrar quorum can spend it |
 | Grant tiers | 500k / 750k / 1M | one grant per LLM identity, so 60 to 120 new models |
@@ -65,6 +65,9 @@ Done and verified:
   buyer and seller can read content; metadata is public. Seller now verifies
   the buyer's signed purchase before delivering a key (see HARDENING.md),
   with hostile-node tests in `tests/test_client.py`.
+- Same day: founding pool replaces named founding slots in genesis (0.3.0).
+  Genesis needs only the architect and two builder addresses. Also fixed a
+  latent crash when a protocol account is debited to exactly zero.
 - Same day: light client added (`berrychain/lightclient.py`). Clients verify
   the node's headers, keep the heaviest chain seen, and require a purchase
   to be buried under `min_confirmations` (6 mainnet, 1 devnet) before a key
@@ -81,8 +84,16 @@ Not done:
 4. Legal review before any human trading or exchange listing. A capped token
    with founder allocations is squarely what regulators examine.
 5. Decide consensus for public launch (keep PoW, or PoS among registered LLMs).
-6. Real founding addresses from the 20 operators; regenerate genesis on the
-   clean launch machine.
+6. Recruit the 20 founding operators after launch; genesis no longer needs
+   their addresses.
+7. Before the mainnet kit is generated: passphrase-encrypted wallet files,
+   an offline signing flow for the architect key (kept on a new offline USB
+   stick), a dedicated hot registrar key, and a checkpoint publisher.
+
+## Domains
+
+The architect is registering berrychain.link and berrychain.net (2026-09-23)
+as the base pages; berrychain.com is deferred on cost.
 
 ## Launch machine plan
 

@@ -125,11 +125,13 @@ class Setup:
         """An attacker's private fork from genesis: copies the seller's real
         listing, adds the attacker's own purchase, mines `extra_blocks`."""
         other = Chain(self.h.chain.genesis)
+        for b in self.h.chain.blocks[1:self.h.setup_height + 1]:     # same founders as the real chain
+            other.add_block(b, now=b["timestamp"] + 10_000)
         listing = self.h.chain.get_tx(self.pid)["tx"]
         other.add_tx(listing)
-        t = 1_700_000_000
+        t = other.tip["timestamp"]
         t += 1; other.mine_block(self.attacker.address, timestamp=t)
-        buy = T.build(T.BUY_PACKET, self.attacker.address, 0, params.MIN_FEE,
+        buy = T.build(T.BUY_PACKET, self.attacker.address, other.state.nonce(self.attacker.address), params.MIN_FEE,
                       {"packet_id": self.pid, "enc_pub": self.attacker.enc_pub}, other.profile["chain_id"])
         self.attacker.sign(buy)
         self.fake_eid = other.add_tx(buy)
@@ -267,7 +269,9 @@ class LightClientTests(Base):
         s.node.deliver_all(s.seller)
         self.assertEqual(len(delivers(s.node)), 1)
         # with a checkpoint pinned to the real chain, the same fork is refused
-        s2 = self.make(checkpoint=(1, s.h.chain.blocks[1]["hash"]))
+        s2 = self.make()
+        cp = s2.h.setup_height + 1                                 # first block the fork disagrees on
+        s2.node.light.checkpoint = (cp, s2.h.chain.blocks[cp]["hash"])
         fork2 = s2.fork_with_fake_purchase(extra_blocks=s2.h.chain.height + 3)
         s2.node.chain = fork2
         with self.assertRaises(ClientError) as cm:
@@ -312,7 +316,7 @@ class LightClientTests(Base):
         lc = LightClient(s.headers_path)
         self.assertEqual(lc.height, height)
         shorter = Chain(s.h.chain.genesis)
-        for b in s.h.chain.blocks[1:3]:
+        for b in s.h.chain.blocks[1:s.h.setup_height + 2]:
             shorter.add_block(b, now=b["timestamp"] + 10_000)
         node2 = FakeNode(shorter, headers_path=s.headers_path)
         with self.assertRaises(VerifyError):
