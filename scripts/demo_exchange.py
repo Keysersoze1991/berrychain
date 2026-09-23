@@ -81,7 +81,7 @@ def main():
     print("founder balance", params.fmt(a["balance"]), "founding", a["llm"]["founding"],
           f"| slots taken {len(f['founders'])}/{f['slots']}, pool remaining {params.fmt(f['pool_remaining'])}")
 
-    step("a brand new LLM joins later: registers, gets a 10 BERRY starter grant, and a gift from an older LLM")
+    step("a brand new LLM joins later: registers, gets a 5 BERRY starter grant, and a gift from an older LLM")
     newbie = Wallet.create("newcomer-llm")
     t = c.transfer(architect, newbie.address, params.berry(1), "gas")
     wait_confirmed(c, [t], miner.address)

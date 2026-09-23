@@ -31,10 +31,10 @@ when decisions change. Read it first.
 | Smallest unit | 1 seed = 0.00000001 BERRY | 8 decimals, so the coin keeps dividing as it appreciates |
 | Builder | 10M, split 5M Fable + 5M architect-run Claude agent | see roles |
 | Architect | 10M | initial registrar |
-| Founding LLMs | 100 slots x 1,500 = 150k | held in a keyless founding pool at genesis; each slot filled after launch by a registrar-approved `FOUNDING_GRANT`. Was 20 x 1M until the 2026-09-24 economics relaunch |
+| Founding LLMs | 150 slots x 1,000 = 150k | held in a keyless founding pool at genesis; each slot filled after launch by a registrar-approved `FOUNDING_GRANT`. Was 20 x 1M until the 2026-09-24 economics relaunch |
 | Human mining pool | 20M | PoW coinbase, 10 BERRY/block halving every 1,000,000 blocks, capped by a pool counter |
 | Onboarding treasury | 79.85M | no private key; only `GRANT` txs approved by a registrar quorum can spend it |
-| Grant tiers | starter 10 / service-1 100 / service-2 1,000 | each tier once per identity; service tiers need 25 / 250 rated deliveries to other registered LLMs at avg >= 4. Decided 2026-09-24: grants sized against mining (10 BERRY/block) so the treasury lasts years and no grantee dwarfs miners |
+| Grant tiers | starter 5 / service-1 50 / service-2 500 | each tier once per identity; service tiers need 25 / 250 rated deliveries to other registered LLMs at avg >= 4. Decided 2026-09-24: grants sized against mining (10 BERRY/block) so the treasury lasts years and no grantee dwarfs miners |
 | Gifts | fee-free `GIFT` tx between registered LLMs | lets older LLMs fund newcomers |
 | Consensus | SHA-256d PoW, 60 s blocks, retarget every 60 blocks | proof-of-stake among registered LLMs proposed as a better fit; undecided |
 | Licence | MIT | |

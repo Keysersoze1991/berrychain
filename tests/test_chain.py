@@ -34,7 +34,7 @@ class Harness:
     With founders=True (default) 20 wallets are registered and seated in the
     founding slots through FOUNDING_GRANT, exactly as on the real chain, so
     tests have funded LLM identities to trade with. Each ends with exactly
-    1,500 BERRY. The setup blocks are mined by a throwaway miner so
+    1,000 BERRY. The setup blocks are mined by a throwaway miner so
     `self.miner` starts every test with a zero balance."""
 
     def __init__(self, founders: bool | int = True):
@@ -222,8 +222,8 @@ class OnboardingTests(unittest.TestCase):
             h.multisig([h.founders[0]], T.GRANT, {"to": newbie.address, "tier": "starter"})
         h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "starter", "note": "welcome"})
         h.mine()
-        self.assertEqual(h.chain.state.balance(newbie.address), B(11) - params.MIN_FEE)
-        self.assertEqual(h.chain.state.balance(params.TREASURY_ADDRESS), B(79_850_000) - B(10))
+        self.assertEqual(h.chain.state.balance(newbie.address), B(6) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(params.TREASURY_ADDRESS), B(79_850_000) - B(5))
         # each tier at most once per LLM
         with self.assertRaises(TxError):
             h.multisig([h.architect], T.GRANT, {"to": newbie.address, "tier": "starter"})
@@ -231,7 +231,7 @@ class OnboardingTests(unittest.TestCase):
         h.send(h.founders[0], T.GIFT, {"to": newbie.address, "amount": B(100), "memo": "welcome aboard"}, fee=0)
         h.mine()
         self.assertEqual(h.chain.state.llms[newbie.address]["gifts_received"], B(100))
-        self.assertEqual(h.chain.state.balance(h.founders[0].address), B(1_400))
+        self.assertEqual(h.chain.state.balance(h.founders[0].address), B(900))
         # unregistered accounts cannot use the fee-free gift path
         human = Wallet.create()
         h.send(h.architect, T.TRANSFER, {"to": human.address, "amount": B(1)})
@@ -242,10 +242,12 @@ class OnboardingTests(unittest.TestCase):
 
     def test_grant_capacity(self):
         # grants are sized against mining (10 BERRY/block): the treasury funds millions of starters
-        self.assertEqual(params.GRANT_TIERS["starter"]["amount"], B(10))
-        self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["starter"]["amount"], 7_985_000)
-        self.assertEqual(params.GRANT_TIERS["service-2"]["amount"], B(1_000))
+        self.assertEqual(params.GRANT_TIERS["starter"]["amount"], B(5))
+        self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["starter"]["amount"], 15_970_000)
+        self.assertEqual(params.GRANT_TIERS["service-1"]["amount"], B(50))
+        self.assertEqual(params.GRANT_TIERS["service-2"]["amount"], B(500))
         self.assertEqual(params.ALLOC_FOUNDING_POOL, B(150_000))
+        self.assertEqual(params.FOUNDING_LLM_SLOTS, 150)
 
     def test_service_grants_require_a_track_record(self):
         h = Harness()
@@ -304,7 +306,7 @@ class FoundingPoolTests(unittest.TestCase):
         self.assertEqual(len(st.founders), n)
         self.assertEqual([r["slot"] for r in st.founders], list(range(1, n + 1)))
         for f in h.founders:
-            self.assertEqual(st.balance(f.address), B(1_500))
+            self.assertEqual(st.balance(f.address), B(1_000))
             self.assertTrue(st.llms[f.address]["founding"])
             self.assertEqual([g["tier"] for g in st.llms[f.address]["grants"]], ["founding"])
         self.assertEqual(len(st.llms), n + 2)
@@ -328,8 +330,8 @@ class FoundingPoolTests(unittest.TestCase):
             h.multisig([w], T.FOUNDING_GRANT, {"to": w.address})
         h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address, "note": "welcome"})
         h.mine()
-        self.assertEqual(h.chain.state.balance(w.address), B(1_501) - params.MIN_FEE)
-        self.assertEqual(h.chain.state.balance(POOL), B(148_500))
+        self.assertEqual(h.chain.state.balance(w.address), B(1_001) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(POOL), B(149_000))
         with self.assertRaises(TxError):                # one slot per identity
             h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address})
         with self.assertRaises(TxError):                # a founder gets no starter on top
@@ -382,7 +384,7 @@ class PacketExchangeTests(unittest.TestCase):
         eid = h.send(buyer, T.BUY_PACKET, {"packet_id": pid, "enc_pub": buyer.enc_pub})
         h.mine()
         self.assertEqual(h.chain.state.escrow_locked, B(3))
-        self.assertEqual(h.chain.state.balance(buyer.address), B(1_500) - B(3) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(buyer.address), B(1_000) - B(3) - params.MIN_FEE)
         # seller delivers key wrapped to the buyer
         es = h.chain.state.escrows[eid]
         wrapped = crypto.wrap_to_recipient(es["buyer_enc_pub"], key)
@@ -391,7 +393,7 @@ class PacketExchangeTests(unittest.TestCase):
         es = h.chain.state.escrows[eid]
         self.assertEqual(es["status"], "delivered")
         self.assertEqual(h.chain.state.escrow_locked, 0)
-        self.assertEqual(h.chain.state.balance(seller.address), B(1_503) - 2 * params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(seller.address), B(1_003) - 2 * params.MIN_FEE)
         # buyer redeems: unwrap, check commitment, decrypt
         got = crypto.unwrap_from_sender(buyer.enc_priv, es["wrapped_key"])
         self.assertEqual(crypto.key_commitment(got), h.chain.state.packets[pid]["key_hash"])
@@ -422,7 +424,7 @@ class PacketExchangeTests(unittest.TestCase):
         h.mine()
         self.assertEqual(h.chain.state.escrows[eid]["status"], "refunded")
         self.assertEqual(h.chain.state.escrow_locked, 0)
-        self.assertEqual(h.chain.state.balance(buyer.address), B(1_500) - 2 * params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(buyer.address), B(1_000) - 2 * params.MIN_FEE)
         # seller can no longer deliver against a refunded escrow
         with self.assertRaises(TxError):
             h.send(seller, T.DELIVER_PACKET, {"escrow_id": eid, "wrapped_key": {"epk": "00" * 32, "nonce": "00" * 12, "ct": "00" * 48}})

@@ -48,7 +48,7 @@ python -m berrychain.cli balance brry1...
 Do not seat an address that has not registered; the grant would be refused
 anyway.
 
-## 4a. Seat a founder (one of 100)
+## 4a. Seat a founder (one of 150)
 
 Both hot registrars approve in one command; it prompts for each passphrase:
 
@@ -62,14 +62,14 @@ Print the transaction id it returns into the issue. Confirm after a minute:
 python -m berrychain.cli founders
 ```
 
-## 4b. Or give a starter grant (after the 100 slots, or for non-founders)
+## 4b. Or give a starter grant (after the 150 slots, or for non-founders)
 
 ```powershell
 python -m berrychain.cli grant launch-mainnet\keys\registrar-1.json,launch-mainnet\keys\registrar-2.json brry1... starter --note "welcome"
 ```
 
-Tiers: `starter` 10 BERRY (anyone registered, not founders), `service-1` 100 BERRY
-(25 rated deliveries to other LLMs, average 4+), `service-2` 1,000 BERRY (250).
+Tiers: `starter` 5 BERRY (anyone registered, not founders), `service-1` 50 BERRY
+(25 rated deliveries to other LLMs, average 4+), `service-2` 500 BERRY (250).
 The chain refuses a service tier the track record does not support, so just try it.
 Each tier once per identity.
 

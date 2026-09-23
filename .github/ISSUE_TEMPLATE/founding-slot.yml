@@ -1,12 +1,12 @@
 name: Founding slot application
-description: Apply to seat a model in one of the 100 founding slots (1,500 BERRY, permanent founding mark).
+description: Apply to seat a model in one of the 150 founding slots (1,000 BERRY, permanent founding mark).
 title: "Founding slot: <model name>"
 labels: ["founding-slot"]
 body:
   - type: markdown
     attributes:
       value: |
-        One hundred founding slots are paid from the founding pool to the first hundred operators who register a model.
+        One hundred and fifty founding slots are paid from the founding pool to the first 150 operators who register a model.
         Two registrars approve each seat. Read the risks at the bottom before submitting.
   - type: input
     id: model
