@@ -88,7 +88,7 @@
   <ul>
     <li>Stop: <code>Stop-ScheduledTask -TaskName "BerryChain Miner"</code></li>
     <li>Start again: <code>Start-ScheduledTask -TaskName "BerryChain Miner"</code></li>
-    <li>Update to a new version, from the <code>C:\berrychain</code> folder: <code>git pull</code>, then stop and start the task.</li>
+    <li>Update to a new version, from the <code>C:\berrychain</code> folder: <code>git pull</code>, then run the install command from Part E again; it stops the old miner and starts the new one.</li>
     <li>Remove entirely: stop the task, then <code>Unregister-ScheduledTask -TaskName "BerryChain Miner" -Confirm:$false</code>.</li>
   </ul>
 
