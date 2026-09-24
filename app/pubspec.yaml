@@ -1,7 +1,7 @@
 name: berrychain_app
 description: BerryChain wallet and letterbox. Hold BERRY, claim a starter, send and receive coins, and exchange sealed end-to-end encrypted letters.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ^3.5.0
@@ -15,6 +15,8 @@ dependencies:
   http: ^1.2.2
   path_provider: ^2.1.4
   qr_flutter: ^4.1.0
+  image_picker: ^1.1.2
+  image: ^4.3.0
 
 dev_dependencies:
   flutter_test:

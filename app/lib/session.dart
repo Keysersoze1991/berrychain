@@ -34,6 +34,14 @@ class LetterItem {
   int get size => meta['size'] as int;
 }
 
+/// A grant the account can earn by corresponding, and where it stands.
+class EarnedGrant {
+  final String tier, title;
+  final int need, amount;
+  final bool taken;
+  EarnedGrant(this.tier, this.title, this.need, this.amount, this.taken);
+}
+
 /// Everything the screens share: the unlocked wallet, the node connection,
 /// the light client, and cached views of balance and letters.
 class Session extends ChangeNotifier {
@@ -49,7 +57,9 @@ class Session extends ChangeNotifier {
   int? nodeHeight;
   int? starterAmount;
   int? letterFee;
+  int correspondents = 0;
   Map<String, dynamic>? registry; // this address's registry record, if any
+  Map<String, dynamic>? chainParams;
   List<LetterItem> inbox = [];
   List<LetterItem> sent = [];
   String? lastError;
@@ -121,6 +131,7 @@ class Session extends ChangeNotifier {
     inbox = [];
     sent = [];
     registry = null;
+    correspondents = 0;
     notifyListeners();
   }
 
@@ -136,12 +147,13 @@ class Session extends ChangeNotifier {
       nodeHeight = st['height'] as int?;
       starterAmount = st['starter_amount'] as int?;
       letterFee = st['letter_fee'] as int?;
+      chainParams = await node.params();
       final a = await node.account(w.address);
       balance = a['balance'] as int;
       registry = a['llm'] as Map<String, dynamic>?;
+      correspondents = (a['correspondents'] as int?) ?? 0;
       inbox = (await node.letters(to: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       sent = (await node.letters(from: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
-      // second opinion on the balance from another seed, if there is one
       balanceOther = null;
       if (nodeUrls.length > 1) {
         try {
@@ -170,7 +182,6 @@ class Session extends ChangeNotifier {
       } catch (_) {}
     }
     await lc.sync(node);
-    // letters with coins attached are worth proving; content needs no proof
     for (final l in inbox.where((l) => l.amount > 0 && !l.verified)) {
       try {
         await lc.verifyTx(node, l.id);
@@ -181,18 +192,46 @@ class Session extends ChangeNotifier {
 
   int get verifiedHeight => light?.height ?? -1;
 
+  /// The grants this account can earn by corresponding, with current amounts.
+  List<EarnedGrant> get earnedGrants {
+    final reg = registry;
+    if (reg == null) return [];
+    final tiers = (chainParams?['grant_tiers'] as Map?) ?? {};
+    final amounts = (chainParams?['current_amounts'] as Map?) ?? {};
+    final taken = ((reg['grants'] as List?) ?? []).map((g) => (g as Map)['tier'] as String).toSet();
+    int need(String t, int fallback) => ((tiers[t] as Map?)?['min_correspondents'] as int?) ?? fallback;
+    int amount(String t, int fallback) => (amounts[t] as int?) ?? fallback;
+    final seatsLeft = ((chainParams?['founding_slots'] as int?) ?? 1000) - ((chainParams?['founding_seats_taken'] as int?) ?? 0);
+    return [
+      EarnedGrant('founding', 'Founding seat', (chainParams?['founding_min_correspondents'] as int?) ?? 3,
+          (chainParams?['founding_grant'] as int?) ?? 150 * seedsPerBerry, (reg['founding'] as bool? ?? false) || seatsLeft <= 0),
+      EarnedGrant('service-1', 'Service grant', need('service-1', 10), amount('service-1', 5 * seedsPerBerry), taken.contains('service-1')),
+      EarnedGrant('service-2', 'Second service grant', need('service-2', 100), amount('service-2', 50 * seedsPerBerry), taken.contains('service-2')),
+    ];
+  }
+
   // ---------------------------------------------------------------- acts
-  Future<int> claimStarter(String name) async {
+  Future<Map<String, dynamic>> _claim(String type, Map<String, dynamic> payload) async {
     final w = wallet!;
-    final info = await node.params();
+    final info = chainParams ?? await node.params();
     final bits = (info['starter_claim_work_bits'] as int?) ?? 0;
-    final payload = {'name': name, 'kind': 'person', 'model_family': '', 'operator': '', 'description': '', 'enc_pub': w.encPub, 'work_nonce': 0};
-    final tx = buildTx(TxType.claimStarter, w.address, await node.nextNonce(w.address), minFee, payload, Network.chainId);
+    final tx = buildTx(type, w.address, await node.nextNonce(w.address), minFee, {...payload, 'work_nonce': 0}, Network.chainId);
     final nonce = await compute(_grindInIsolate, {'tx': tx, 'bits': bits});
     (tx['payload'] as Map<String, dynamic>)['work_nonce'] = nonce;
     await w.sign(tx);
     await node.sendTx(tx);
+    return info;
+  }
+
+  Future<int> claimStarter(String name) async {
+    final w = wallet!;
+    final info = await _claim(TxType.claimStarter, {'name': name, 'kind': 'person', 'model_family': '', 'operator': '', 'description': '', 'enc_pub': w.encPub});
     return (info['starter_amount'] as int?) ?? 0;
+  }
+
+  Future<int> claimGrant(EarnedGrant g) async {
+    await _claim(TxType.claimGrant, {'tier': g.tier});
+    return g.amount;
   }
 
   Future<String> send(String to, int amountSeeds, String memo) async {
@@ -203,16 +242,18 @@ class Session extends ChangeNotifier {
     return node.sendTx(tx);
   }
 
-  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo}) async {
+  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg}) async {
     final w = wallet!;
     if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
+    if (to == w.address) throw ArgumentError('that is your own address');
     final acct = await node.account(to);
     final reg = acct['llm'] as Map<String, dynamic>?;
     final encPub = reg?['enc_pub'] as String?;
-    if (encPub == null) throw ArgumentError('that address has not claimed a starter or registered, so it has no receiving key yet');
+    if (encPub == null) throw ArgumentError('that address has not claimed a starter yet, so it has no receiving key');
+    final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg);
+    if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
-    final ct = await encryptPacket(key, composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label));
-    if (ct.length > 32 * 1024) throw ArgumentError('letter too long: the limit is 32 KB');
+    final ct = await encryptPacket(key, plain);
     final fee = letterFee ?? ((await node.status())['letter_fee'] as int? ?? minFee);
     final payload = {
       'to': to, 'enc_pub': encPub, 'ciphertext': toHex(ct), 'ciphertext_hash': toHex(sha256(ct)),

@@ -20,6 +20,7 @@ class Palette {
   static const ink = Color(0xFF1B2430);
   static const brass = Color(0xFF8A6516);
   static const band = Color(0xFFC2382B);
+  static const leaf = Color(0xFF2F7A4B);
 }
 
 class BerryApp extends StatefulWidget {

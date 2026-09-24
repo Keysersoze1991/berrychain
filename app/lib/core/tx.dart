@@ -12,6 +12,7 @@ class TxType {
   static const gift = 'GIFT';
   static const sendLetter = 'SEND_LETTER';
   static const claimStarter = 'CLAIM_STARTER';
+  static const claimGrant = 'CLAIM_GRANT';
 }
 
 const _sigFields = {'sig', 'pubkey', 'approvals'};

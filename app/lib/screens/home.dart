@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/units.dart';
 import '../main.dart';
+import '../session.dart';
 import 'claim.dart';
 import 'common.dart';
 import 'letters.dart';
@@ -22,6 +23,15 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => SessionScope.of(context).refresh());
   }
 
+  Future<void> claim(EarnedGrant g) async {
+    final s = SessionScope.of(context);
+    final amount = await runBusy(context, 'Working for your ${g.title.toLowerCase()}. The phone hashes for a little while. Keep the app open.', () => s.claimGrant(g));
+    if (amount != null && mounted) {
+      toast(context, '${formatBerry(amount)} BERRY on its way; it lands with the next block.');
+      s.refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
@@ -32,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final bal = s.balance;
         final mismatch = bal != null && s.balanceOther != null && s.balanceOther != bal;
         final unread = s.inbox.length;
+        final grants = s.earnedGrants;
         return Scaffold(
           appBar: AppBar(
             title: Text(w.label.isEmpty ? 'BerryChain' : w.label),
@@ -74,7 +85,40 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 if (s.registry != null)
-                  Tile(label: 'Registered as', child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+                  Tile(
+                    label: 'Registered as',
+                    trailing: (s.registry!['founding'] as bool? ?? false)
+                        ? const Chip(label: Text('Founder'), backgroundColor: Color(0xFFFBF1DC), side: BorderSide(color: Palette.gold))
+                        : null,
+                    child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  ),
+                if (s.registry != null)
+                  Tile(
+                    label: 'Correspondents',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${s.correspondents}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        const Text('People you have written to who wrote back. Letters earn the grants below.', style: TextStyle(fontSize: 13, color: Color(0xFF6F7883))),
+                        const SizedBox(height: 8),
+                        for (final g in grants)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(
+                              children: [
+                                Icon(g.taken ? Icons.check_circle : (s.correspondents >= g.need ? Icons.stars : Icons.radio_button_unchecked),
+                                    size: 20, color: g.taken ? Palette.leaf : (s.correspondents >= g.need ? Palette.brass : const Color(0xFF9A8D94))),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text('${g.title}: ${formatBerry(g.amount)} BERRY at ${g.need}', style: const TextStyle(fontSize: 14))),
+                                if (!g.taken && s.correspondents >= g.need)
+                                  TextButton(onPressed: () => claim(g), child: const Text('Claim')),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 Row(children: [
                   Expanded(child: FilledButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),

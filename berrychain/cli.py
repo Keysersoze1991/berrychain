@@ -255,6 +255,11 @@ def cmd_letter(args):
             head.append(f"subject: {env['subject']}")
         if env.get("reply_to"):
             head.append(f"reply to letter {env['reply_to']}")
+        if env.get("photo_jpeg"):
+            photo_path = f"letter-{args.letter_id[:12]}.jpg"
+            with open(photo_path, "wb") as f:
+                f.write(env["photo_jpeg"])
+            head.append(f"photo:   {len(env['photo_jpeg']):,} bytes, saved as {photo_path}")
         print("\n".join(head) + "\n\n" + env["body"])
 
 

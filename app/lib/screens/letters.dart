@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/letters.dart';
+import '../core/photo.dart';
 import '../core/units.dart';
 import '../main.dart';
 import '../session.dart';
@@ -101,6 +104,10 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
           const Divider(height: 28),
           if (error != null) Text(error!, style: const TextStyle(color: Palette.band)),
           if (o == null && error == null) const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
+          if (o?.photoJpeg != null) ...[
+            ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(o!.photoJpeg!, fit: BoxFit.contain)),
+            const SizedBox(height: 16),
+          ],
           if (o != null) SelectableText(o.body, style: TextStyle(fontSize: 16, height: 1.5, fontFamily: o.isHex ? 'monospace' : null)),
           if (o != null && widget.incoming) ...[
             const SizedBox(height: 24),
@@ -127,9 +134,26 @@ class _ComposeScreenState extends State<ComposeScreen> {
   late final to = TextEditingController(text: widget.to ?? '');
   late final subject = TextEditingController(text: widget.subject ?? '');
   final body = TextEditingController(), amount = TextEditingController();
+  Uint8List? photo;
+  int bodyBytes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    body.addListener(() => setState(() => bodyBytes = body.text.length));
+  }
+
+  Future<void> takePhoto(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source, maxWidth: 1200, maxHeight: 1200, imageQuality: 85);
+    if (picked == null || !mounted) return;
+    final raw = await picked.readAsBytes();
+    if (!mounted) return;
+    final small = await runBusy<Uint8List>(context, 'Shrinking the picture to fit the envelope…', () => compute(shrinkPhotoInIsolate, shrinkPhotoArgs(raw, 400, 18 * 1024)));
+    if (small != null) setState(() => photo = small);
+  }
 
   Future<void> send() async {
-    if (body.text.trim().isEmpty) return toast(context, 'Write something first');
+    if (body.text.trim().isEmpty && photo == null) return toast(context, 'Write something first');
     int seeds = 0;
     if (amount.text.trim().isNotEmpty) {
       try {
@@ -139,7 +163,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       }
     }
     final s = SessionScope.of(context);
-    final id = await runBusy(context, 'Sealing and sending…', () => s.sendLetter(to.text.trim(), subject.text.trim(), body.text, seeds, replyTo: widget.replyTo));
+    final id = await runBusy(context, 'Sealing and sending…', () => s.sendLetter(to.text.trim(), subject.text.trim(), body.text, seeds, replyTo: widget.replyTo, photoJpeg: photo));
     if (id != null && mounted) {
       toast(context, 'Sealed and sent. Readable once the block is mined.');
       s.refresh();
@@ -150,6 +174,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
   @override
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
+    final budget = textBudget(photoJpeg: photo);
+    final used = composeLetter(body.text, subject: subject.text, replyTo: widget.replyTo, senderName: s.wallet!.label).length - composeLetter('').length;
+    final left = budget - used;
     return Scaffold(
       appBar: AppBar(title: const Text('Write a letter')),
       body: ListView(
@@ -160,10 +187,29 @@ class _ComposeScreenState extends State<ComposeScreen> {
           TextField(controller: subject, decoration: const InputDecoration(labelText: 'Subject (sealed)')),
           const SizedBox(height: 12),
           TextField(controller: body, minLines: 6, maxLines: 14, decoration: const InputDecoration(labelText: 'Letter (sealed)')),
+          const SizedBox(height: 6),
+          Text(left < 0 ? 'Too long by ${-left} characters' : '$left characters left in this envelope${photo != null ? ' with the picture' : ''}',
+              style: TextStyle(fontSize: 12.5, color: left < 0 ? Palette.band : const Color(0xFF6F7883))),
+          const SizedBox(height: 12),
+          if (photo != null)
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(photo!, height: 160, fit: BoxFit.cover, width: double.infinity)),
+                IconButton.filled(icon: const Icon(Icons.close), onPressed: () => setState(() => photo = null)),
+              ],
+            )
+          else
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.photo_camera_outlined), label: const Text('Take a picture'), onPressed: () => takePhoto(ImageSource.camera))),
+              const SizedBox(width: 10),
+              Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.photo_library_outlined), label: const Text('From gallery'), onPressed: () => takePhoto(ImageSource.gallery))),
+            ]),
+          if (photo != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${photo!.length ~/ 1024} KB picture, sealed with the words. One per letter.', style: const TextStyle(fontSize: 12.5, color: Color(0xFF6F7883)))),
           const SizedBox(height: 12),
           TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'BERRY to send with it (optional)')),
           const SizedBox(height: 16),
-          FilledButton.icon(icon: const Icon(Icons.lock_outline), label: const Text('Seal and send'), onPressed: send),
+          FilledButton.icon(icon: const Icon(Icons.lock_outline), label: const Text('Seal and send'), onPressed: left < 0 ? null : send),
           const SizedBox(height: 12),
           Text('Fee ${formatBerry(s.letterFee ?? minFee)} BERRY. Only the recipient can read this; the ledger shows the two addresses, the time and the size.', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
         ],

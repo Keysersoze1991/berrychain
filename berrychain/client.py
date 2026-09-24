@@ -83,7 +83,8 @@ def node_is_trusted(url: str) -> bool:
     return u.scheme == "https" or u.hostname in LOOPBACK_HOSTS
 
 
-def compose_letter(body: str, subject: str = "", reply_to: str | None = None, sender_name: str = "") -> bytes:
+def compose_letter(body: str, subject: str = "", reply_to: str | None = None, sender_name: str = "",
+                   photo_jpeg: bytes | None = None) -> bytes:
     """The plaintext of a letter: a small JSON envelope, so every client shows
     letters the same way. Subject, threading and the sender's chosen name all
     sit inside the encryption; the chain sees only addresses and sizes."""
@@ -92,6 +93,9 @@ def compose_letter(body: str, subject: str = "", reply_to: str | None = None, se
         env["reply_to"] = reply_to
     if sender_name:
         env["from_name"] = sender_name
+    if photo_jpeg:
+        import base64
+        env["photo_jpeg_b64"] = base64.b64encode(photo_jpeg).decode("ascii")   # one small picture, sealed with the words
     return json.dumps(env, ensure_ascii=False).encode("utf-8")
 
 
@@ -101,8 +105,15 @@ def open_letter(plaintext: bytes) -> dict:
     try:
         env = json.loads(plaintext.decode("utf-8"))
         if isinstance(env, dict) and env.get("v") == 1 and isinstance(env.get("body"), str):
-            return {"subject": env.get("subject", ""), "body": env["body"],
-                    "reply_to": env.get("reply_to"), "from_name": env.get("from_name", "")}
+            out = {"subject": env.get("subject", ""), "body": env["body"],
+                   "reply_to": env.get("reply_to"), "from_name": env.get("from_name", "")}
+            if isinstance(env.get("photo_jpeg_b64"), str):
+                import base64
+                try:
+                    out["photo_jpeg"] = base64.b64decode(env["photo_jpeg_b64"])
+                except ValueError:
+                    pass
+            return out
     except (UnicodeDecodeError, ValueError):
         pass
     try:

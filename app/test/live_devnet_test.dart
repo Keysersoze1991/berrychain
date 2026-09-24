@@ -116,6 +116,37 @@ void main() {
     expect(lc3.height, lc.height);
     expect(lc3.work, lc.work);
 
+    // three more people claim, correspond both ways with alice, and she claims a founding seat
+    final pals = <Wallet>[];
+    for (var i = 0; i < 3; i++) {
+      final p = await Wallet.create(label: 'pal$i');
+      await claim(p, 'Pal $i');
+      pals.add(p);
+    }
+    await mine();
+    for (final p in pals) {
+      for (final (from, toW) in [(alice, p), (p, alice)]) {
+        final k = newPacketKey();
+        final c = await encryptPacket(k, composeLetter('hello'));
+        final pk = ((await node.account(toW.address))['llm'] as Map)['enc_pub'] as String;
+        final t = buildTx(TxType.sendLetter, from.address, await node.nextNonce(from.address), (await node.status())['letter_fee'] as int,
+            {'to': toW.address, 'enc_pub': pk, 'ciphertext': toHex(c), 'ciphertext_hash': toHex(sha256(c)), 'wrapped_key': await wrapToRecipient(pk, k), 'amount': 0}, chainId);
+        await from.sign(t);
+        await node.sendTx(t);
+      }
+    }
+    await mine();
+    expect((await node.account(alice.address))['correspondents'], 3);
+    final before = (await node.account(alice.address))['balance'] as int;
+    final seat = buildTx(TxType.claimGrant, alice.address, await node.nextNonce(alice.address), minFee, {'tier': 'founding', 'work_nonce': 0}, chainId);
+    grindClaim(seat, (await node.params())['starter_claim_work_bits'] as int);
+    await alice.sign(seat);
+    await node.sendTx(seat);
+    await mine();
+    final after = await node.account(alice.address);
+    expect(after['balance'], before + 150 * seedsPerBerry - minFee);
+    expect((after['llm'] as Map)['founding'], isTrue);
+
     // a wallet sealed here opens with the same passphrase after a round trip through json
     alice.passphrase = 'correct horse';
     final sealed = jsonEncode(await alice.toJson());

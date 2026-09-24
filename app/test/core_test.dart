@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:berrychain_app/core/canonical.dart';
 import 'package:berrychain_app/core/crypto.dart';
@@ -114,6 +115,12 @@ void main() {
     final env = openLetter(composeLetter('Bring the charts.', subject: 'Tomorrow', replyTo: 'abc', senderName: 'alice'));
     expect([env.subject, env.body, env.replyTo, env.fromName], ['Tomorrow', 'Bring the charts.', 'abc', 'alice']);
     expect(openLetter(utf8.encode('plain')).body, 'plain');
+    final jpeg = Uint8List.fromList([0xff, 0xd8, 1, 2, 3]);
+    final withPhoto = openLetter(composeLetter('look', photoJpeg: jpeg));
+    expect(withPhoto.photoJpeg, jpeg);
+    expect(withPhoto.body, 'look');
+    expect(textBudget(photoJpeg: jpeg) < textBudget(), isTrue);
+    expect(fitsEnvelope(composeLetter('x' * 40000)), isFalse);
     expect(openLetter([0xff, 0x00]).isHex, isTrue);
     expect(formatBerry(500000000), '5');
     expect(formatBerry(499990000), '4.9999');
