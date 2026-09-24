@@ -121,6 +121,15 @@ so it never touches a networked machine; `describe` shows a signer exactly
 what they are approving and which approvals are already valid.
 Tests: `tests/test_offline.py`.
 
+**Forked nodes never rejoined the network (2026-09-24).** When a node
+looked for the last block it shared with a peer it walked back in doubling
+steps (115, 114, 112, 108, 100, 84, 52, then -12) and gave up without ever
+checking block 0, so a node that had mined even one block alone could never
+adopt the heavier network chain and kept mining a private fork. Seen on the
+launch miner within hours of launch; a fresh node never hit it because it
+starts at 0. The walk now ends with a look at the genesis. Tests:
+`tests/test_node.py` (fork adoption, extension, lighter peer, foreign genesis).
+
 ## Still open (needs work before real value is at stake)
 
 - **Fair exchange.** The chain proves the seller released *a key matching

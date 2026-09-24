@@ -163,15 +163,18 @@ class Node:
             return False
         peer_height = int(st["height"])
 
-        # 1. find the last common block by walking back in growing steps
+        # 1. find the last common block by walking back in growing steps,
+        #    always ending with a look at the genesis itself
         common = None
-        step, h = 1, self.chain.height
-        while h >= 0:
+        step, h = 1, min(self.chain.height, peer_height)
+        while True:
             hdrs = self._http(f"{peer}/headers?from={h}&to={h}")["headers"]
             if hdrs and hdrs[0]["hash"] == self.chain.blocks[h]["hash"]:
                 common = h
                 break
-            h, step = h - step, step * 2
+            if h == 0:
+                break
+            h, step = max(0, h - step), step * 2
         if common is None:
             return False                                       # different genesis
 
