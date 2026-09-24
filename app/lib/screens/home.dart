@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+
+import '../core/units.dart';
+import '../main.dart';
+import 'claim.dart';
+import 'common.dart';
+import 'letters.dart';
+import 'receive.dart';
+import 'send.dart';
+import 'settings.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => SessionScope.of(context).refresh());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SessionScope.of(context);
+    return ListenableBuilder(
+      listenable: s,
+      builder: (context, _) {
+        final w = s.wallet!;
+        final bal = s.balance;
+        final mismatch = bal != null && s.balanceOther != null && s.balanceOther != bal;
+        final unread = s.inbox.length;
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(w.label.isEmpty ? 'BerryChain' : w.label),
+            actions: [
+              IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+              IconButton(icon: const Icon(Icons.lock_outline), tooltip: 'Lock', onPressed: s.lock),
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: s.refresh,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Tile(
+                  label: 'Balance',
+                  trailing: s.busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : null,
+                  child: Text(bal == null ? '–' : '${formatBerry(bal)} BERRY', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600)),
+                ),
+                if (mismatch)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text('The two seed nodes disagree about this balance. One may be behind; pull to refresh in a minute.', style: TextStyle(color: Palette.band)),
+                  ),
+                if (s.lastError != null)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastError!, style: const TextStyle(color: Palette.band))),
+                Tile(
+                  label: 'Your address',
+                  trailing: IconButton(icon: const Icon(Icons.copy, size: 20), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+                  child: Text(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+                ),
+                if (s.registry == null && bal != null)
+                  Card(
+                    color: const Color(0xFFFBF1DC),
+                    child: ListTile(
+                      leading: const Icon(Icons.card_giftcard, color: Palette.brass),
+                      title: const Text('Claim your starter'),
+                      subtitle: Text('${s.starterAmount == null ? 'Some' : formatBerry(s.starterAmount!)} BERRY from the treasury, plus a name so people can write to you. Once per wallet.'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimScreen())),
+                    ),
+                  ),
+                if (s.registry != null)
+                  Tile(label: 'Registered as', child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: FilledButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),
+                  const SizedBox(width: 10),
+                  Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.qr_code_2), label: const Text('Receive'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())))),
+                ]),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.mail_outline),
+                  label: Text(unread == 0 ? 'Letters' : 'Letters ($unread in your inbox)'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LettersScreen())),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  s.nodeHeight == null
+                      ? 'Not connected yet.'
+                      : 'Node at block ${s.nodeHeight}. Verified on this phone: ${s.verifiedHeight < 0 ? 'not yet' : 'block ${s.verifiedHeight}'}.',
+                  style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                const Text('BERRY has no price and no exchange. It is a unit of account on this network, nothing more.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

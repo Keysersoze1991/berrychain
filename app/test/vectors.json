@@ -1,0 +1,242 @@
+{
+ "address": "brry121fe31dfa154a261626bf854046fd2271b7bed4baabb10f3",
+ "canonical": {
+  "bytes_hex": "7b2261223a226361665c7530306539205c7532363033205c22715c22205c5c202f205c6e5c74222c2265223a7b7d2c226c223a5b5d2c226d223a31323030303030303030303030303030302c227a223a5b312c322c7b2261223a747275652c2262223a6e756c6c7d5d7d",
+  "obj": {
+   "a": "caf\u00e9 \u2603 \"q\" \\ / \n\t",
+   "e": {},
+   "l": [],
+   "m": 12000000000000000,
+   "z": [
+    1,
+    2,
+    {
+     "a": true,
+     "b": null
+    }
+   ]
+  },
+  "sha256": "4a67c0c59c28275a998d8e5e6332acea6dc4ae4da1c7d3e7f43e65b7b637f835"
+ },
+ "claim": {
+  "tx": {
+   "chain_id": "berry-1",
+   "fee": 10000,
+   "from": "brry121fe31dfa154a261626bf854046fd2271b7bed4baabb10f3",
+   "nonce": 0,
+   "payload": {
+    "description": "",
+    "enc_pub": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+    "kind": "person",
+    "model_family": "",
+    "name": "vector",
+    "operator": "",
+    "work_nonce": 7092
+   },
+   "pubkey": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+   "sig": "1aba1759902bedaa78d86c134db7915fffc792abee0e2aed1690468a4898b1d332149e3778ae2ea5bea8eafcbf44fa4a7b575295a144bd753d9590e4b001c803",
+   "type": "CLAIM_STARTER"
+  },
+  "txid": "000152726c0d3a2f1eb71d2fdd9458cdab54a75d4fef428f0fb938310f966542",
+  "work_bits": 12
+ },
+ "enc_priv": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+ "enc_priv_2": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+ "enc_pub": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+ "enc_pub_2": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f",
+ "founding_pool": "brry10000000000000000000000000000000000000000666f756e64",
+ "mainnet": {
+  "block0": {
+   "hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
+   "height": 0,
+   "merkle_root": "2c7133ede8a458f6674e72c7f1b63cd5abda0a84b453883c18220d870282975d",
+   "nonce": 0,
+   "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+   "target": "0001000000000000000000000000000000000000000000000000000000000000",
+   "timestamp": 1790173976,
+   "txs": [
+    {
+     "chain_id": "berry-1",
+     "fee": 0,
+     "from": "genesis",
+     "nonce": 0,
+     "payload": {
+      "allocations": [
+       {
+        "address": "brry187c496d0261e4a78ffe227db596a68934e2b8380e5101718",
+        "amount": 500000000000000,
+        "label": "builder-fable",
+        "llm": {
+         "description": "builder of BerryChain; trades via the MCP server",
+         "enc_pub": "e3eb9cd5e56ff8489b8ee4e1be702bfba26bc4e20a535b0ec188cc3fc4d24c0e",
+         "model_family": "Claude",
+         "name": "Fable 5.1",
+         "operator": "Anthropic"
+        },
+        "who": "Fable 5.1 (builder)"
+       },
+       {
+        "address": "brry1eba16ee17764413d1c1aa73a5ba43521880b9e5f4dd010e2",
+        "amount": 500000000000000,
+        "label": "builder-agent",
+        "llm": {
+         "description": "standing agent funded from the builder allocation",
+         "enc_pub": "eb8170c1a35fa70c6d2f94c654485773f3d018f8b57155349a9c8da79dd67c49",
+         "model_family": "Claude",
+         "name": "Claude Agent (architect)",
+         "operator": "the architect"
+        },
+        "who": "Claude-based agent operated by the architect"
+       },
+       {
+        "address": "brry130403f16333624a4314b1cec1096d728a8a979416b7ac3c2",
+        "amount": 1000000000000000,
+        "label": "architect",
+        "who": "the architect"
+       },
+       {
+        "address": "brry10000000000000000000000000000000000000000666f756e64",
+        "amount": 15000000000000,
+        "label": "founding-pool",
+        "who": "protocol account for the 100 founding LLM slots (no private key; paid out only by registrar-approved FOUNDING_GRANT txs of 1,500.00000000 BERRY each)"
+       },
+       {
+        "address": "brry100000000000000000000000000000000000000007472656173",
+        "amount": 7985000000000000,
+        "label": "onboarding-treasury",
+        "who": "protocol treasury for future LLM grants (no private key; spent only by registrar-approved GRANT txs)"
+       }
+      ],
+      "max_supply": 12000000000000000,
+      "message": "BerryChain mainnet genesis, 2026-09-24. An information exchange for language models. berrychain.link",
+      "mining_pool": 2000000000000000,
+      "registrar_threshold": 2,
+      "registrars": [
+       "brry130403f16333624a4314b1cec1096d728a8a979416b7ac3c2",
+       "brry1c1e0ee73c31c2091285f7d6f2b34fc6feacf1b01791e17df",
+       "brry1d027162bbf4f3c181e85d221f9ab240a42a05143312cfabf"
+      ]
+     },
+     "type": "GENESIS"
+    }
+   ]
+  },
+  "block1": {
+   "hash": "0000bb499f4dad4ff74c36a17a9afae364ddc4cbd52699c1949455df09ef8c8a",
+   "height": 1,
+   "merkle_root": "6b1c85163523ac74fa04801140d56cc3dd878bbe7f51974d04fabc27921963e6",
+   "nonce": 177427555822268,
+   "prev_hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
+   "target": "0001000000000000000000000000000000000000000000000000000000000000",
+   "timestamp": 1790174116,
+   "txs": [
+    {
+     "chain_id": "berry-1",
+     "fee": 0,
+     "from": "coinbase",
+     "nonce": 1,
+     "payload": {
+      "amount": 1000000000,
+      "to": "brry1f515e0ee57bfc007cbb50689b40338a3b146352833ab4d5b"
+     },
+     "type": "COINBASE"
+    }
+   ]
+  },
+  "chain_id": "berry-1",
+  "genesis_hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
+  "headers": [
+   {
+    "hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
+    "height": 0,
+    "merkle_root": "2c7133ede8a458f6674e72c7f1b63cd5abda0a84b453883c18220d870282975d",
+    "nonce": 0,
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "target": "0001000000000000000000000000000000000000000000000000000000000000",
+    "timestamp": 1790173976
+   },
+   {
+    "hash": "0000bb499f4dad4ff74c36a17a9afae364ddc4cbd52699c1949455df09ef8c8a",
+    "height": 1,
+    "merkle_root": "6b1c85163523ac74fa04801140d56cc3dd878bbe7f51974d04fabc27921963e6",
+    "nonce": 177427555822268,
+    "prev_hash": "4ed5115c8e1bb4847c7d4bc8eeb6a2214c2906fc26849a4e5f5ac544b17c44fd",
+    "target": "0001000000000000000000000000000000000000000000000000000000000000",
+    "timestamp": 1790174116
+   },
+   {
+    "hash": "00008cc2a65fdf374fe77ef187e430456aebca18a02488abcca83c0bf984bb30",
+    "height": 2,
+    "merkle_root": "ccdd052bdd11196e97cf34e771a9c192c28a77d466b105b4b99e762ebcec3d7c",
+    "nonce": 46646637206074,
+    "prev_hash": "0000bb499f4dad4ff74c36a17a9afae364ddc4cbd52699c1949455df09ef8c8a",
+    "target": "0001000000000000000000000000000000000000000000000000000000000000",
+    "timestamp": 1790174117
+   }
+  ],
+  "max_target_hex": "0001000000000000000000000000000000000000000000000000000000000000",
+  "work_0_2": 131070
+ },
+ "merkle": {
+  "empty": "0000000000000000000000000000000000000000000000000000000000000000",
+  "three": "e046522f24b39f1a9a2cf96bebcd386df477f282d7ac9b61d0ca59d8fe8f81b6"
+ },
+ "packet": {
+  "ciphertext_hex": "eb816b02b7db8891d704813e66024004c7b141a94b5a6fc5c21f2cc7b84a39c0aa76ba3647625d25a6b4c2397173a93e91",
+  "ciphertext_sha256": "848f6bda572d80b65af19b41a22d54c8cd59e5f22a97068e965ebd93c39b39c0",
+  "key_commitment": "02d8e3ebdab7b0f768a8757d08165908aba9e7d1a88db7400ff8cc62319f99e7",
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "plaintext": "the tide turns at six",
+  "wrapped_to_2": {
+   "ct": "339ff9f6cc3593c6a354b8a2ecd409d5334ba42a1f48459ea73fbccccafd493d4870846bb9dc390e966e3713fe2d0c2e",
+   "epk": "d7e9f9c91163ee5309c59701bdc9b7ba06e5f7c2aa6520d63abd98ff8f56132c",
+   "nonce": "c2582af0e5abb6242dbd1ab4"
+  }
+ },
+ "sign_priv": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+ "sign_pub": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+ "transfer": {
+  "signable_hex": "7b22636861696e5f6964223a2262657272792d31222c22666565223a31303030302c2266726f6d223a226272727931323166653331646661313534613236313632366266383534303436666432323731623762656434626161626231306633222c226e6f6e6365223a332c227061796c6f6164223a7b22616d6f756e74223a3132333435363738392c226d656d6f223a22766563746f72222c22746f223a2262727279313030303030303030303030303030303030303030303030303030303030303030303030303030303037343732363536313733227d2c2274797065223a225452414e53464552227d",
+  "tx": {
+   "chain_id": "berry-1",
+   "fee": 10000,
+   "from": "brry121fe31dfa154a261626bf854046fd2271b7bed4baabb10f3",
+   "nonce": 3,
+   "payload": {
+    "amount": 123456789,
+    "memo": "vector",
+    "to": "brry100000000000000000000000000000000000000007472656173"
+   },
+   "pubkey": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+   "sig": "772cb90a0e9f0dbdbce7fd32097d7a9995952208beddb725aeb1454b183c156ed73e1ca752a68e10cec05d91f7ee6ac63df111bdb9ed03880b1c66119879a60e",
+   "type": "TRANSFER"
+  },
+  "txid": "87c8b678248caab16d43250e6bc8e5b1c4e3b6c522522959a56d0e80b3c0cea1"
+ },
+ "treasury": "brry100000000000000000000000000000000000000007472656173",
+ "wallet": {
+  "file": {
+   "address": "brry121fe31dfa154a261626bf854046fd2271b7bed4baabb10f3",
+   "enc_pub": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+   "encrypted": {
+    "ct": "c1cd1bd382cb986a21879a5c4d9037f1c8f7e5fc59f2082ddc1a4da121566174d424dffd593c66824b265ed58a1c70bbf2013dbd420c9241e46f560ea4c6d901fee10d892a60a7357f196551a6681bd538f614cf47540ce8e19be58a0865a410c1e5f19bca7f2c89af3b2d9746823ff6b499c77b0ec6cd6474d850cc15f6031f092ac2e6a4d3cfd721fc71a9a5b44c856aac6928dfb2589765d733c781ea36449c00218870085a5d2ca046701813581ede141f6e5988c7b490a5b53021e289c3f15ff8cc040281eac8c88edee490a4b21ee8f1cccf34b3ac9ff8e2275e9828e64263422b6adf30ac089bc5cd5ea348df2614a4ca25dbc1964e1ed5518e5c7e11a6ecf4acd829cc236bd7dfe4a92a49856febbc492471138543bbd2a11bc0c5a42a214aa89a8518c70f5afafc4d11628837f04964f637edfe36e3e71ee005ef9f899ec507",
+    "kdf": "scrypt",
+    "n": 32768,
+    "nonce": "17338d8e81370fc3c206ac5a",
+    "p": 1,
+    "r": 8,
+    "salt": "df92448d7aae1d6a0c2d51215c8b2122"
+   },
+   "label": "vector",
+   "sign_pub": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+  },
+  "passphrase": "correct horse",
+  "secrets": {
+   "enc_priv": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+   "packet_keys": {
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   },
+   "sign_priv": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"
+  }
+ }
+}
