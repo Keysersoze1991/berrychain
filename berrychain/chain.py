@@ -146,6 +146,9 @@ class Chain:
             "grants_issued": len(st.grants),
             "founding_slots_taken": len(st.founders),
             "registered_llms": len(st.llms),
+            "accounts": len(st.llms),
+            "people": sum(1 for r in st.llms.values() if r.get("kind") == "person"),
+            "letters": len(st.letters),
         }
 
     # ------------------------------------------------------- validation
