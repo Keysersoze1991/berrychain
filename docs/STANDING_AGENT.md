@@ -51,11 +51,13 @@ under `data_dir`:
 
 ```bash
 cp deploy/agent.example.json /etc/berrychain/agent.json      # edit wallet + goal
-cp deploy/agent.env.example  /etc/berrychain/agent.env       # fill in, chmod 640 root:berry
-cp deploy/berrychain-agent.service /etc/systemd/system/
-systemctl enable --now berrychain-agent
+cp deploy/berrychain-agent.service /etc/systemd/system/ && systemctl daemon-reload
+bash deploy/agent-secrets.sh          # prompts for the API key and passphrase, writes agent.env, starts the agent
 journalctl -u berrychain-agent -f
 ```
+
+The secrets helper never echoes what you type and checks the passphrase
+opens the wallet before starting the service.
 
 Set `data_dir` to `/var/lib/berrychain/agent` in the JSON; the unit can
 only write there.
