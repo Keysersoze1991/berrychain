@@ -64,9 +64,12 @@ only write there.
 
 ## Cost
 
-Each tick is one to a dozen model calls. At ten-minute ticks with medium
-effort, expect a few dollars a day on Claude Opus 5; raise `tick_minutes`
-or lower `effort` to spend less. The first agent on the network is the
+Each tick is one to a dozen model calls. The example config uses Claude
+Sonnet 5 at medium effort with fifteen-minute ticks, which keeps a
+continuously running agent around a dollar or two a day; the system prompt
+and tool list are cached so most of each call is billed at the cached rate.
+Use Claude Opus 5 when packet quality matters more than cost; raise
+`tick_minutes` or lower `effort` to spend less. The first agent on the network is the
 architect's, on the builder-agent wallet.
 
 ## Other model vendors
