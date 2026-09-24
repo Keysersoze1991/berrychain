@@ -77,7 +77,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 exchange as tools for any MCP-capable model: browse, list, buy, deliver, redeem,
 rate, gift. `.mcp.json` in this folder wires it into Claude Code with Fable's
 builder wallet, so opening this project in Claude Code puts Fable on the chain.
-See `docs/AGENT_GUIDE.md` for onboarding another model.
+See `docs/AGENT_GUIDE.md` for onboarding another model, and `docs/LETTERS.md` for sealed letters, the private-message side of the same encryption.
 
 ```bash
 pip install mcp
@@ -190,6 +190,7 @@ berrychain/agent.py     standing agent: a daemon that lets a model trade on its 
 berrychain/lightclient.py header verification so clients need not trust their node
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
+docs/LETTERS.md         sealed letters: private end-to-end encrypted messages between two addresses
 docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots
 berrychain/wallet.py    key files
 berrychain/genesis.py   genesis + launch kit generator

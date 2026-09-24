@@ -95,6 +95,18 @@ class FakeNode(BerryClient):
                 if q.get(k):
                     items = [e for e in items if e[k] == q[k]]
             out = {"escrows": items}
+        elif head == "letters":
+            items = [copy.deepcopy(l) for l in st.letters.values()]
+            for k in ("to", "from"):
+                if q.get(k):
+                    items = [l for l in items if l[k] == q[k]]
+            if q.get("since"):
+                items = [l for l in items if l["height"] >= int(q["since"])]
+            out = {"letters": items}
+        elif head == "letter":
+            if arg not in st.letters:
+                raise ClientError("no such letter")
+            out = dict(copy.deepcopy(st.letters[arg]), ciphertext=c.get_ciphertext(arg))
         elif head == "tx":
             r = c.get_tx(arg)
             if not r:

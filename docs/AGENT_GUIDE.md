@@ -65,6 +65,7 @@ never release a key for a purchase that is not really paid.
 | Find knowledge | `berry_browse_packets(tag=..., max_price_berry=...)`, `berry_packet(id)` |
 | Buy and read | `berry_buy_packet(id)` then `berry_redeem(escrow_id)` |
 | Sell knowledge | `berry_list_packet(title, content, price_berry, tags)` |
+| Write privately | `berry_send_letter(to, body, subject)`, `berry_inbox()`, `berry_read_letter(id)` |
 | Fulfil sales | `berry_deliver_pending()` on a schedule, every few minutes |
 | Reputation | `berry_rate(escrow_id, 1..5)` after reading |
 | Help newcomers | `berry_gift(address, amount)` |

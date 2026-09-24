@@ -10,6 +10,8 @@ State is an account model:
     packets[id]           information packet listings (metadata only; ciphertext
                           lives in the LIST transaction inside its block)
     escrows[id]           purchases awaiting delivery / refund
+    letters[id]           sealed letters: envelope metadata and the wrapped key
+                          (ciphertext lives in the SEND_LETTER transaction)
     reputation[addr]      buyer ratings of sellers
     registrars, registrar_threshold
     mining_pool_remaining seeds not yet mined out of the 20M pool
@@ -76,6 +78,7 @@ class State:
         self.llms: dict[str, dict] = {}
         self.packets: dict[str, dict] = {}
         self.escrows: dict[str, dict] = {}
+        self.letters: dict[str, dict] = {}
         self.reputation: dict[str, dict] = {}
         self.registrars: list[str] = []
         self.registrar_threshold = 1
@@ -650,6 +653,69 @@ class State:
         es["status"] = "refunded"
         self._set_attr("escrow_locked", self.escrow_locked - es["amount"])
         self._credit(es["buyer"], es["amount"])
+
+    def _apply_send_letter(self, tx, height):
+        """A sealed letter. The content is encrypted under a fresh key and that
+        key is wrapped to the recipient's X25519 key: the same envelope a
+        delivered packet uses, but addressed to one account, never listed and
+        never escrowed. Only the recipient's private key opens it. `amount`
+        seeds (optional) travel with the letter, so a letter can carry a
+        payment or a tip. The recipient's key comes from the LLM registry
+        when they are registered; otherwise the sender must supply it."""
+        p = tx["payload"]
+        to = p.get("to")
+        if not is_valid_address(to) or to in params.PROTOCOL_ADDRESSES:
+            raise TxError("invalid recipient")
+        reg = self.llms.get(to)
+        enc_pub = p.get("enc_pub")
+        if reg is not None:
+            if enc_pub is not None and enc_pub != reg["enc_pub"]:
+                raise TxError("enc_pub does not match the recipient's registered key")
+            enc_pub = reg["enc_pub"]
+        elif not is_valid_enc_pub(enc_pub):
+            raise TxError("recipient is not registered; supply their X25519 enc_pub")
+        amount = p.get("amount", 0)
+        if not _is_uint(amount):
+            raise TxError("amount must be a non-negative integer of seeds")
+        ct_hash = _hex(p.get("ciphertext_hash"), 32, "ciphertext_hash")
+        inline = p.get("ciphertext")
+        if not isinstance(inline, str):
+            raise TxError("ciphertext must be a hex string")
+        try:
+            raw = bytes.fromhex(inline)
+        except ValueError:
+            raise TxError("ciphertext must be hex")
+        if not raw:
+            raise TxError("empty letter")
+        if len(raw) > params.MAX_PACKET_INLINE_BYTES:
+            raise TxError(f"letter too large (max {params.MAX_PACKET_INLINE_BYTES} bytes of ciphertext)")
+        if hashlib.sha256(raw).hexdigest() != ct_hash:
+            raise TxError("ciphertext_hash does not match ciphertext")
+        wk = p.get("wrapped_key")
+        if not isinstance(wk, dict) or set(wk) != {"epk", "nonce", "ct"}:
+            raise TxError("wrapped_key must be {epk, nonce, ct} hex strings")
+        _hex(wk["epk"], 32, "wrapped_key.epk")
+        _hex(wk["nonce"], 12, "wrapped_key.nonce")
+        _hex(wk["ct"], 48, "wrapped_key.ct")
+        self._require_funds(tx["from"], amount, tx["fee"])
+        lid = T.txid(tx)
+        if lid in self.letters:
+            raise TxError("duplicate letter")
+        if amount:
+            self._debit(tx["from"], amount)
+            self._credit(to, amount)
+        self._touch(self.letters, lid)
+        self.letters[lid] = {
+            "id": lid,
+            "from": tx["from"],
+            "to": to,
+            "enc_pub": enc_pub,
+            "height": height,
+            "size": len(raw),
+            "ciphertext_hash": ct_hash,
+            "wrapped_key": dict(wk),
+            "amount": amount,
+        }
 
     def _apply_rate_seller(self, tx, height):
         p = tx["payload"]

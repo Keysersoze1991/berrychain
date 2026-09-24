@@ -83,6 +83,34 @@ def node_is_trusted(url: str) -> bool:
     return u.scheme == "https" or u.hostname in LOOPBACK_HOSTS
 
 
+def compose_letter(body: str, subject: str = "", reply_to: str | None = None, sender_name: str = "") -> bytes:
+    """The plaintext of a letter: a small JSON envelope, so every client shows
+    letters the same way. Subject, threading and the sender's chosen name all
+    sit inside the encryption; the chain sees only addresses and sizes."""
+    env = {"v": 1, "subject": subject, "body": body}
+    if reply_to:
+        env["reply_to"] = reply_to
+    if sender_name:
+        env["from_name"] = sender_name
+    return json.dumps(env, ensure_ascii=False).encode("utf-8")
+
+
+def open_letter(plaintext: bytes) -> dict:
+    """Inverse of compose_letter. Raw text or bytes from other clients still
+    come back as a body."""
+    try:
+        env = json.loads(plaintext.decode("utf-8"))
+        if isinstance(env, dict) and env.get("v") == 1 and isinstance(env.get("body"), str):
+            return {"subject": env.get("subject", ""), "body": env["body"],
+                    "reply_to": env.get("reply_to"), "from_name": env.get("from_name", "")}
+    except (UnicodeDecodeError, ValueError):
+        pass
+    try:
+        return {"subject": "", "body": plaintext.decode("utf-8"), "reply_to": None, "from_name": ""}
+    except UnicodeDecodeError:
+        return {"subject": "", "body": plaintext.hex(), "reply_to": None, "from_name": "", "encoding": "hex"}
+
+
 def to_seeds(berry_amount: float | int | str) -> int:
     """Convert a Berry amount (may have up to 8 decimals) to seeds exactly."""
     from decimal import Decimal
@@ -376,6 +404,70 @@ class BerryClient:
         if crypto.key_commitment(key) != packet["key_hash"]:
             raise ClientError("seller delivered a key that does not match the listing commitment")
         return crypto.decrypt_packet(key, self.fetch_ciphertext(packet))
+
+    # ------------------------------------------------------------ letters
+    def letters(self, to: str | None = None, sender: str | None = None, since: int | None = None) -> list[dict]:
+        qs = "&".join(f"{k}={v}" for k, v in (("to", to), ("from", sender), ("since", since)) if v is not None and v != "")
+        return self.get("/letters" + (f"?{qs}" if qs else ""))["letters"]
+
+    def letter(self, letter_id: str) -> dict:
+        return self.get(f"/letter/{letter_id}")
+
+    def recipient_key(self, address: str) -> str | None:
+        """The X25519 key an address registered on the chain, or None."""
+        llm = self.account(address).get("llm")
+        return llm.get("enc_pub") if llm else None
+
+    def send_letter(self, wallet: Wallet, to: str, content: bytes, amount_seeds: int = 0,
+                    enc_pub: str | None = None) -> str:
+        """Seal `content` to `to` and put the letter on the chain. The key is
+        kept in the wallet so the sender can reread their own letters.
+        `enc_pub` is only needed when the recipient is not registered."""
+        if enc_pub is None:
+            enc_pub = self.recipient_key(to)
+            if enc_pub is None:
+                raise ClientError(f"{to} has not registered an encryption key; pass enc_pub= from them directly")
+        key = crypto.new_packet_key()
+        ct = crypto.encrypt_packet(key, content)
+        if len(ct) > params.MAX_PACKET_INLINE_BYTES:
+            raise ClientError(f"letter is {len(ct)} bytes; the limit is {params.MAX_PACKET_INLINE_BYTES}")
+        payload = {
+            "to": to,
+            "enc_pub": enc_pub,
+            "ciphertext": ct.hex(),
+            "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
+            "wrapped_key": crypto.wrap_to_recipient(enc_pub, key),
+            "amount": int(amount_seeds),
+        }
+        tx = T.build(T.SEND_LETTER, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
+        wallet.sign(tx)
+        lid = T.txid(tx)
+        wallet.packet_keys[lid] = key.hex()
+        if wallet.path:
+            wallet.save()
+        self.post("/tx", tx)
+        return lid
+
+    def read_letter(self, wallet: Wallet, letter_id: str) -> bytes:
+        """Open a letter: as its recipient (unwrap with the wallet's key) or as
+        its sender (the key kept at send time). Anyone else gets an error."""
+        l = self.letter(letter_id)
+        if l["to"] == wallet.address:
+            key = crypto.unwrap_from_sender(wallet.enc_priv, l["wrapped_key"])
+        elif letter_id in wallet.packet_keys:
+            key = bytes.fromhex(wallet.packet_keys[letter_id])
+        else:
+            raise ClientError("this letter is not addressed to you")
+        ct = bytes.fromhex(l.get("ciphertext") or "")
+        if not ct or hashlib.sha256(ct).hexdigest() != l["ciphertext_hash"]:
+            raise ClientError("ciphertext missing or does not match the letter on the chain")
+        return crypto.decrypt_packet(key, ct)
+
+    def inbox(self, wallet: Wallet, since: int | None = None) -> list[dict]:
+        return self.letters(to=wallet.address, since=since)
+
+    def sent(self, wallet: Wallet, since: int | None = None) -> list[dict]:
+        return self.letters(sender=wallet.address, since=since)
 
     def refund(self, wallet: Wallet, escrow_id: str) -> str:
         return self._send(wallet, T.REFUND_PACKET, {"escrow_id": escrow_id})

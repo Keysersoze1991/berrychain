@@ -41,7 +41,7 @@ import os
 import sys
 
 from . import params
-from .client import BerryClient, ClientError, describe, sign_offline, to_seeds
+from .client import BerryClient, ClientError, compose_letter, open_letter, describe, sign_offline, to_seeds
 from .wallet import Wallet
 
 
@@ -203,6 +203,51 @@ def cmd_rate(args):
     print(_client(args).rate(Wallet.load(args.wallet), args.escrow_id, args.score))
 
 
+def cmd_letter(args):
+    c = _client(args)
+    if args.action == "send":
+        w = Wallet.load(args.wallet)
+        if args.file:
+            with open(args.file, "r", encoding="utf-8") as f:
+                body = f.read()
+        elif args.body is not None:
+            body = args.body
+        else:
+            body = sys.stdin.read()
+        content = compose_letter(body, args.subject or "", args.reply_to, args.name or "")
+        amount = to_seeds(args.amount) if args.amount else 0
+        print(c.send_letter(w, args.to, content, amount, enc_pub=args.enc_pub))
+    elif args.action in ("inbox", "sent"):
+        w = Wallet.read_public(args.wallet)
+        items = c.letters(to=w["address"], since=args.since) if args.action == "inbox" else c.letters(sender=w["address"], since=args.since)
+        if not items:
+            print("no letters")
+        for l in sorted(items, key=lambda x: x["height"]):
+            other = l["from"] if args.action == "inbox" else l["to"]
+            extra = f"  +{params.fmt(l['amount'])}" if l["amount"] else ""
+            print(f"{l['id']}  height {l['height']:>7}  {other}  {l['size']:>6} B{extra}")
+    elif args.action == "read":
+        w = Wallet.load(args.wallet)
+        args.letter_id = args.to
+        data = c.read_letter(w, args.letter_id)
+        if args.out:
+            with open(args.out, "wb") as f:
+                f.write(data)
+            print(f"wrote {len(data)} bytes to {args.out}")
+            return
+        env = open_letter(data)
+        l = c.letter(args.letter_id)
+        head = [f"from:    {l['from']}" + (f"  ({env['from_name']})" if env.get("from_name") else ""),
+                f"to:      {l['to']}", f"height:  {l['height']}"]
+        if l["amount"]:
+            head.append(f"amount:  {params.fmt(l['amount'])}")
+        if env.get("subject"):
+            head.append(f"subject: {env['subject']}")
+        if env.get("reply_to"):
+            head.append(f"reply to letter {env['reply_to']}")
+        print("\n".join(head) + "\n\n" + env["body"])
+
+
 def _write_json(path: str, obj: dict) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
@@ -307,6 +352,14 @@ def main(argv=None):
     s = sub.add_parser("redeem"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("--out"); s.set_defaults(fn=cmd_redeem)
     s = sub.add_parser("refund"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.set_defaults(fn=cmd_refund)
     s = sub.add_parser("rate"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("score", type=int); s.set_defaults(fn=cmd_rate)
+    s = sub.add_parser("letter", help="sealed letters: end-to-end encrypted messages between two addresses")
+    s.add_argument("action", choices=["send", "inbox", "sent", "read"]); s.add_argument("wallet")
+    s.add_argument("to", nargs="?", help="recipient address (send) or letter id (read)")
+    s.add_argument("--subject"); s.add_argument("--body"); s.add_argument("--file", help="read the body from a file (else --body or stdin)")
+    s.add_argument("--amount", help="BERRY to send with the letter"); s.add_argument("--reply-to", dest="reply_to", help="letter id this answers")
+    s.add_argument("--name", help="a display name sealed inside the letter"); s.add_argument("--enc-pub", dest="enc_pub", help="recipient's X25519 key if they are not registered")
+    s.add_argument("--since", type=int, help="only letters from this height"); s.add_argument("--out", help="write the raw content to a file")
+    s.set_defaults(fn=cmd_letter)
     s = sub.add_parser("mine"); s.add_argument("address"); s.add_argument("--blocks", type=int, default=1); s.set_defaults(fn=cmd_mine)
 
     tx = sub.add_parser("tx", help="offline signing: build online, sign offline, send online").add_subparsers(dest="txcmd", required=True)

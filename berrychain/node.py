@@ -383,6 +383,19 @@ def make_handler(node: Node):
             if head == "escrow" and arg:
                 e = st.escrows.get(arg)
                 return self._send(e) if e else self._error("no such escrow", 404)
+            if head == "letters":
+                items = list(st.letters.values())
+                for k in ("to", "from"):
+                    if q.get(k):
+                        items = [l for l in items if l[k] == q[k]]
+                if q.get("since", "").isdigit():
+                    items = [l for l in items if l["height"] >= int(q["since"])]
+                return self._send({"letters": items})
+            if head == "letter" and arg:
+                l = st.letters.get(arg)
+                if not l:
+                    return self._error("no such letter", 404)
+                return self._send(dict(l, ciphertext=c.get_ciphertext(arg)))
             if head == "escrows":
                 items = list(st.escrows.values())
                 for k in ("buyer", "seller", "status", "packet_id"):

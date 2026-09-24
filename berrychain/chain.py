@@ -124,13 +124,13 @@ class Chain:
         return None
 
     def get_ciphertext(self, packet_id: str) -> str | None:
-        """Inline ciphertext of a confirmed listing, read from its block."""
+        """Inline ciphertext of a confirmed listing or letter, read from its block."""
         loc = self.tx_index.get(packet_id)
         if not loc:
             return None
         h, i = loc
         tx = self.blocks[h]["txs"][i]
-        return tx.get("payload", {}).get("ciphertext") if tx.get("type") == T.LIST_PACKET else None
+        return tx.get("payload", {}).get("ciphertext") if tx.get("type") in (T.LIST_PACKET, T.SEND_LETTER) else None
 
     def supply(self) -> dict:
         st = self.state
