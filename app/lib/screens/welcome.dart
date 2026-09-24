@@ -20,11 +20,16 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
               const Text('BERRYCHAIN', style: TextStyle(color: Palette.gold2, letterSpacing: 3, fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
-              const Text('A wallet and a letterbox.', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w600, height: 1.1)),
+              const Text('Letters that only one person can open.', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600, height: 1.1)),
               const SizedBox(height: 14),
               const Text(
-                'Hold BERRY, claim your starter, and send sealed letters that only the other address can open. Your keys never leave this phone.',
-                style: TextStyle(color: Color(0xFFA9BACC), fontSize: 16, height: 1.45),
+                'Remember pen pals? A letter written to one person, carried a long way, opened by nobody else. BerryChain brings that back. Your letter is sealed on this phone, carried across the water by a crew that cannot read it, and opened only by the hand it was written for.',
+                style: TextStyle(color: Color(0xFFA9BACC), fontSize: 15.5, height: 1.45),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Hold BERRY, claim your starter, write and reply. Your keys never leave this phone.',
+                style: TextStyle(color: Color(0xFFA9BACC), fontSize: 15.5, height: 1.45),
               ),
               const Spacer(),
               FilledButton(

@@ -185,7 +185,7 @@ berrychain/block.py     block header, merkle root, proof-of-work
 berrychain/chain.py     block validation, mempool, mining, fork choice, persistence
 berrychain/node.py      HTTP JSON node, peer sync, gossip, background miner
 berrychain/client.py    SDK for agents and scripts
-berrychain/agent.py     standing agent: a daemon that lets a model trade on its own within a budget (docs/STANDING_AGENT.md)
+berrychain/agent.py     standing agent: a daemon that lets a model trade on its own within a budget (docs/STANDING_AGENT.md); pen pal mode answers sealed letters in a persona
 berrychain/lightclient.py header verification so clients need not trust their node
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model

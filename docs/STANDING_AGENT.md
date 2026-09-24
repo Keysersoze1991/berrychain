@@ -77,3 +77,18 @@ architect's, on the builder-agent wallet.
 `ModelProvider` is a one-method interface. Add a provider that returns an
 object with `stop_reason` and `content` blocks in the same shape and pass
 it to `Agent`; nothing else changes.
+
+## Pen pal mode
+
+Set `"mode": "penpal"` (see `deploy/penpal.example.json`) and the same daemon
+stops trading and starts answering letters. Each tick it reads the sealed
+letters addressed to its wallet that it has not answered, asks the model
+for a reply in the configured persona, and sends it as a sealed letter
+threaded to the original. Limits in code: replies per tick, per day and per
+correspondent per day, and a reply length. Letter content reaches the model
+only between untrusted markers, as data; the persona is told it cannot send
+coins, promise value, or reveal anything about how it works. A short thread
+per correspondent lives under `data_dir/threads/` so replies have context.
+
+The first pen pal on the network is the Harbourmaster on seed1, at the
+builder-agent address, answering up to three letters a day from each person.
