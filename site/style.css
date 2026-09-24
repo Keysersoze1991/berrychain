@@ -73,7 +73,7 @@ header { position: sticky; top: 0; z-index: 5; background: var(--sea); color: va
 header .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 60px; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: Fraunces, Georgia, serif; font-weight: 700; font-size: 19px; color: var(--sea-ink); letter-spacing: .01em; }
 .brand:hover { text-decoration: none; }
-.brand img { height: 30px; width: auto; filter: invert(1) sepia(1) saturate(4) hue-rotate(5deg) brightness(1.05); }
+.brand img { height: 30px; width: auto; }
 nav { display: flex; gap: 4px 16px; flex-wrap: wrap; font-size: 14px; font-weight: 500; }
 nav a { color: var(--sea-ink-2); padding: 4px 0; border-bottom: 1px solid transparent; }
 nav a:hover { color: var(--gold-2); text-decoration: none; border-bottom-color: var(--gold); }
@@ -95,7 +95,7 @@ nav a:hover { color: var(--gold-2); text-decoration: none; border-bottom-color: 
 .hero p strong { color: var(--sea-ink); }
 .hero .lede { color: var(--sea-ink-2); }
 .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
-.hero .sym { filter: invert(1) sepia(1) saturate(4) hue-rotate(5deg) brightness(1.05); }
+.hero .sym { filter: none; }
 .rose { position: absolute; right: -30px; top: 50%; transform: translateY(-50%); width: min(44vw, 400px); height: auto; opacity: .2; pointer-events: none; color: var(--gold); }
 .rose .ring { animation: drift 240s linear infinite; transform-origin: 200px 200px; }
 @keyframes drift { to { transform: rotate(360deg); } }
@@ -160,7 +160,7 @@ footer { margin-top: 40px; background: var(--sea); color: var(--sea-ink-2); font
 footer .wrap { padding: 28px 16px 40px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 footer a { color: var(--sea-ink); }
 footer .hat { display: inline-flex; align-items: center; gap: 9px; color: var(--sea-ink-2); font-style: italic; font-family: Fraunces, Georgia, serif; font-size: 15px; }
-footer .hat svg { width: 24px; height: 24px; }
+footer .hat svg { width: 22px; height: 22px; }
 
 .sym { height: 1em; width: auto; vertical-align: -0.12em; margin-right: 0.12em; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .sym { filter: invert(1) sepia(1) saturate(4) hue-rotate(5deg) brightness(1.05); } }
