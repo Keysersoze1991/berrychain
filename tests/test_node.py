@@ -109,5 +109,28 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(mine.height, 3)
 
 
+class PersistenceTests(unittest.TestCase):
+    def test_empty_or_truncated_chain_file_is_set_aside(self):
+        import json, os, tempfile
+        from berrychain.node import open_or_create
+        h = Harness(founders=False)
+        with tempfile.TemporaryDirectory() as d:
+            gpath = os.path.join(d, "genesis.json")
+            with open(gpath, "w") as f:
+                json.dump(h.chain.genesis, f)
+            path = os.path.join(d, "chain.json")
+            open(path, "w").close()                                    # what a crash mid-save can leave behind
+            chain = open_or_create(gpath, d)
+            self.assertEqual(chain.height, 0)
+            self.assertFalse(os.path.exists(path))
+            self.assertTrue(any(n.startswith("chain-corrupt-") for n in os.listdir(d)))
+            with open(path, "w") as f:
+                f.write('{"genesis": {')                                 # truncated
+            chain = open_or_create(gpath, d)
+            self.assertEqual(chain.height, 0)
+            chain.save(path)                                             # a good save round-trips
+            self.assertEqual(open_or_create(gpath, d).tip["hash"], chain.tip["hash"])
+
+
 if __name__ == "__main__":
     unittest.main()

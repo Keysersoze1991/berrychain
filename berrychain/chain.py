@@ -341,6 +341,8 @@ class Chain:
             tmp = path + ".tmp"
             with open(tmp, "w") as f:
                 json.dump({"genesis": self.genesis, "blocks": self.blocks}, f)
+                f.flush()
+                os.fsync(f.fileno())          # the rename must not outlive the data on a crash
             os.replace(tmp, path)
 
     @classmethod

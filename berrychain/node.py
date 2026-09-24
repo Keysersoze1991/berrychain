@@ -483,7 +483,14 @@ def open_or_create(genesis_path: str, data_dir: str | None) -> Chain:
     fresh = Chain.from_genesis_file(genesis_path)
     path = os.path.join(data_dir, "chain.json") if data_dir else None
     if path and os.path.exists(path):
-        stored = Chain.load(path)
+        try:
+            stored = Chain.load(path)
+        except (ValueError, KeyError, TypeError) as e:       # empty or truncated file: keep it, start over, resync
+            aside = os.path.join(data_dir, f"chain-corrupt-{int(time.time())}.json")
+            os.replace(path, aside)
+            print(f"stored chain at {path} is unreadable ({e.__class__.__name__}); moved it to {aside} "
+                  f"and starting from the given genesis, peers will fill the gap", flush=True)
+            return fresh
         if stored.blocks[0]["hash"] == fresh.blocks[0]["hash"]:
             return stored
         old = stored.blocks[0]["hash"][:8]
