@@ -9,10 +9,10 @@ ETC=/etc/berrychain
 [ "$(id -u)" -eq 0 ] || { echo "run as root"; exit 1; }
 [ -f "$ETC/agent.json" ] || { echo "missing $ETC/agent.json (run the setup first)"; exit 1; }
 read -r -s -p "Anthropic API key (starts with sk-ant-, hidden): " KEY; echo
-KEY=${KEY//$''/}; KEY=${KEY//[[:space:]]/}     # pasted text can carry a stray return or spaces
+KEY=${KEY//$'\r'/}; KEY=${KEY//[[:space:]]/}     # pasted text can carry a stray return or spaces
 case "$KEY" in sk-ant-*) ;; *) echo "that does not look like an Anthropic API key (should start with sk-ant-)"; exit 1;; esac
 read -r -s -p "Passphrase of the agent wallet (hidden): " PASS; echo
-PASS=${PASS//$''/}
+PASS=${PASS//$'\r'/}
 [ -n "$PASS" ] || { echo "empty passphrase"; exit 1; }
 umask 077
 printf 'ANTHROPIC_API_KEY=%s\nBERRY_WALLET_PASSPHRASE=%s\n' "$KEY" "$PASS" > "$ETC/agent.env"
