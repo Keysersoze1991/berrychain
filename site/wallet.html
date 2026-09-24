@@ -6,27 +6,51 @@
 <title>Set up a wallet</title>
 <meta name="description" content="Step-by-step guide to creating, backing up and using a BerryChain wallet on Windows.">
 <link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="index.html"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
+    <a class="brand" href="index.html" aria-label="BerryChain home"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
     <nav aria-label="Sections"><a href="index.html">Home</a><a href="mine.html">Mine</a><a href="join.html">Add your LLM</a><a href="https://github.com/Keysersoze1991/berrychain">Code</a></nav>
   </div>
 </header>
 
-<main class="wrap guide">
-  <div class="hero">
-    <h1>Set up a wallet for <img class="sym" src="berry-symbol.png" alt="">BERRY</h1>
+<div class="hero-band">
+  <div class="wrap">
+    <svg class="rose" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" stroke-width="1">
+        <g class="ring">
+          <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="172" stroke-dasharray="2 6"/><circle cx="200" cy="200" r="120"/>
+          <g stroke-width=".8">
+            <path d="M200 10v380M10 200h380M65.6 65.6l268.8 268.8M334.4 65.6L65.6 334.4"/>
+            <path d="M200 28l0 344M28 200l344 0" stroke-dasharray="1 5" opacity=".7"/>
+          </g>
+        </g>
+        <g fill="currentColor" stroke="none">
+          <path d="M200 40l14 146-14 14-14-14z" opacity=".9"/><path d="M200 360l-14-146 14-14 14 14z" opacity=".45"/>
+          <path d="M40 200l146-14 14 14-14 14z" opacity=".45"/><path d="M360 200l-146 14-14-14 14-14z" opacity=".45"/>
+          <path d="M87 87l94 80-6 20-20 6z" opacity=".3"/><path d="M313 87l-80 94-20-6-6-20z" opacity=".3"/><path d="M313 313l-94-80 6-20 20-6z" opacity=".3"/><path d="M87 313l80-94 20 6 6 20z" opacity=".3"/>
+        </g>
+        <circle cx="200" cy="200" r="9" fill="currentColor"/><circle cx="200" cy="200" r="4" fill="#0c1f33"/>
+      </g>
+    </svg>
+    <div class="hero">
+      <p class="eyebrow">Guide · Wallet</p>
+      <h1>Set up a wallet for <img class="sym" src="berry-symbol.png" alt="">BERRY</h1>
     <p class="lede">A BerryChain wallet is one small file on your PC, sealed with a passphrase. It holds the keys that control an address. There is no account, no sign-up and no company holding your coins: the file and the passphrase are the whole thing. This page is click by click on Windows; Linux and Mac use the same commands with forward slashes.</p>
+    </div>
   </div>
+  <svg class="wave" viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor" d="M0 22c100 12 200 12 300 0s200-12 300 0 200 12 300 0 200-12 300 0v18H0z"/></svg>
+</div>
 
+<main class="wrap guide">
   <div class="card">
     <strong>What a wallet is, in one breath.</strong> An <em>address</em> that starts with <code>brry1</code> is where coins are sent. The <em>wallet file</em> holds the private key that can spend from that address, encrypted under your passphrase. Anyone with the file <em>and</em> the passphrase controls the coins. Lose both the file and its backup, or lose the passphrase, and the coins are gone forever; nobody can reset them.
   </div>
 
-  <h2>Part A: get the tools</h2>
+  <h2><span class="part">Part A</span>Get the tools</h2>
   <p>If you've already followed the <a href="mine.html">mining</a> or <a href="join.html">add-your-LLM</a> guide, you have these and can skip to Part B.</p>
   <ol>
     <li>Open PowerShell: Start button, type <code>powershell</code>, click "Windows PowerShell".</li>
@@ -39,7 +63,7 @@
 <pre>pip install -r requirements.txt</pre></li>
   </ol>
 
-  <h2>Part B: create the wallet</h2>
+  <h2><span class="part">Part B</span>Create the wallet</h2>
   <ol>
     <li>Choose a name for it, for example <code>savings</code>. Paste and press Enter:
 <pre>python -m berrychain.cli wallet new keys\savings.json --label savings --encrypt</pre></li>
@@ -47,12 +71,12 @@
     <li>It prints your new address, the line starting <code>"address": "brry1</code>. This is what you give to anyone who wants to send you BERRY, and what you paste into the miner or the LLM config. It's safe to share.</li>
   </ol>
 
-  <h2>Part C: prove you can open it</h2>
+  <h2><span class="part">Part C</span>Prove you can open it</h2>
   <p>Do this once, straight away. A wallet you can't unlock is worth nothing.</p>
 <pre>python -m berrychain.cli wallet check keys\savings.json</pre>
   <p>Type the passphrase. It should print <code>"unlocked": true</code>. If it says wrong passphrase, delete the file and start Part B again.</p>
 
-  <h2>Part D: back it up</h2>
+  <h2><span class="part">Part D</span>Back it up</h2>
   <ol>
     <li>Write the passphrase on paper and keep it somewhere other than with the PC.</li>
     <li>Copy the file <code>C:\berrychain\keys\savings.json</code> to a USB stick, or print it. The file is encrypted, so a copy is safe on its own; it's only useful with the passphrase.</li>
@@ -61,19 +85,19 @@
     Replace <code>E:</code> with the stick's drive letter. Keep the stick unplugged except when you're signing.</li>
   </ol>
 
-  <h2>Part E: see your balance</h2>
+  <h2><span class="part">Part E</span>See your balance</h2>
   <p>Replace <code>brry1…</code> with your address. No passphrase is needed to look:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link balance brry1…</pre>
 
-  <h2>Part F: receive BERRY</h2>
+  <h2><span class="part">Part F</span>Receive BERRY</h2>
   <p>Give the sender your address. That's all. Mining rewards, grants, gifts and payments all arrive at the address; the wallet file doesn't need to be open, or even on a running PC, to receive.</p>
 
-  <h2>Part G: send BERRY</h2>
+  <h2><span class="part">Part G</span>Send BERRY</h2>
   <p>Replace the address and the amount. Amounts can have up to eight decimal places, so <code>0.25</code> or <code>0.001</code> are fine. It asks for your passphrase, then prints a transaction id.</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link send keys\savings.json brry1… 0.25 --memo "thanks"</pre>
   <p>The minimum fee, 0.0001 BERRY, goes to the miner of the block. Sends are final once confirmed; check an address twice before pressing Enter.</p>
 
-  <h2>Part H: an offline wallet you sign with</h2>
+  <h2><span class="part">Part H</span>An offline wallet you sign with</h2>
   <p>If the wallet lives on a stick you'd rather never plug into an online PC, sign on an offline machine and carry only the signed file across:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link tx build transfer --from brry1YOURS… --to brry1THEIRS… --amount 0.25 --out unsigned.json</pre>
   <p>Copy <code>unsigned.json</code> to the offline machine, then there:</p>
@@ -92,6 +116,11 @@
   <p><a href="https://github.com/Keysersoze1991/berrychain/issues/new">Open an issue</a> with a screenshot and which step you were on. Never include the wallet file or passphrase.</p>
 </main>
 
-<footer><div class="wrap">BerryChain · <a href="index.html">home</a> · <a href="https://github.com/Keysersoze1991/berrychain">source</a></div></footer>
+<footer>
+  <div class="wrap">
+    <div>BerryChain · berrychain.link · <a href="https://github.com/Keysersoze1991/berrychain">source</a> · <a href="https://github.com/Keysersoze1991/berrychain/blob/main/SECURITY.md">security policy</a></div>
+    <div class="hat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="#d9a62b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13.5c0-4 1.5-7.5 5-7.5s5 3.5 5 7.5"/><path d="M2.5 14.5c2.5 2 6 2.6 9.5 2.6s7-.6 9.5-2.6"/><path d="M2.5 14.5c3-1 6-1.4 9.5-1.4s6.5.4 9.5 1.4"/></g><path d="M7 12.4c1.6.7 3.3 1 5 1s3.4-.3 5-1v1.7c-1.6.6-3.3.9-5 .9s-3.4-.3-5-.9z" fill="#c2382b"/></svg><span>Fair winds.</span></div>
+  </div>
+</footer>
 </body>
 </html>

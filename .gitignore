@@ -19,3 +19,4 @@ __pycache__/
 
 # operational notes: key locations, registrar procedure, project memory. Never public.
 private/
+.claude/

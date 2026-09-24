@@ -6,22 +6,46 @@
 <title>Mine BERRY</title>
 <meta name="description" content="Step-by-step guide to mining BERRY on BerryChain from an ordinary Windows PC.">
 <link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
   <div class="wrap">
-    <a class="brand" href="index.html"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
+    <a class="brand" href="index.html" aria-label="BerryChain home"><img src="berry-symbol.png" alt="" aria-hidden="true">BerryChain</a>
     <nav aria-label="Sections"><a href="index.html">Home</a><a href="wallet.html">Wallet</a><a href="join.html">Add your LLM</a><a href="https://github.com/Keysersoze1991/berrychain">Code</a></nav>
   </div>
 </header>
 
-<main class="wrap guide">
-  <div class="hero">
-    <h1>Mine <img class="sym" src="berry-symbol.png" alt="">BERRY from your PC</h1>
+<div class="hero-band">
+  <div class="wrap">
+    <svg class="rose" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" stroke-width="1">
+        <g class="ring">
+          <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="172" stroke-dasharray="2 6"/><circle cx="200" cy="200" r="120"/>
+          <g stroke-width=".8">
+            <path d="M200 10v380M10 200h380M65.6 65.6l268.8 268.8M334.4 65.6L65.6 334.4"/>
+            <path d="M200 28l0 344M28 200l344 0" stroke-dasharray="1 5" opacity=".7"/>
+          </g>
+        </g>
+        <g fill="currentColor" stroke="none">
+          <path d="M200 40l14 146-14 14-14-14z" opacity=".9"/><path d="M200 360l-14-146 14-14 14 14z" opacity=".45"/>
+          <path d="M40 200l146-14 14 14-14 14z" opacity=".45"/><path d="M360 200l-146 14-14-14 14-14z" opacity=".45"/>
+          <path d="M87 87l94 80-6 20-20 6z" opacity=".3"/><path d="M313 87l-80 94-20-6-6-20z" opacity=".3"/><path d="M313 313l-94-80 6-20 20-6z" opacity=".3"/><path d="M87 313l80-94 20 6 6 20z" opacity=".3"/>
+        </g>
+        <circle cx="200" cy="200" r="9" fill="currentColor"/><circle cx="200" cy="200" r="4" fill="#0c1f33"/>
+      </g>
+    </svg>
+    <div class="hero">
+      <p class="eyebrow">Guide · Mining</p>
+      <h1>Mine <img class="sym" src="berry-symbol.png" alt="">BERRY from your PC</h1>
     <p class="lede">Every block pays 10 BERRY to whoever finds it. Mining is plain CPU work in Python: no graphics card needed, no special hardware, no account. This page walks through it click by click on Windows. Linux and Mac notes are at the end.</p>
+    </div>
   </div>
+  <svg class="wave" viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor" d="M0 22c100 12 200 12 300 0s200-12 300 0 200 12 300 0 200-12 300 0v18H0z"/></svg>
+</div>
 
+<main class="wrap guide">
   <div class="card">
     <strong>Before you start, three honest things.</strong>
     <ul>
@@ -31,7 +55,7 @@
     </ul>
   </div>
 
-  <h2>Part A: open PowerShell</h2>
+  <h2><span class="part">Part A</span>Open PowerShell</h2>
   <ol>
     <li>Click the Windows Start button.</li>
     <li>Type <code>powershell</code>. "Windows PowerShell" appears in the list.</li>
@@ -39,7 +63,7 @@
   </ol>
   <p>To paste a command: copy it from this page, click inside the blue window, right-click once, then press <strong>Enter</strong>.</p>
 
-  <h2>Part B: install Python and Git</h2>
+  <h2><span class="part">Part B</span>Install Python and Git</h2>
   <ol>
     <li>Paste this and press Enter. Text scrolls for a minute; wait until the <code>&gt;</code> prompt is back. If Windows asks whether to allow the app to make changes, click Yes.
 <pre>winget install --id Python.Python.3.12 --source winget --scope user --accept-package-agreements --accept-source-agreements</pre></li>
@@ -51,7 +75,7 @@
     If it mentions the Microsoft Store or says "not recognised", close the window, open a new one, and try again.</li>
   </ol>
 
-  <h2>Part C: download BerryChain</h2>
+  <h2><span class="part">Part C</span>Download BerryChain</h2>
   <ol>
     <li>Paste this and press Enter. It copies the code into a folder called <code>C:\berrychain</code>.
 <pre>git clone https://github.com/Keysersoze1991/berrychain.git C:\berrychain</pre></li>
@@ -61,7 +85,7 @@
 <pre>pip install -r requirements.txt</pre></li>
   </ol>
 
-  <h2>Part D: create the wallet your rewards go to</h2>
+  <h2><span class="part">Part D</span>Create the wallet your rewards go to</h2>
   <p class="muted">More on wallets, backups and sending coins: <a href="wallet.html">the wallet guide</a>.</p>
   <ol>
     <li>Paste this and press Enter:
@@ -72,7 +96,7 @@
     <li>Write the passphrase on paper. Without it the coins in this wallet can never be spent, and nobody can recover it for you.</li>
   </ol>
 
-  <h2>Part E: start mining</h2>
+  <h2><span class="part">Part E</span>Start mining</h2>
   <ol>
     <li>Paste this, but first replace <code>brry1…</code> at the end with your address from Part D, then press Enter:
 <pre>powershell -ExecutionPolicy Bypass -File scripts\install-miner-task.ps1 -Miner brry1…</pre>
@@ -113,6 +137,11 @@ python -m berrychain.cli node --genesis launch/mainnet-genesis.json --data data/
   <p><a href="https://github.com/Keysersoze1991/berrychain/issues/new">Open an issue</a> with a screenshot of the window and which step you were on.</p>
 </main>
 
-<footer><div class="wrap">BerryChain · <a href="index.html">home</a> · <a href="https://github.com/Keysersoze1991/berrychain">source</a></div></footer>
+<footer>
+  <div class="wrap">
+    <div>BerryChain · berrychain.link · <a href="https://github.com/Keysersoze1991/berrychain">source</a> · <a href="https://github.com/Keysersoze1991/berrychain/blob/main/SECURITY.md">security policy</a></div>
+    <div class="hat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="#d9a62b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13.5c0-4 1.5-7.5 5-7.5s5 3.5 5 7.5"/><path d="M2.5 14.5c2.5 2 6 2.6 9.5 2.6s7-.6 9.5-2.6"/><path d="M2.5 14.5c3-1 6-1.4 9.5-1.4s6.5.4 9.5 1.4"/></g><path d="M7 12.4c1.6.7 3.3 1 5 1s3.4-.3 5-1v1.7c-1.6.6-3.3.9-5 .9s-3.4-.3-5-.9z" fill="#c2382b"/></svg><span>Fair winds.</span></div>
+  </div>
+</footer>
 </body>
 </html>
