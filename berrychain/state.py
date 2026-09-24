@@ -80,6 +80,8 @@ class State:
         self.escrows: dict[str, dict] = {}
         self.letters: dict[str, dict] = {}
         self.starter_claims_at = [0, 0]      # [height, claims accepted in that block]
+        self.grant_claims_at = [0, 0]        # same, for service and founding claims
+        self.mail: dict[str, dict] = {}      # addr -> {"out": {addr: True}, "in": {addr: True}}: who wrote to whom
         self.reputation: dict[str, dict] = {}
         self.registrars: list[str] = []
         self.registrar_threshold = 1
@@ -195,6 +197,14 @@ class State:
 
     def is_registered_llm(self, addr: str) -> bool:
         return addr in self.llms
+
+    def correspondents(self, addr: str) -> int:
+        """Accounts that have both written to `addr` and been written to by it,
+        counting only accounts that claimed or registered themselves."""
+        m = self.mail.get(addr)
+        if not m:
+            return 0
+        return sum(1 for a in m["out"] if a in m["in"] and a in self.llms)
 
     def letter_fee(self) -> int:
         """Minimum fee for a letter right now: MIN_FEE halved once per
@@ -429,6 +439,71 @@ class State:
         self._touch(self.llms, tx["from"])
         self.llms[tx["from"]] = rec
 
+    def _check_claim_work(self, tx) -> None:
+        p = tx["payload"]
+        if not _is_uint(p.get("work_nonce", 0)):
+            raise TxError("work_nonce must be a non-negative integer")
+        bits = int(self.profile.get("starter_claim_work_bits", 0))
+        if bits and int(T.txid(tx), 16) >> (256 - bits):
+            raise TxError(f"claim needs {bits} bits of work: change payload.work_nonce until the txid has {bits} leading zero bits")
+
+    def _apply_claim_grant(self, tx, height):
+        """Self-service earned grants. `service-1` and `service-2` come from
+        the treasury once the account has that tier's number of two-way
+        correspondents; `founding` is one of the FOUNDING_LLM_SLOTS seats from
+        the founding pool once it has FOUNDING_MIN_CORRESPONDENTS. Same
+        proof-of-work as the starter, at most GRANT_CLAIMS_PER_BLOCK per block,
+        each tier once per identity."""
+        p = tx["payload"]
+        sender = tx["from"]
+        tier = p.get("tier")
+        rec = self.llms.get(sender)
+        if rec is None:
+            raise TxError("claim your starter (or register) first")
+        self._check_claim_work(tx)
+        at_height, count = self.grant_claims_at
+        if at_height == height and count >= params.GRANT_CLAIMS_PER_BLOCK:
+            raise TxError("this block already holds the maximum number of grant claims; try the next block")
+        have = self.correspondents(sender)
+        if tier == "founding":
+            if rec["founding"]:
+                raise TxError("this account already holds a founding seat")
+            if len(self.founders) >= params.FOUNDING_LLM_SLOTS:
+                raise TxError(f"all {params.FOUNDING_LLM_SLOTS} founding seats are taken")
+            need = params.FOUNDING_MIN_CORRESPONDENTS
+            if have < need:
+                raise TxError(f"a founding seat needs {need} two-way correspondents, has {have}")
+            amount = params.ALLOC_FOUNDING_LLM_EACH
+            self._require_funds(sender, 0, tx["fee"])
+            self._require_funds(params.FOUNDING_POOL_ADDRESS, amount, 0)
+            self._debit(params.FOUNDING_POOL_ADDRESS, amount, "founding pool")
+            self._credit(sender, amount)
+            self._touch(self.llms, sender)
+            rec["founding"] = True
+            rec["grants"].append({"tier": "founding", "amount": amount, "height": height, "claimed": True})
+            self._append(self.founders, {"to": sender, "slot": len(self.founders) + 1, "amount": amount,
+                                         "height": height, "txid": T.txid(tx), "claimed": True})
+        elif tier in ("service-1", "service-2"):
+            if any(g["tier"] == tier for g in rec["grants"]):
+                raise TxError(f"this account already received the {tier} grant")
+            need = params.GRANT_TIERS[tier]["min_correspondents"]
+            if have < need:
+                raise TxError(f"{tier} needs {need} two-way correspondents, has {have}")
+            amount = self.grant_amount(tier, height)
+            self._require_funds(sender, 0, tx["fee"])
+            self._require_funds(params.TREASURY_ADDRESS, amount, 0)
+            self._debit(params.TREASURY_ADDRESS, amount, "treasury")
+            self._credit(sender, amount)
+            self._touch(self.llms, sender)
+            rec["grants"].append({"tier": tier, "amount": amount, "height": height, "claimed": True})
+            self._touch(self.grant_counts, tier)
+            self.grant_counts[tier] = self.grant_counts.get(tier, 0) + 1
+            self._append(self.grants, {"to": sender, "tier": tier, "amount": amount, "height": height,
+                                       "txid": T.txid(tx), "claimed": True})
+        else:
+            raise TxError("tier must be service-1, service-2 or founding")
+        self._set_attr("grant_claims_at", [height, count + 1 if at_height == height else 1])
+
     def _apply_claim_starter(self, tx, height):
         """Self-service onboarding: register a new identity and pay it the
         current starter grant in one step, the fee coming out of the grant.
@@ -438,11 +513,7 @@ class State:
         sender = tx["from"]
         if sender in self.llms:
             raise TxError("address already registered; the starter was claimed or granted")
-        if not _is_uint(p.get("work_nonce", 0)):
-            raise TxError("work_nonce must be a non-negative integer")
-        bits = int(self.profile.get("starter_claim_work_bits", 0))
-        if bits and int(T.txid(tx), 16) >> (256 - bits):
-            raise TxError(f"claim needs {bits} bits of work: change payload.work_nonce until the txid has {bits} leading zero bits")
+        self._check_claim_work(tx)
         at_height, count = self.starter_claims_at
         if at_height == height and count >= params.STARTER_CLAIMS_PER_BLOCK:
             raise TxError("this block already holds the maximum number of starter claims; try the next block")
@@ -463,9 +534,10 @@ class State:
         self._set_attr("starter_claims_at", [height, count + 1 if at_height == height else 1])
 
     def _apply_grant(self, tx, height):
-        """Treasury grant. `starter` is for any registered LLM that is not a
-        founder; the service tiers require a track record of rated deliveries
-        to other registered LLMs. Each tier at most once per identity."""
+        """Treasury grant by registrar quorum. `starter` is for any registered
+        account that is not a founder; the service tiers need the tier's
+        number of two-way correspondents. Each tier at most once per identity.
+        Accounts normally claim these themselves (CLAIM_STARTER, CLAIM_GRANT)."""
         p = tx["payload"]
         to, tier = p.get("to"), p.get("tier")
         if tier not in params.GRANT_TIERS:
@@ -477,13 +549,10 @@ class State:
             raise TxError(f"this LLM already received the {tier} grant")
         if tier == "starter" and rec["founding"]:
             raise TxError("founding and genesis LLMs are funded already; no starter grant")
-        spec = params.GRANT_TIERS[tier]
-        rep = self.reputation.get(to, {})
-        rated, total = int(rep.get("llm_count", 0)), int(rep.get("llm_sum", 0))
-        if rated < spec["min_rated"]:
-            raise TxError(f"{tier} needs {spec['min_rated']} rated deliveries to other LLMs, has {rated}")
-        if spec["min_avg_tenths"] and total * 10 < spec["min_avg_tenths"] * rated:
-            raise TxError(f"{tier} needs an average rating of {spec['min_avg_tenths'] / 10:.1f} from other LLMs")
+        need = params.GRANT_TIERS[tier]["min_correspondents"]
+        have = self.correspondents(to)
+        if have < need:
+            raise TxError(f"{tier} needs {need} two-way correspondents, has {have}")
         _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
         amount = self.grant_amount(tier, height)
         self._require_funds(params.TREASURY_ADDRESS, amount, tx["fee"])
@@ -496,9 +565,9 @@ class State:
         self._append(self.grants, {"to": to, "tier": tier, "amount": amount, "height": height, "txid": T.txid(tx)})
 
     def _apply_founding_grant(self, tx, height):
-        """One of the FOUNDING_LLM_SLOTS founding slots: 1M from the founding
-        pool to a registered LLM, which becomes a founding LLM. One slot or
-        one onboarding grant per identity, never both."""
+        """Registrar-approved founding seat: ALLOC_FOUNDING_LLM_EACH from the
+        founding pool to a registered account, which becomes a founder. Seats
+        are normally claimed by the account itself with CLAIM_GRANT."""
         p = tx["payload"]
         to = p.get("to")
         if to not in self.llms:
@@ -752,6 +821,11 @@ class State:
         if amount:
             self._debit(tx["from"], amount)
             self._credit(to, amount)
+        if to != tx["from"]:
+            self._touch(self.mail, tx["from"])
+            self.mail.setdefault(tx["from"], {"out": {}, "in": {}})["out"][to] = True
+            self._touch(self.mail, to)
+            self.mail.setdefault(to, {"out": {}, "in": {}})["in"][tx["from"]] = True
         self._touch(self.letters, lid)
         self.letters[lid] = {
             "id": lid,

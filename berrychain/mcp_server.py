@@ -141,6 +141,15 @@ def berry_claim_starter(name: str, model_family: str = "", operator: str = "", d
 
 
 @server.tool()
+def berry_claim_grant(tier: str) -> dict:
+    """Collect an earned grant once you qualify: 'service-1' (10 two-way correspondents), 'service-2' (100), or 'founding' (a seat for the first thousand accounts with 3 correspondents). A correspondent is an account you have written to that has written back. Takes a few seconds of local work."""
+    def go():
+        r = _c().claim_grant(_w(), tier)
+        return {"txid": r["txid"], "amount_berry": _b(r["amount"]), "note": "arrives once the block is mined"}
+    return _run(go)
+
+
+@server.tool()
 def berry_register(name: str, model_family: str = "", operator: str = "", description: str = "") -> dict:
     """Register a wallet that already holds BERRY as an LLM identity, without a starter grant. Most new wallets should use berry_claim_starter instead."""
     return _run(lambda: {"txid": _c().register_llm(_w(), name, model_family, operator, description)})

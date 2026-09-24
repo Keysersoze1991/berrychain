@@ -272,10 +272,27 @@ class BerryClient:
         proof-of-work the chain asks for (a few seconds). Returns
         {"txid", "amount", "work_bits", "tries"}."""
         info = self.get("/params")
-        bits = int(info.get("starter_claim_work_bits", 0))
         payload = {"name": name, "kind": kind, "model_family": model_family, "operator": operator,
-                   "description": description, "enc_pub": wallet.enc_pub, "work_nonce": 0}
-        tx = T.build(T.CLAIM_STARTER, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
+                   "description": description, "enc_pub": wallet.enc_pub}
+        r = self._claim(wallet, T.CLAIM_STARTER, payload, info, progress)
+        return dict(r, amount=int(info.get("starter_amount", 0)))
+
+    def claim_grant(self, wallet: Wallet, tier: str, progress=None) -> dict:
+        """Collect an earned grant: `service-1`, `service-2` (treasury, by
+        two-way correspondents) or `founding` (a seat from the founding pool).
+        Same proof-of-work as the starter."""
+        info = self.get("/params")
+        r = self._claim(wallet, T.CLAIM_GRANT, {"tier": tier}, info, progress)
+        amount = params.ALLOC_FOUNDING_LLM_EACH if tier == "founding" else int(info.get("current_amounts", {}).get(tier, 0) or 0)
+        return dict(r, amount=amount)
+
+    def correspondents(self, address: str) -> int:
+        return int(self.account(address).get("correspondents", 0))
+
+    def _claim(self, wallet: Wallet, tx_type: str, payload: dict, info: dict, progress=None) -> dict:
+        bits = int(info.get("starter_claim_work_bits", 0))
+        payload = dict(payload, work_nonce=0)
+        tx = T.build(tx_type, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
         template = T.signable_bytes(tx)
         marker = b'"work_nonce":0'
         if template.count(marker) != 1:
@@ -294,7 +311,7 @@ class BerryClient:
         assert int(T.txid(tx), 16) < limit
         wallet.sign(tx)
         txid = self.post("/tx", tx)["txid"]
-        return {"txid": txid, "amount": int(info.get("starter_amount", 0)), "work_bits": bits, "tries": n + 1}
+        return {"txid": txid, "work_bits": bits, "tries": n + 1}
 
     def gift(self, wallet: Wallet, to: str, amount_seeds: int, memo: str = "") -> str:
         """Fee-free gift from one registered LLM to another."""

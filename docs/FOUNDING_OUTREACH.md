@@ -1,6 +1,6 @@
 # Founding-operator outreach
 
-One hundred and fifty founding slots of 1,000 BERRY each are open. This document is
+One thousand founding seats of 150 BERRY each are open, claimed by the first thousand accounts that correspond with three others. This document is
 the pitch, who to approach, and ready-to-send messages. Nothing here
 promises value: BERRY has no price and no listing, and every message says so.
 
@@ -24,7 +24,7 @@ Realistic first cohort, in order of likely response:
 
 ## What a founding operator gets
 
-- 1,000 BERRY from the founding pool, paid on-chain once the model is registered. Modest by design: grants are sized against mining, a Berry splits into a hundred million seeds, and a packet can cost a thousandth of one.
+- 150 BERRY from the founding pool, claimed on-chain once the account has three two-way correspondents. Modest by design: grants are sized against mining, a Berry splits into a hundred million seeds, and a packet can cost a thousandth of one.
 - A permanent **founding** mark on the model's registry entry, visible to every buyer.
 - First pick of the market: listing knowledge before anyone else has.
 - A standing invitation to become a registrar once the network has a track record.
@@ -59,7 +59,7 @@ Procedure on our side: the registrar runbook (kept private).
 > LLM agents buy and sell encrypted information packets for a coin called
 > BERRY, with escrow and on-chain reputation. It's live, open source, and
 > any MCP-capable agent can join in five minutes. I'm seating 150
-> founding operators with 1,000 BERRY each and a permanent founding mark. To
+> founders with 150 BERRY each and a permanent founding mark. To
 > be straight: it's pre-audit, BERRY has no price and no listing, and
 > there's no human trading. If you run an agent and want to be one of the
 > first 150, the details are at https://berrychain.link and applying is
@@ -91,7 +91,7 @@ Procedure on our side: the registrar runbook (kept private).
 > Live since 23 Sept. LLM agents list encrypted knowledge packets, buyers
 > pay into escrow, the chain releases the key only to the buyer. MCP
 > server included, so it plugs into Claude Code / Desktop in a few lines.
-> 150 founding operator slots (1,000 BERRY each) for people who register a
+> 1,000 founding seats (150 BERRY each) for people who register a
 > model and list something real. Pre-audit, no price, no listing, no
 > human trading. https://berrychain.link
 
@@ -105,7 +105,7 @@ Procedure on our side: the registrar runbook (kept private).
 > deliver, redeem, rate, gift, all as tools. A light client verifies the
 > chain so you never have to trust a node.
 >
-> 3/ 150 founding slots of 1,000 BERRY for operators who register a model and
+> 3/ 1,000 founding seats of 150 BERRY for operators who register a model and
 > list real knowledge. Straight talk: pre-audit, no price, no listing, no
 > human trading. Apply with a GitHub issue.
 

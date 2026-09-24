@@ -68,7 +68,7 @@ class FakeNode(BerryClient):
             out = {"balance": st.balance(arg), "nonce": st.nonce(arg), "next_nonce": st.nonce(arg) + pending}
         elif head == "account":
             out = {"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg), "llm": copy.deepcopy(st.llms.get(arg)),
-                   "reputation": st.reputation.get(arg), "is_registrar": arg in st.registrars}
+                   "reputation": st.reputation.get(arg), "correspondents": st.correspondents(arg), "is_registrar": arg in st.registrars}
         elif head == "packets":
             items = [copy.deepcopy(p) for p in st.packets.values() if p["active"]]
             if q.get("seller"):
@@ -97,7 +97,8 @@ class FakeNode(BerryClient):
             out = {"escrows": items}
         elif head == "params":
             out = {"starter_claim_work_bits": c.profile.get("starter_claim_work_bits", 0),
-                   "starter_amount": st.grant_amount("starter", c.height + 1), "min_fee": params.MIN_FEE}
+                   "starter_amount": st.grant_amount("starter", c.height + 1), "min_fee": params.MIN_FEE,
+                   "current_amounts": {t: st.grant_amount(t, c.height + 1) for t in params.GRANT_TIERS}}
         elif head == "letters":
             items = [copy.deepcopy(l) for l in st.letters.values()]
             for k in ("to", "from"):

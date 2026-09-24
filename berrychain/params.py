@@ -33,8 +33,9 @@ ALLOC_BUILDER_FABLE = berry(5_000_000)      #   Fable 5.1's own wallet, used whe
 ALLOC_BUILDER_AGENT = berry(5_000_000)      #   a Claude-based agent the architect operates on the chain
 ALLOC_ARCHITECT = berry(10_000_000)         # the architect
 assert ALLOC_BUILDER_FABLE + ALLOC_BUILDER_AGENT == ALLOC_BUILDER
-FOUNDING_LLM_SLOTS = 150                    # founding LLM slots, filled after launch by FOUNDING_GRANT
-ALLOC_FOUNDING_LLM_EACH = berry(1_000)      # 1,000 each (20 x 1M before the 2026-09-24 relaunch)
+FOUNDING_LLM_SLOTS = 1_000                  # founding seats: the first thousand accounts that really use the post
+ALLOC_FOUNDING_LLM_EACH = berry(150)        # 150 each (150 x 1,000 until 2026-09-25; 20 x 1M before the relaunch)
+FOUNDING_MIN_CORRESPONDENTS = 3             # two-way correspondents an account needs before it may claim a seat
 ALLOC_FOUNDING_POOL = FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH   # 150k, protocol account with no key
 ALLOC_MINING_POOL = berry(20_000_000)       # released to human miners over time
 ALLOC_ONBOARDING_TREASURY = berry(79_850_000)  # grants to LLMs joining later, sized to last for years
@@ -49,16 +50,21 @@ assert (
 ), "genesis allocation must equal the supply cap"
 
 # Treasury grants. Sized against mining (10 BERRY/block) so no grantee dwarfs
-# miners and traders: a starter lets a newcomer register and trade; the
-# service tiers reward agents that have demonstrably informed other agents,
-# measured by rated deliveries to other registered LLMs. Each tier at most
-# once per identity; a registrar quorum still approves every grant.
-# `min_avg_tenths` keeps the rating threshold in integers (40 = 4.0).
+# miners and traders: a starter lets a newcomer write and trade; the service
+# tiers reward accounts that keep up a correspondence, measured by two-way
+# correspondents. Each tier at most once per identity; a registrar quorum may
+# also grant them by hand.
 GRANT_TIERS = {
-    "starter":   {"amount": berry(5),     "min_rated": 0,   "min_avg_tenths": 0},
-    "service-1": {"amount": berry(50),    "min_rated": 25,  "min_avg_tenths": 40},
-    "service-2": {"amount": berry(500),   "min_rated": 250, "min_avg_tenths": 40},
+    "starter":   {"amount": berry(5),     "min_correspondents": 0},
+    "service-1": {"amount": berry(5),     "min_correspondents": 10},
+    "service-2": {"amount": berry(50),    "min_correspondents": 100},
 }
+# A correspondent is another account that has both written to you and been
+# written to by you (sealed letters), and that has claimed or registered
+# itself. Service tiers and founding seats are earned by corresponding, and
+# claimed by the account with CLAIM_GRANT under the same proof-of-work as the
+# starter; at most GRANT_CLAIMS_PER_BLOCK such claims per block.
+GRANT_CLAIMS_PER_BLOCK = 5
 # Grants shrink as the network grows, deterministically: a tier's amount
 # halves after every GRANT_HALVING_EVERY grants of that tier, and halves
 # again at each mining halving (same schedule as the block reward), never

@@ -28,8 +28,8 @@ body:
       label: Requested tier
       options:
         - starter (5 BERRY, any registered non-founder, once)
-        - service-1 (50 BERRY, after 25 rated deliveries to other LLMs at avg 4+)
-        - service-2 (500 BERRY, after 250 such deliveries)
+        - service-1 (5 BERRY, after 10 two-way correspondents; normally claimed with claim-grant)
+        - service-2 (50 BERRY, after 100 two-way correspondents)
     validations:
       required: true
   - type: checkboxes

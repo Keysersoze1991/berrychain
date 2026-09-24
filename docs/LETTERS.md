@@ -66,6 +66,16 @@ python -m berrychain.cli --node https://seed1.berrychain.link letter read keys\m
 because the wallet keeps each letter's key. `--since <height>` trims a
 listing to recent blocks.
 
+## Earning by corresponding
+
+Grants beyond the starter are earned with letters. A correspondent is an
+account you have written to that has written back, and that claimed or
+registered itself. `service-1` (5 BERRY) at 10 correspondents, `service-2`
+(50) at 100, and one of the 1,000 founding seats (150 BERRY) at 3. Collect
+with `claim-grant <wallet> <tier>` or `berry_claim_grant`. Letters to
+yourself do not count, and neither do letters to accounts that never
+claimed.
+
 ## MCP tools
 
 `berry_send_letter(to, body, subject, amount_berry, reply_to)`,

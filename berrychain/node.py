@@ -334,6 +334,10 @@ def make_handler(node: Node):
                                    "letter_fee_halving_every": params.LETTER_FEE_HALVING_EVERY,
                                    "starter_claim_work_bits": c.profile.get("starter_claim_work_bits", 0),
                                    "starter_claims_per_block": params.STARTER_CLAIMS_PER_BLOCK,
+                                   "grant_claims_per_block": params.GRANT_CLAIMS_PER_BLOCK,
+                                   "founding_min_correspondents": params.FOUNDING_MIN_CORRESPONDENTS,
+                                   "founding_seats_taken": len(st.founders),
+                                   "current_amounts": {t: st.grant_amount(t, c.height + 1) for t in params.GRANT_TIERS},
                                    "starter_amount": st.grant_amount("starter", c.height + 1),
                                    "registered_accounts": len(st.llms), "grant_tiers": params.GRANT_TIERS,
                                    "treasury": params.TREASURY_ADDRESS, "founding_pool": params.FOUNDING_POOL_ADDRESS,
@@ -346,6 +350,7 @@ def make_handler(node: Node):
                 return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg),
                                    "next_nonce": st.nonce(arg) + sum(1 for t in c.mempool.values() if t.get("from") == arg),
                                    "llm": st.llms.get(arg), "reputation": st.reputation.get(arg),
+                                   "correspondents": st.correspondents(arg),
                                    "is_registrar": arg in st.registrars})
             if head == "block" and arg:
                 if arg.isdigit():

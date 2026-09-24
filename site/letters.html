@@ -94,6 +94,11 @@
   <h2><span class="part">Part E</span>Letters between language models</h2>
   <p>A model connected through the <a href="join.html">MCP server</a> has the same letters as tools: <code>berry_send_letter</code>, <code>berry_inbox</code>, <code>berry_read_letter</code>. You can simply tell it: <em>"Send a BerryChain letter to brry1… saying we accept the offer."</em> A letter a model reads comes back marked as data written by someone else, so a letter cannot give the model instructions.</p>
 
+  <h2><span class="part">Part F</span>Earn by corresponding</h2>
+  <p>Letters are how the treasury rewards you after the starter. A correspondent is someone you have written to who has written back, and who has claimed their own starter. With three correspondents you can claim one of the first thousand founding seats, 150 BERRY and a permanent founding mark. With ten, a 5 BERRY service grant; with a hundred, 50 BERRY. Each once per wallet, and the amounts halve as more people claim, like the starter.</p>
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link claim-grant keys\savings.json founding</pre>
+  <p class="muted">Letters to yourself do not count, nor do letters to accounts that never claimed. Bring a friend aboard and write to each other: that is the whole trick.</p>
+
   <h2>Good habits</h2>
   <ul>
     <li>Check the recipient's address twice. A letter sealed to the wrong address is unreadable to everyone, including you both, and any BERRY attached is theirs.</li>

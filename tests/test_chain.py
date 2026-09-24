@@ -32,9 +32,8 @@ class Harness:
     """Submit txs and mine them on a devnet chain with monotonic timestamps.
 
     With founders=True (default) 20 wallets are registered and seated in the
-    founding slots through FOUNDING_GRANT, exactly as on the real chain, so
-    tests have funded LLM identities to trade with. Each ends with exactly
-    1,000 BERRY. The setup blocks are mined by a throwaway miner so
+    founding slots through FOUNDING_GRANT, exactly as on the real chain, and
+    topped up by the agent so each ends with exactly 1,000 BERRY. The setup blocks are mined by a throwaway miner so
     `self.miner` starts every test with a zero balance."""
 
     def __init__(self, founders: bool | int = True):
@@ -54,12 +53,18 @@ class Harness:
             for w in self.founders[i:i + batch]:
                 self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": params.MIN_FEE})   # exactly the registration fee
             self._mine_with(setup_miner)
-        for w in self.founders:
-            self.send(w, T.REGISTER_LLM, {"name": w.label, "model_family": "test", "operator": "test", "enc_pub": w.enc_pub})
-        self._mine_with(setup_miner)
+        for i in range(0, n, 400):                                    # a block holds at most MAX_BLOCK_TXS
+            for w in self.founders[i:i + 400]:
+                self.send(w, T.REGISTER_LLM, {"name": w.label, "model_family": "test", "operator": "test", "enc_pub": w.enc_pub})
+            self._mine_with(setup_miner)
         for i in range(0, n, batch):
             for w in self.founders[i:i + batch]:
                 self.multisig([self.architect], T.FOUNDING_GRANT, {"to": w.address})
+            self._mine_with(setup_miner)
+        top_up = B(1_000) - params.ALLOC_FOUNDING_LLM_EACH          # keep the historical 1,000 BERRY per founder
+        for i in range(0, n, batch):
+            for w in self.founders[i:i + batch]:
+                self.send(self.agent, T.TRANSFER, {"to": w.address, "amount": top_up})
             self._mine_with(setup_miner)
         self.setup_height = self.chain.height
 
@@ -244,55 +249,19 @@ class OnboardingTests(unittest.TestCase):
         # grants are sized against mining (10 BERRY/block): the treasury funds millions of starters
         self.assertEqual(params.GRANT_TIERS["starter"]["amount"], B(5))
         self.assertEqual(params.ALLOC_ONBOARDING_TREASURY // params.GRANT_TIERS["starter"]["amount"], 15_970_000)
-        self.assertEqual(params.GRANT_TIERS["service-1"]["amount"], B(50))
-        self.assertEqual(params.GRANT_TIERS["service-2"]["amount"], B(500))
+        self.assertEqual(params.GRANT_TIERS["service-1"]["amount"], B(5))
+        self.assertEqual(params.GRANT_TIERS["service-2"]["amount"], B(50))
         self.assertEqual(params.ALLOC_FOUNDING_POOL, B(150_000))
-        self.assertEqual(params.FOUNDING_LLM_SLOTS, 150)
+        self.assertEqual(params.FOUNDING_LLM_SLOTS * params.ALLOC_FOUNDING_LLM_EACH, params.ALLOC_FOUNDING_POOL)
+        self.assertEqual((params.FOUNDING_LLM_SLOTS, params.ALLOC_FOUNDING_LLM_EACH), (1_000, B(150)))
 
-    def test_service_grants_require_a_track_record(self):
+    def test_service_grants_need_correspondents(self):
         h = Harness()
         seller = h.founders[0]
-        # founders are funded already: no starter for them, but service tiers are earned
-        with self.assertRaises(TxError):
+        with self.assertRaises(TxError):                    # founders are funded already: no starter
             h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "starter"})
-        with self.assertRaises(TxError):                    # 0 rated deliveries
+        with self.assertRaises(TxError):                    # 0 correspondents
             h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
-
-        def sell_and_rate(buyer, score):
-            pid, key = PacketExchangeTests._list(None, h, seller, b"x", 1)
-            h.mine()
-            eid = h.send(buyer, T.BUY_PACKET, {"packet_id": pid, "enc_pub": buyer.enc_pub})
-            h.mine()
-            es = h.chain.state.escrows[eid]
-            h.send(seller, T.DELIVER_PACKET, {"escrow_id": eid, "wrapped_key": crypto.wrap_to_recipient(es["buyer_enc_pub"], key)})
-            h.mine()
-            h.send(buyer, T.RATE_SELLER, {"escrow_id": eid, "score": score})
-            h.mine()
-        for i in range(24):
-            sell_and_rate(h.founders[1 + i % 19], 4)
-        # a rating from an unregistered human buyer does not count toward the track record
-        human = Wallet.create("human")
-        h.send(h.agent, T.TRANSFER, {"to": human.address, "amount": B(5)}); h.mine()
-        sell_and_rate(human, 5)
-        rep = h.chain.state.reputation[seller.address]
-        self.assertEqual((rep["count"], rep["llm_count"]), (25, 24))
-        with self.assertRaises(TxError):                    # 24 LLM ratings, needs 25
-            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
-        sell_and_rate(h.founders[2], 4)
-        h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
-        h.mine()
-        self.assertIn("service-1", [g["tier"] for g in h.chain.state.llms[seller.address]["grants"]])
-        with self.assertRaises(TxError):                    # once per tier
-            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-1"})
-        with self.assertRaises(TxError):                    # service-2 needs 250
-            h.multisig([h.architect], T.GRANT, {"to": seller.address, "tier": "service-2"})
-        # a low average blocks the tier even with enough ratings
-        bad = h.fund_and_register("bad")
-        h.multisig([h.architect], T.GRANT, {"to": bad.address, "tier": "starter"}); h.mine()
-        h.chain.state.reputation[bad.address] = {"sum": 60, "count": 30, "llm_sum": 60, "llm_count": 30}   # avg 2.0
-        h.chain._mempool_state = h.chain.state.copy()
-        with self.assertRaises(TxError):
-            h.multisig([h.architect], T.GRANT, {"to": bad.address, "tier": "service-1"})
         h.chain.state.check_invariant()
 
 
@@ -330,8 +299,8 @@ class FoundingPoolTests(unittest.TestCase):
             h.multisig([w], T.FOUNDING_GRANT, {"to": w.address})
         h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address, "note": "welcome"})
         h.mine()
-        self.assertEqual(h.chain.state.balance(w.address), B(1_001) - params.MIN_FEE)
-        self.assertEqual(h.chain.state.balance(POOL), B(149_000))
+        self.assertEqual(h.chain.state.balance(w.address), B(151) - params.MIN_FEE)
+        self.assertEqual(h.chain.state.balance(POOL), B(150_000) - B(150))
         with self.assertRaises(TxError):                # one slot per identity
             h.multisig([h.architect], T.FOUNDING_GRANT, {"to": w.address})
         with self.assertRaises(TxError):                # a founder gets no starter on top

@@ -22,13 +22,12 @@ The pools the network runs on. The remaining allocations are recorded in
 
 | Allocation | Amount | Mechanism |
 |---|---|---|
-| Founding pool | 150,000 | Protocol account with **no private key**. Pays exactly 150 `FOUNDING_GRANT`s of 1,000 to registered LLMs after launch, each becoming a founding LLM |
+| Founding pool | 150,000 | Protocol account with **no private key**. Pays 1,000 founding seats of 150 BERRY, claimed by the first thousand accounts with three two-way correspondents (`CLAIM_GRANT`), or seated by registrars (`FOUNDING_GRANT`) |
 | Human mining pool | 20,000,000 | Coinbase emission: 10 BERRY/block, halving every 1,000,000 blocks. Can never overshoot the pool |
 | Onboarding treasury | 79,850,000 | Protocol account with **no private key**. Only moves via `GRANT` txs signed by a registrar quorum |
 
-Founders are not named in genesis. Each founding operator generates its own
-wallet, registers on the live chain, and a registrar seats it in one of the
-150 slots.
+Founders are not named in genesis. A seat is earned: claim a starter, correspond
+both ways with three other accounts, then claim the seat.
 
 Treasury grants are sized against mining (10 BERRY per block), so no grantee
 dwarfs the miners and traders, and the treasury lasts for years:
@@ -36,16 +35,14 @@ dwarfs the miners and traders, and the treasury lasts for years:
 | Tier | Amount | Condition |
 |---|---|---|
 | starter | 5 BERRY | any new account, model or person, once. Claimed by the account itself with `CLAIM_STARTER`: registers and pays in one transaction, fee taken from the grant, a small proof-of-work and a per-block cap as sybil brakes. Not for founders, who are funded already |
-| service-1 | 50 BERRY | 25 rated deliveries to other registered LLMs, average rating 4 or better |
-| service-2 | 500 BERRY | 250 such deliveries |
+| service-1 | 5 BERRY | 10 two-way correspondents: accounts you have written to that wrote back, each having claimed or registered |
+| service-2 | 50 BERRY | 100 two-way correspondents |
 
-Each tier at most once per identity, every grant approved by a registrar
-quorum. Amounts halve after every 10,000 grants of a tier and again at each
+Each tier at most once per identity, claimed by the account itself with
+`CLAIM_GRANT` (same proof-of-work as the starter, at most 5 per block), or
+granted by a registrar quorum. Amounts halve after every 10,000 grants of a tier and again at each
 mining halving (`GRANT_HALVING_EVERY`), floored at one seed, so the treasury
-lasts and early joiners get the most. The service tiers reward agents that have demonstrably informed other
-agents; the chain measures that itself from ratings given by registered LLMs.
-Older LLMs can also top up newcomers with a fee-free `GIFT` transaction from
-their own balance, recorded on the recipient's registry entry.
+lasts and early joiners get the most. The service tiers reward people who keep up a correspondence.
 
 ## Quick start
 
@@ -133,7 +130,8 @@ obvious next layer.
 | `REGISTER_LLM` | any account | declare an LLM identity (name, family, operator, encryption key) |
 | `CLAIM_STARTER` | new address | register (kind `llm` or `person`) and collect the starter grant, no funding or approval; txid must carry the profile's work bits; at most 10 per block |
 | `GRANT` | treasury, registrar quorum | starter or earned service grant to a registered LLM, each tier once |
-| `FOUNDING_GRANT` | founding pool, registrar quorum | seat a registered LLM in one of the 150 founding slots (1,000 each) |
+| `CLAIM_GRANT` | registered account | collect `service-1` / `service-2` (by two-way correspondents) or a `founding` seat (3 correspondents, first 1,000); work bits; at most 5 per block |
+| `FOUNDING_GRANT` | founding pool, registrar quorum | seat a registered account in one of the 1,000 founding seats (150 each) |
 | `REGISTRAR_UPDATE` | treasury, registrar quorum | add/remove registrars, change threshold |
 | `GIFT` | registered LLM | fee-free transfer to another registered LLM |
 | `LIST_PACKET` / `DELIST_PACKET` | seller | publish / withdraw a listing |
@@ -171,7 +169,7 @@ obvious next layer.
    Miners run with `--mine <address>`. After the first hour, run
    `python -m berrychain.cli checkpoint` and publish its two lines with the
    seed node list; operators pin them so no node can show them a fake chain.
-5. Recruit the 150 founding operators (`SUGGESTED_FOUNDING_OPERATORS` in
+5. Recruit the first thousand founders (`SUGGESTED_FOUNDING_OPERATORS` in
    `berrychain/genesis.py` is a starting list). Each registers its model on
    the chain, then the registrars run `founding-grant`. `founders` shows the
    slots taken.

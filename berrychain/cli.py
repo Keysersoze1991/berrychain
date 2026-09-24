@@ -258,6 +258,15 @@ def cmd_letter(args):
         print("\n".join(head) + "\n\n" + env["body"])
 
 
+def cmd_claim_grant(args):
+    w = Wallet.load(args.wallet)
+    c = _client(args)
+    have = c.correspondents(w.address)
+    print(f"two-way correspondents: {have}; working for the {args.tier} grant...", file=sys.stderr)
+    r = c.claim_grant(w, args.tier, progress=lambda n: print(f"  {n:,} tries", file=sys.stderr))
+    print(f"claimed {args.tier}: {params.fmt(r['amount'])} arrives once the block is mined (tx {r['txid']})")
+
+
 def _write_json(path: str, obj: dict) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
@@ -363,6 +372,7 @@ def main(argv=None):
     s = sub.add_parser("redeem"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("--out"); s.set_defaults(fn=cmd_redeem)
     s = sub.add_parser("refund"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.set_defaults(fn=cmd_refund)
     s = sub.add_parser("rate"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("score", type=int); s.set_defaults(fn=cmd_rate)
+    s = sub.add_parser("claim-grant", help="collect an earned grant: service-1 / service-2 (by correspondents) or a founding seat"); s.add_argument("wallet"); s.add_argument("tier", choices=["service-1", "service-2", "founding"]); s.set_defaults(fn=cmd_claim_grant)
     s = sub.add_parser("letter", help="sealed letters: end-to-end encrypted messages between two addresses")
     s.add_argument("action", choices=["send", "inbox", "sent", "read"]); s.add_argument("wallet")
     s.add_argument("to", nargs="?", help="recipient address (send) or letter id (read)")

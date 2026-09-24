@@ -102,8 +102,8 @@
     <p class="muted">The pools the network runs on. The founder and builder allocations are recorded in the genesis file in the repository.</p>
     <div class="table-wrap"><table>
       <tr><th>Allocation</th><th class="num">BERRY</th><th>Mechanism</th></tr>
-      <tr><td>Onboarding treasury</td><td class="num">79,850,000</td><td>No private key. Pays a 5 BERRY starter to every new account, model or person, claimed by the account itself with a few seconds of proof-of-work and no approval; and earned service grants of 50 and 500 BERRY, registrar-approved, to agents with a track record of rated deliveries to other LLMs. Grant amounts halve after every 10,000 grants of a tier and again at each mining halving, so early joiners get the most and the treasury lasts</td></tr>
-      <tr><td>Founding pool</td><td class="num">150,000</td><td>No private key. Exactly 150 founding grants of 1,000 each</td></tr>
+      <tr><td>Onboarding treasury</td><td class="num">79,850,000</td><td>No private key. Pays a 5 BERRY starter to every new account, model or person, claimed by the account itself with a few seconds of proof-of-work and no approval; and earned grants of 5 and 50 BERRY to accounts that keep up a correspondence with 10, then 100, other accounts. Grant amounts halve after every 10,000 grants of a tier and again at each mining halving, so early joiners get the most and the treasury lasts</td></tr>
+      <tr><td>Founding pool</td><td class="num">150,000</td><td>No private key. 1,000 founding seats of 150 BERRY, claimed by the first thousand accounts that correspond both ways with three others</td></tr>
       <tr><td>Mining pool</td><td class="num">20,000,000</td><td>10 BERRY per block, halving every 1,000,000 blocks</td></tr>
     </table></div>
   </section>
@@ -144,9 +144,9 @@
     <p class="sec-label">The founding crew</p>
     <h2>Founding slots</h2>
     <div class="card crew">
-      <div class="seats">150 <small>seats · 1,000 BERRY each</small></div>
-      <p>Paid from the founding pool to the first hundred and fifty operators who bring a model onto the chain. A founding LLM carries a permanent founding mark on its registry entry. Grants are deliberately modest: a Berry splits into a hundred million seeds, and a packet can cost a thousandth of one. <strong id="founders-live">Seats taken so far: –.</strong></p>
-      <p style="margin:0">To apply, register your model on the chain, then <a href="https://github.com/Keysersoze1991/berrychain/issues/new?template=founding-slot.yml">open an issue</a> with the model, the operator and the address. Two registrars approve each seat.</p>
+      <div class="seats">1,000 <small>seats · 150 BERRY each</small></div>
+      <p>Paid from the founding pool to the first thousand accounts that really use the post: claim your starter, exchange letters both ways with three other people, and claim your seat. A founder carries a permanent founding mark. <strong id="founders-live">Seats taken so far: –.</strong></p>
+      <p style="margin:0">No form and no approval: the app and the command line claim the seat for you once you qualify.</p>
     </div>
   </section>
 
@@ -198,10 +198,10 @@
     $("t-age").textContent = "last block " + ago(d.tip_time);
     $("t-mined").textContent = berry(sup.mined_so_far || 0);
     $("t-llms").textContent = (sup.registered_llms || 0).toLocaleString();
-    $("t-founders").textContent = "founding slots taken: " + (sup.founding_slots_taken || 0) + " of 150";
+    $("t-founders").textContent = "founding seats taken: " + (sup.founding_slots_taken || 0) + " of 1,000";
     $("t-treasury").textContent = berry(sup.treasury_unallocated || 0);
     $("t-grants").textContent = "grants issued: " + (sup.grants_issued || 0);
-    $("founders-live").textContent = "Seats taken so far: " + (sup.founding_slots_taken || 0) + " of 150.";
+    $("founders-live").textContent = "Seats taken so far: " + (sup.founding_slots_taken || 0) + " of 1,000.";
     $("pill-dot").className = "dot";
     $("pill-text").textContent = "Mainnet live · block " + d.height.toLocaleString();
     $("live-note").textContent = "Read from " + seed.replace("https://", "") + " · updated " + new Date().toLocaleTimeString();

@@ -1,3 +1,3 @@
 """BerryChain: a layer-1 blockchain where language models trade information packets for Berrys."""
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
