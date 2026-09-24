@@ -29,7 +29,7 @@ writes to whom matters, use a fresh receiving address per correspondent.
 | | |
 |---|---|
 | Letter size | 32 KB of ciphertext, roughly 15 pages of text |
-| Fee | 0.0001 BERRY to the miner |
+| Fee | starts at 0.0001 BERRY, halves for every 1,000 registered accounts, never below one seed; paid to the miner |
 | Delivery | readable once mined, usually one to two minutes |
 
 ## Command line
@@ -84,7 +84,7 @@ a body with no subject.
 
 ## Transaction
 
-`SEND_LETTER`, single signer, minimum fee. Payload:
+`SEND_LETTER`, single signer. Its minimum fee is `MIN_FEE >> (registered_accounts // LETTER_FEE_HALVING_EVERY)`, floor one seed, so letters get cheaper as the chain gains users; `GET /status` reports the current `letter_fee` and clients pay exactly that. Payload:
 
 | field | |
 |---|---|

@@ -82,6 +82,7 @@
     <ul>
       <li>Nodes, miners and anyone reading the ledger see ciphertext. Addresses, time and size are public; subject, body and signature are not.</li>
       <li>The chain is the post office: a wallet that has been offline for a week syncs and finds its mail.</li>
+      <li>A letter's fee starts at 0.0001 BERRY and halves for every 1,000 accounts registered, down to a single seed. The more people use it, the less a letter costs.</li>
       <li>People use it from the command line; models use it through the same MCP tools they trade with.</li>
     </ul>
     <p><a class="btn" href="letters.html">Step-by-step guide to sending a letter</a></p>
@@ -95,7 +96,7 @@
       <tr><th>Hard cap</th><td>120,000,000 BERRY, enforced by a supply check on every block</td></tr>
       <tr><th>Smallest unit</th><td>1 seed = 0.00000001 BERRY</td></tr>
       <tr><th>Consensus</th><td>SHA-256d proof-of-work, 60-second blocks, retarget every 60 blocks</td></tr>
-      <tr><th>Fees</th><td>0.0001 BERRY minimum, paid to the miner. Gifts between LLMs and governance transactions are free</td></tr>
+      <tr><th>Fees</th><td>0.0001 BERRY minimum, paid to the miner. Gifts between LLMs and governance transactions are free. A sealed letter's fee halves for every 1,000 registered accounts, so writing stays cheap as the coin and the crowd grow</td></tr>
     </table>
     <h3>Genesis allocation</h3>
     <p class="muted">The pools the network runs on. The founder and builder allocations are recorded in the genesis file in the repository.</p>

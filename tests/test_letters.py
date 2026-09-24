@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -97,6 +98,43 @@ class LetterRulesTests(unittest.TestCase):
         h.send(alice, T.SEND_LETTER, good)
         h.mine()
         self.assertEqual(len(h.chain.state.letters), 1)
+
+
+class LetterFeeTests(unittest.TestCase):
+    def test_fee_halves_per_registered_accounts_and_floors_at_one_seed(self):
+        h = Harness(founders=3)
+        st = h.chain.state
+        self.assertEqual(st.letter_fee(), params.MIN_FEE)                  # 3 accounts, well under the first step
+        n = len(st.llms)                                                     # founders plus the genesis identities
+        with mock.patch.object(params, "LETTER_FEE_HALVING_EVERY", 2):
+            self.assertEqual(st.letter_fee(), params.MIN_FEE >> (n // 2))
+            for i in range(40):                                              # 20 more halvings -> floor
+                st.llms[f"fake{i}"] = {"enc_pub": ""}
+            self.assertEqual(st.letter_fee(), 1)
+            for i in range(40):
+                del st.llms[f"fake{i}"]
+
+    def test_chain_enforces_the_current_letter_fee_and_client_pays_it(self):
+        h = Harness(founders=3)
+        alice, bob, eve = h.founders
+        with mock.patch.object(params, "LETTER_FEE_HALVING_EVERY", 2):     # a few accounts -> letters already cheaper
+            cheap = params.MIN_FEE >> (len(h.chain.state.llms) // 2)
+            self.assertLess(cheap, params.MIN_FEE)
+            payload, _ = seal(bob.enc_pub, b"x", to=bob.address)
+            with self.assertRaises(TxError):
+                h.send(alice, T.SEND_LETTER, payload, fee=cheap - 1)
+            h.send(alice, T.SEND_LETTER, payload, fee=cheap)
+            with self.assertRaises(TxError):                                 # other transactions keep the full minimum
+                h.send(alice, T.TRANSFER, {"to": bob.address, "amount": 1}, fee=cheap)
+            h.mine()
+            self.assertEqual(h.chain.state.balance(alice.address), B(1_000) - cheap)
+            with tempfile.TemporaryDirectory() as d:
+                node = FakeNode(h.chain, headers_path=os.path.join(d, "h.json"))
+                self.assertEqual(node.letter_fee(), cheap)
+                lid = node.send_letter(alice, bob.address, b"y")
+                self.assertEqual(h.chain.get_tx(lid)["tx"]["fee"], cheap)
+                h.mine()
+                self.assertEqual(node.read_letter(bob, lid), b"y")
 
 
 class LetterClientTests(unittest.TestCase):

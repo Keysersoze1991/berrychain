@@ -126,6 +126,10 @@ PROFILES = {
 # ---------------------------------------------------------------------------
 
 MIN_FEE = 10_000                            # 0.0001 BERRY, paid to the miner
+# A letter's minimum fee starts at MIN_FEE and halves for every LETTER_FEE_HALVING_EVERY
+# registered accounts on the chain (floor 1 seed): the more people use it, and the more a
+# Berry is worth, the cheaper a letter gets. Same idea as the shrinking onboarding grants.
+LETTER_FEE_HALVING_EVERY = 1_000
 MAX_PACKET_INLINE_BYTES = 32 * 1024         # inline ciphertext limit (hex-encoded it must fit MAX_TX_BYTES)
 MAX_MEMO_BYTES = 256
 MAX_NAME_BYTES = 64

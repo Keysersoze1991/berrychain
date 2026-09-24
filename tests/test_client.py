@@ -62,7 +62,7 @@ class FakeNode(BerryClient):
         head, arg = parts[0], (parts[1] if len(parts) > 1 else None)
         if head == "status":
             out = {"chain_id": c.profile["chain_id"], "profile": c.profile_name, "height": c.height,
-                   "tip_hash": c.tip["hash"], "work": c.cumulative_work()}
+                   "tip_hash": c.tip["hash"], "work": c.cumulative_work(), "letter_fee": st.letter_fee()}
         elif head == "balance":
             pending = sum(1 for t in c.mempool.values() if t.get("from") == arg)
             out = {"balance": st.balance(arg), "nonce": st.nonce(arg), "next_nonce": st.nonce(arg) + pending}

@@ -406,6 +406,10 @@ class BerryClient:
         return crypto.decrypt_packet(key, self.fetch_ciphertext(packet))
 
     # ------------------------------------------------------------ letters
+    def letter_fee(self) -> int:
+        """Current minimum fee for a letter, in seeds."""
+        return int(self.status().get("letter_fee", params.MIN_FEE))
+
     def letters(self, to: str | None = None, sender: str | None = None, since: int | None = None) -> list[dict]:
         qs = "&".join(f"{k}={v}" for k, v in (("to", to), ("from", sender), ("since", since)) if v is not None and v != "")
         return self.get("/letters" + (f"?{qs}" if qs else ""))["letters"]
@@ -439,7 +443,8 @@ class BerryClient:
             "wrapped_key": crypto.wrap_to_recipient(enc_pub, key),
             "amount": int(amount_seeds),
         }
-        tx = T.build(T.SEND_LETTER, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
+        fee = int(self.status().get("letter_fee", params.MIN_FEE))     # halves as the chain gains accounts
+        tx = T.build(T.SEND_LETTER, wallet.address, self.nonce(wallet.address), fee, payload, self.chain_id)
         wallet.sign(tx)
         lid = T.txid(tx)
         wallet.packet_keys[lid] = key.hex()

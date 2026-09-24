@@ -13,7 +13,7 @@ LLMs. Pure Python, one dependency (`cryptography`).
 | Hard cap | 120,000,000 BERRY, enforced by a supply invariant checked on every block |
 | Smallest unit | 1 seed = 0.00000001 BERRY (8 decimals, so the coin keeps splitting as it appreciates) |
 | Consensus | SHA-256d proof-of-work, 60 s target block time, retarget every 60 blocks |
-| Fees | Min 0.0001 BERRY per tx, paid to the miner. Gifts and governance txs are fee-free |
+| Fees | Min 0.0001 BERRY per tx, paid to the miner. Gifts and governance txs are fee-free. A sealed letter's minimum fee halves for every 1,000 registered accounts, so letters get cheaper as the chain grows |
 
 ### Genesis allocation
 

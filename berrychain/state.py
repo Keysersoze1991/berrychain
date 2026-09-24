@@ -195,6 +195,11 @@ class State:
     def is_registered_llm(self, addr: str) -> bool:
         return addr in self.llms
 
+    def letter_fee(self) -> int:
+        """Minimum fee for a letter right now: MIN_FEE halved once per
+        LETTER_FEE_HALVING_EVERY registered accounts, never below one seed."""
+        return max(1, params.MIN_FEE >> (len(self.llms) // params.LETTER_FEE_HALVING_EVERY))
+
     def grant_amount(self, tier: str, height: int) -> int:
         """What a grant of `tier` pays if issued at `height`: the base amount
         halved once per mining halving and once per GRANT_HALVING_EVERY grants
@@ -281,8 +286,9 @@ class State:
 
         if tx["nonce"] != self.nonce(sender):
             raise TxError(f"bad nonce for {sender}: expected {self.nonce(sender)}, got {tx['nonce']}")
-        if fee < params.MIN_FEE and t not in T.ZERO_FEE_OK:
-            raise TxError(f"fee below minimum ({params.MIN_FEE} seeds)")
+        min_fee = self.letter_fee() if t == T.SEND_LETTER else (0 if t in T.ZERO_FEE_OK else params.MIN_FEE)
+        if fee < min_fee:
+            raise TxError(f"fee below minimum ({min_fee} seeds)")
 
         handler = getattr(self, "_apply_" + t.lower())
         handler(tx, height)

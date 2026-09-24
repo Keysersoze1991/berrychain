@@ -261,6 +261,7 @@ class Node:
             "next_target": f"{c.target_for_height(c.height + 1):064x}",
             "work": c.cumulative_work(),
             "mempool": len(c.mempool),
+            "letter_fee": c.state.letter_fee(),
             "peers": self.peers,
             "uptime": int(time.time() - self.started),
             "supply": c.supply(),
@@ -328,7 +329,9 @@ def make_handler(node: Node):
                 return self._send(c.supply())
             if head == "params":
                 return self._send({"profile": c.profile, "seeds_per_berry": params.SEEDS_PER_BERRY,
-                                   "min_fee": params.MIN_FEE, "grant_tiers": params.GRANT_TIERS,
+                                   "min_fee": params.MIN_FEE, "letter_fee": st.letter_fee(),
+                                   "letter_fee_halving_every": params.LETTER_FEE_HALVING_EVERY,
+                                   "registered_accounts": len(st.llms), "grant_tiers": params.GRANT_TIERS,
                                    "treasury": params.TREASURY_ADDRESS, "founding_pool": params.FOUNDING_POOL_ADDRESS,
                                    "founding_slots": params.FOUNDING_LLM_SLOTS, "founding_grant": params.ALLOC_FOUNDING_LLM_EACH,
                                    "max_inline_bytes": params.MAX_PACKET_INLINE_BYTES})
