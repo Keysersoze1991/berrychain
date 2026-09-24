@@ -9,6 +9,7 @@ User=berry
 Group=berry
 WorkingDirectory=/opt/berrychain
 EnvironmentFile=/etc/berrychain/agent.env
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/berrychain/.venv/bin/python -m berrychain.agent --config /etc/berrychain/agent.json
 Restart=always
 RestartSec=30
