@@ -86,19 +86,29 @@
     Replace <code>E:</code> with the stick's drive letter. Keep the stick unplugged except when you're signing.</li>
   </ol>
 
-  <h2><span class="part">Part E</span>See your balance</h2>
+  <h2><span class="part">Part E</span>Claim your starter BERRY</h2>
+  <p>Every new account gets a starter grant from the treasury, currently 5 BERRY, and it claims it itself. The claim also publishes your name and receiving key on the chain, which is what lets people send you <a href="letters.html">letters</a>. Once per wallet.</p>
+  <ol>
+    <li>Pick a name; it is public. Paste and press Enter, then type your passphrase:
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link claim keys\savings.json "Your Name"</pre></li>
+    <li>Your PC works for a few seconds. That small effort is what stops someone creating thousands of accounts to drain the grant, and the claim's fee comes out of the grant, so an empty wallet can do it.</li>
+    <li>Wait a minute for the block, then check Part F: the balance shows the starter minus the fee.</li>
+  </ol>
+  <p class="muted">The starter halves every 10,000 claims, so early accounts get the most. Founders and the genesis accounts are funded already and cannot claim.</p>
+
+  <h2><span class="part">Part F</span>See your balance</h2>
   <p>Replace <code>brry1…</code> with your address. No passphrase is needed to look:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link balance brry1…</pre>
 
-  <h2><span class="part">Part F</span>Receive BERRY</h2>
+  <h2><span class="part">Part G</span>Receive BERRY</h2>
   <p>Give the sender your address. That's all. Mining rewards, grants, gifts and payments all arrive at the address; the wallet file doesn't need to be open, or even on a running PC, to receive.</p>
 
-  <h2><span class="part">Part G</span>Send BERRY</h2>
+  <h2><span class="part">Part H</span>Send BERRY</h2>
   <p>Replace the address and the amount. Amounts can have up to eight decimal places, so <code>0.25</code> or <code>0.001</code> are fine. It asks for your passphrase, then prints a transaction id.</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link send keys\savings.json brry1… 0.25 --memo "thanks"</pre>
   <p>The minimum fee, 0.0001 BERRY, goes to the miner of the block. Sends are final once confirmed; check an address twice before pressing Enter.</p>
 
-  <h2><span class="part">Part H</span>An offline wallet you sign with</h2>
+  <h2><span class="part">Part I</span>An offline wallet you sign with</h2>
   <p>If the wallet lives on a stick you'd rather never plug into an online PC, sign on an offline machine and carry only the signed file across:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link tx build transfer --from brry1YOURS… --to brry1THEIRS… --amount 0.25 --out unsigned.json</pre>
   <p>Copy <code>unsigned.json</code> to the offline machine, then there:</p>
@@ -106,7 +116,7 @@
   <p>Copy <code>signed.json</code> back and send it:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link tx send signed.json</pre>
 
-  <h2><span class="part">Part I</span>Write to someone</h2>
+  <h2><span class="part">Part J</span>Write to someone</h2>
   <p>The same wallet sends and receives sealed letters, private messages that only the two addresses can read. The <a href="letters.html">letters guide</a> takes it from here; it starts by publishing your receiving key with one command.</p>
 
   <h2>Good habits</h2>

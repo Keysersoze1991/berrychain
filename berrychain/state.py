@@ -79,6 +79,7 @@ class State:
         self.packets: dict[str, dict] = {}
         self.escrows: dict[str, dict] = {}
         self.letters: dict[str, dict] = {}
+        self.starter_claims_at = [0, 0]      # [height, claims accepted in that block]
         self.reputation: dict[str, dict] = {}
         self.registrars: list[str] = []
         self.registrar_threshold = 1
@@ -398,12 +399,14 @@ class State:
         self._debit(tx["from"], amount)
         self._credit(to, amount)
 
-    def _apply_register_llm(self, tx, height):
-        p = tx["payload"]
-        if tx["from"] in self.llms:
-            raise TxError("address already registered as an LLM")
+    def _identity_record(self, p: dict, height: int) -> dict:
+        """Validate a registration payload (REGISTER_LLM or CLAIM_STARTER) into a registry record."""
+        kind = p.get("kind", "llm")
+        if kind not in params.REGISTRY_KINDS:
+            raise TxError(f"kind must be one of {list(params.REGISTRY_KINDS)}")
         rec = {
             "name": _str(p.get("name"), params.MAX_NAME_BYTES, "name"),
+            "kind": kind,
             "model_family": _str(p.get("model_family", ""), params.MAX_NAME_BYTES, "model_family", True),
             "operator": _str(p.get("operator", ""), params.MAX_NAME_BYTES, "operator", True),
             "description": _str(p.get("description", ""), params.MAX_DESCRIPTION_BYTES, "description", True),
@@ -416,9 +419,48 @@ class State:
         }
         if not is_valid_enc_pub(rec["enc_pub"]):
             raise TxError("enc_pub must be a valid X25519 public key (64 hex chars)")
+        return rec
+
+    def _apply_register_llm(self, tx, height):
+        if tx["from"] in self.llms:
+            raise TxError("address already registered")
+        rec = self._identity_record(tx["payload"], height)
         self._require_funds(tx["from"], 0, tx["fee"])
         self._touch(self.llms, tx["from"])
         self.llms[tx["from"]] = rec
+
+    def _apply_claim_starter(self, tx, height):
+        """Self-service onboarding: register a new identity and pay it the
+        current starter grant in one step, the fee coming out of the grant.
+        Sybil brakes: the txid must carry the profile's proof-of-work bits,
+        and a block takes at most STARTER_CLAIMS_PER_BLOCK claims."""
+        p = tx["payload"]
+        sender = tx["from"]
+        if sender in self.llms:
+            raise TxError("address already registered; the starter was claimed or granted")
+        if not _is_uint(p.get("work_nonce", 0)):
+            raise TxError("work_nonce must be a non-negative integer")
+        bits = int(self.profile.get("starter_claim_work_bits", 0))
+        if bits and int(T.txid(tx), 16) >> (256 - bits):
+            raise TxError(f"claim needs {bits} bits of work: change payload.work_nonce until the txid has {bits} leading zero bits")
+        at_height, count = self.starter_claims_at
+        if at_height == height and count >= params.STARTER_CLAIMS_PER_BLOCK:
+            raise TxError("this block already holds the maximum number of starter claims; try the next block")
+        rec = self._identity_record(p, height)
+        amount = self.grant_amount("starter", height)
+        if amount < tx["fee"]:
+            raise TxError("the starter grant no longer covers the fee; register with a funded wallet instead")
+        self._require_funds(params.TREASURY_ADDRESS, amount, 0)
+        self._debit(params.TREASURY_ADDRESS, amount, "treasury")
+        self._credit(sender, amount)
+        rec["grants"].append({"tier": "starter", "amount": amount, "height": height, "claimed": True})
+        self._touch(self.llms, sender)
+        self.llms[sender] = rec
+        self._touch(self.grant_counts, "starter")
+        self.grant_counts["starter"] = self.grant_counts.get("starter", 0) + 1
+        self._append(self.grants, {"to": sender, "tier": "starter", "amount": amount, "height": height,
+                                   "txid": T.txid(tx), "claimed": True})
+        self._set_attr("starter_claims_at", [height, count + 1 if at_height == height else 1])
 
     def _apply_grant(self, tx, height):
         """Treasury grant. `starter` is for any registered LLM that is not a

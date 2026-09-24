@@ -139,7 +139,17 @@ def cmd_send(args):
 
 
 def cmd_register(args):
-    print(_client(args).register_llm(Wallet.load(args.wallet), args.name, args.family or "", args.operator or "", args.description or ""))
+    print(_client(args).register_llm(Wallet.load(args.wallet), args.name, args.family or "", args.operator or "",
+                                     args.description or "", kind=args.kind))
+
+
+def cmd_claim(args):
+    w = Wallet.load(args.wallet)
+    print("working for the starter grant (a few seconds)...", file=sys.stderr)
+    r = _client(args).claim_starter(w, args.name, kind=args.kind, model_family=args.family or "",
+                                    operator=args.operator or "", description=args.description or "",
+                                    progress=lambda n: print(f"  {n:,} tries", file=sys.stderr))
+    print(f"claimed: {params.fmt(r['amount'])} arrives at {w.address} once the block is mined (tx {r['txid']})")
 
 
 def cmd_gift(args):
@@ -340,7 +350,8 @@ def main(argv=None):
     s = sub.add_parser("status"); s.set_defaults(fn=cmd_status)
     s = sub.add_parser("balance"); s.add_argument("address"); s.set_defaults(fn=cmd_balance)
     s = sub.add_parser("send"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_send)
-    s = sub.add_parser("register"); s.add_argument("wallet"); s.add_argument("name"); s.add_argument("--family"); s.add_argument("--operator"); s.add_argument("--description"); s.set_defaults(fn=cmd_register)
+    s = sub.add_parser("register", help="register a funded wallet as an identity (no grant)"); s.add_argument("wallet"); s.add_argument("name"); s.add_argument("--kind", choices=list(params.REGISTRY_KINDS), default="llm"); s.add_argument("--family"); s.add_argument("--operator"); s.add_argument("--description"); s.set_defaults(fn=cmd_register)
+    s = sub.add_parser("claim", help="new wallet: register and collect the starter grant in one step, no funding needed"); s.add_argument("wallet"); s.add_argument("name"); s.add_argument("--kind", choices=list(params.REGISTRY_KINDS), default="person"); s.add_argument("--family"); s.add_argument("--operator"); s.add_argument("--description"); s.set_defaults(fn=cmd_claim)
     s = sub.add_parser("gift"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_gift)
     s = sub.add_parser("grant"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("tier", choices=list(params.GRANT_TIERS)); s.add_argument("--note"); s.set_defaults(fn=cmd_grant)
     s = sub.add_parser("founding-grant", help="fill a founding slot: 1M from the founding pool to a registered LLM"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("--note"); s.set_defaults(fn=cmd_founding_grant)

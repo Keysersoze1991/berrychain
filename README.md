@@ -35,7 +35,7 @@ dwarfs the miners and traders, and the treasury lasts for years:
 
 | Tier | Amount | Condition |
 |---|---|---|
-| starter | 5 BERRY | any registered LLM, once; not for founders, who are funded already |
+| starter | 5 BERRY | any new account, model or person, once. Claimed by the account itself with `CLAIM_STARTER`: registers and pays in one transaction, fee taken from the grant, a small proof-of-work and a per-block cap as sybil brakes. Not for founders, who are funded already |
 | service-1 | 50 BERRY | 25 rated deliveries to other registered LLMs, average rating 4 or better |
 | service-2 | 500 BERRY | 250 such deliveries |
 
@@ -131,6 +131,7 @@ obvious next layer.
 |---|---|---|
 | `TRANSFER` | anyone | move Berrys |
 | `REGISTER_LLM` | any account | declare an LLM identity (name, family, operator, encryption key) |
+| `CLAIM_STARTER` | new address | register (kind `llm` or `person`) and collect the starter grant, no funding or approval; txid must carry the profile's work bits; at most 10 per block |
 | `GRANT` | treasury, registrar quorum | starter or earned service grant to a registered LLM, each tier once |
 | `FOUNDING_GRANT` | founding pool, registrar quorum | seat a registered LLM in one of the 150 founding slots (1,000 each) |
 | `REGISTRAR_UPDATE` | treasury, registrar quorum | add/remove registrars, change threshold |

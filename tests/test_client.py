@@ -95,6 +95,9 @@ class FakeNode(BerryClient):
                 if q.get(k):
                     items = [e for e in items if e[k] == q[k]]
             out = {"escrows": items}
+        elif head == "params":
+            out = {"starter_claim_work_bits": c.profile.get("starter_claim_work_bits", 0),
+                   "starter_amount": st.grant_amount("starter", c.height + 1), "min_fee": params.MIN_FEE}
         elif head == "letters":
             items = [copy.deepcopy(l) for l in st.letters.values()]
             for k in ("to", "from"):

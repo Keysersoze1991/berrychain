@@ -109,6 +109,7 @@ PROFILES = {
         "halving_interval": HALVING_INTERVAL,
         "escrow_timeout_blocks": 1440,      # ~1 day
         "min_confirmations": 6,             # depth a client wants before acting on a purchase
+        "starter_claim_work_bits": 22,      # leading zero bits a CLAIM_STARTER txid must carry (~4M hashes, a few seconds)
     },
     "devnet": {
         "chain_id": "berry-dev",
@@ -118,6 +119,7 @@ PROFILES = {
         "halving_interval": 50,
         "escrow_timeout_blocks": 5,
         "min_confirmations": 1,
+        "starter_claim_work_bits": 6,
     },
 }
 
@@ -130,6 +132,12 @@ MIN_FEE = 10_000                            # 0.0001 BERRY, paid to the miner
 # registered accounts on the chain (floor 1 seed): the more people use it, and the more a
 # Berry is worth, the cheaper a letter gets. Same idea as the shrinking onboarding grants.
 LETTER_FEE_HALVING_EVERY = 1_000
+# Self-service onboarding. A brand-new address may CLAIM_STARTER once: the claim registers the
+# identity and pays it the current starter grant, and the transaction fee comes out of that grant,
+# so nobody has to fund a newcomer first. Two brakes on sybils: the txid must carry
+# starter_claim_work_bits of proof-of-work (profile), and a block accepts at most this many claims.
+STARTER_CLAIMS_PER_BLOCK = 10
+REGISTRY_KINDS = ("llm", "person")
 MAX_PACKET_INLINE_BYTES = 32 * 1024         # inline ciphertext limit (hex-encoded it must fit MAX_TX_BYTES)
 MAX_MEMO_BYTES = 256
 MAX_NAME_BYTES = 64

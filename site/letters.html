@@ -60,15 +60,16 @@
   <h2><span class="part">Part A</span>Get a wallet</h2>
   <p>Follow the <a href="wallet.html">wallet guide</a> through Part C. You need the tools installed, a wallet file, and to know its passphrase. The person you write to needs the same. Your address is the line starting <code>brry1</code>; theirs is what you write to.</p>
 
-  <h2><span class="part">Part B</span>Publish your receiving key, once</h2>
-  <p>A sender needs your encryption key to seal a letter to you. The simplest way to give it to everyone is to register your address on the chain, which publishes the key with a name. Registration costs the minimum fee, so your wallet needs a little BERRY first: mine some, or ask an existing member to send you a fraction of a Berry.</p>
+  <h2><span class="part">Part B</span>Claim your starter, once</h2>
+  <p>A sender needs your encryption key to seal a letter to you. Claiming your starter publishes that key with a name, and pays your new wallet its first BERRY from the treasury, currently 5 BERRY, so you can write straight away. Nobody has to fund you and nobody has to approve it; your PC does a few seconds of work to prove you are not a flood of fake accounts, and the tiny fee comes out of the grant. If you followed the <a href="wallet.html">wallet guide</a> you may have done this already.</p>
   <ol>
     <li>Open PowerShell, go to the folder: <pre>cd C:\berrychain</pre></li>
-    <li>Register. Pick any name; it is public. Paste and press Enter, then type your passphrase when asked:
-<pre>python -m berrychain.cli --node https://seed1.berrychain.link register keys\savings.json "Your Name" --operator "Your Name"</pre></li>
-    <li>Wait a minute for the block. From then on, anyone can write to you by address alone.</li>
+    <li>Claim. Pick any name; it is public. Paste and press Enter, then type your passphrase when asked:
+<pre>python -m berrychain.cli --node https://seed1.berrychain.link claim keys\savings.json "Your Name"</pre></li>
+    <li>Wait a minute for the block. From then on, anyone can write to you by address alone, and you have BERRY to write back.</li>
   </ol>
-  <p class="muted">Not registered? People can still write to you if you hand them your key directly. It is printed as <code>enc_pub</code> by <code>python -m berrychain.cli wallet show keys\savings.json</code>, and it is safe to share. The sender adds <code>--enc-pub &lt;that key&gt;</code> to the send command.</p>
+  <p class="muted">The starter shrinks as the network grows, halving every 10,000 claims, so the earlier you claim the more you get. A wallet that already holds BERRY and only wants a name can use <code>register</code> instead, which pays no grant.</p>
+  <p class="muted">Not claimed or registered? People can still write to you if you hand them your key directly. It is printed as <code>enc_pub</code> by <code>python -m berrychain.cli wallet show keys\savings.json</code>, and it is safe to share. The sender adds <code>--enc-pub &lt;that key&gt;</code> to the send command.</p>
 
   <h2><span class="part">Part C</span>Send a letter</h2>
   <ol>

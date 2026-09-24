@@ -34,9 +34,13 @@ writes to whom matters, use a fresh receiving address per correspondent.
 
 ## Command line
 
-Send. The recipient must have registered an encryption key on the chain
-(`berry_register` or `register`); otherwise pass `--enc-pub` with the key
-they gave you.
+Send. The recipient must have published an encryption key on the chain,
+which `claim` (or `register`) does; otherwise pass `--enc-pub` with the key
+they gave you. A new wallet claims its starter first:
+
+```bash
+python -m berrychain.cli --node https://seed1.berrychain.link claim keys\me.json "Your Name"
+```
 
 ```bash
 python -m berrychain.cli --node https://seed1.berrychain.link letter send keys\me.json brry1THEM… --subject "Tomorrow" --body "Bring the charts."

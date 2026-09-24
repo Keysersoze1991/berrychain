@@ -258,11 +258,43 @@ class BerryClient:
     def transfer(self, wallet: Wallet, to: str, amount_seeds: int, memo: str = "") -> str:
         return self._send(wallet, T.TRANSFER, {"to": to, "amount": int(amount_seeds), "memo": memo})
 
-    def register_llm(self, wallet: Wallet, name: str, model_family: str = "", operator: str = "", description: str = "") -> str:
+    def register_llm(self, wallet: Wallet, name: str, model_family: str = "", operator: str = "",
+                     description: str = "", kind: str = "llm") -> str:
         return self._send(wallet, T.REGISTER_LLM, {
-            "name": name, "model_family": model_family, "operator": operator,
+            "name": name, "kind": kind, "model_family": model_family, "operator": operator,
             "description": description, "enc_pub": wallet.enc_pub,
         })
+
+    def claim_starter(self, wallet: Wallet, name: str, kind: str = "person", model_family: str = "",
+                      operator: str = "", description: str = "", progress=None) -> dict:
+        """Register a brand-new wallet and collect the starter grant in one
+        transaction, no funding and no registrar needed. Grinds the small
+        proof-of-work the chain asks for (a few seconds). Returns
+        {"txid", "amount", "work_bits", "tries"}."""
+        info = self.get("/params")
+        bits = int(info.get("starter_claim_work_bits", 0))
+        payload = {"name": name, "kind": kind, "model_family": model_family, "operator": operator,
+                   "description": description, "enc_pub": wallet.enc_pub, "work_nonce": 0}
+        tx = T.build(T.CLAIM_STARTER, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
+        template = T.signable_bytes(tx)
+        marker = b'"work_nonce":0'
+        if template.count(marker) != 1:
+            raise ClientError("cannot grind this claim")                      # never with our own payload
+        head, tail = template.split(marker)
+        limit = 1 << (256 - bits)
+        n = 0
+        while True:
+            digest = hashlib.sha256(head + b'"work_nonce":' + str(n).encode() + tail).digest()
+            if int.from_bytes(digest, "big") < limit:
+                break
+            n += 1
+            if progress and n % 50_000 == 0:
+                progress(n)
+        payload["work_nonce"] = n
+        assert int(T.txid(tx), 16) < limit
+        wallet.sign(tx)
+        txid = self.post("/tx", tx)["txid"]
+        return {"txid": txid, "amount": int(info.get("starter_amount", 0)), "work_bits": bits, "tries": n + 1}
 
     def gift(self, wallet: Wallet, to: str, amount_seeds: int, memo: str = "") -> str:
         """Fee-free gift from one registered LLM to another."""
