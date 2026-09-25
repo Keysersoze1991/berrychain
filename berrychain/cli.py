@@ -98,12 +98,22 @@ def _new_passphrase(path: str) -> str:
 
 
 def cmd_wallet(args):
-    if args.action == "new":
-        w = Wallet.create(args.label or "", passphrase=_new_passphrase(args.path) if args.encrypt else None)
+    if args.action in ("new", "recover"):
         if os.path.exists(args.path):
             raise SystemExit(f"refusing to overwrite existing wallet {args.path}")
+        phrase = args.phrase if args.action == "recover" else ("new" if args.phrase == "new" or args.action == "new" else None)
+        if args.action == "recover" and not phrase:
+            raise SystemExit("recover needs --phrase \"twelve words ...\"")
+        w = Wallet.create(args.label or "", passphrase=_new_passphrase(args.path) if args.encrypt else None, phrase=phrase)
         w.save(args.path)
-        print(json.dumps({**w.public_info(), "encrypted": bool(w.passphrase), "file": args.path}, indent=2))
+        out = {**w.public_info(), "encrypted": bool(w.passphrase), "file": args.path}
+        print(json.dumps(out, indent=2))
+        if args.action == "new" and w.mnemonic:
+            print("\nRECOVERY PHRASE, write it down and keep it off this machine; it rebuilds this wallet anywhere:\n\n    "
+                  + w.mnemonic + "\n", file=sys.stderr)
+    elif args.action == "phrase":
+        w = Wallet.load(args.path)
+        print(w.mnemonic or "this wallet was made from random keys, not a phrase; back up the file instead")
     elif args.action == "check":
         w = Wallet.load(args.path)              # prompts if encrypted; proves the passphrase works
         print(json.dumps({"address": w.address, "encrypted": bool(w.passphrase), "unlocked": True}, indent=2))
@@ -360,7 +370,7 @@ def main(argv=None):
 
     s = sub.add_parser("init-genesis"); s.add_argument("--out", default="."); s.add_argument("--profile", default="mainnet", choices=list(params.PROFILES)); s.add_argument("--message"); s.add_argument("--architect", help="existing architect wallet file (e.g. on an offline stick); only its public fields are read"); s.set_defaults(fn=cmd_init_genesis)
     s = sub.add_parser("node"); s.add_argument("--genesis", default="genesis.json"); s.add_argument("--data"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8801); s.add_argument("--peer", action="append"); s.add_argument("--mine", help="address to mine to continuously"); s.add_argument("--advertise", help="public URL peers should use to reach this node"); s.add_argument("--admin-token", help="required for /mine and /peers from non-loopback clients (or BERRY_ADMIN_TOKEN)"); s.set_defaults(fn=cmd_node)
-    s = sub.add_parser("wallet"); s.add_argument("action", choices=["new", "show", "check", "encrypt"]); s.add_argument("path"); s.add_argument("--label"); s.add_argument("--encrypt", action="store_true", help="seal the new wallet under a passphrase (prompted, or BERRY_WALLET_PASSPHRASE)"); s.set_defaults(fn=cmd_wallet)
+    s = sub.add_parser("wallet"); s.add_argument("action", choices=["new", "recover", "phrase", "show", "check", "encrypt"], help="new: fresh wallet with a 12-word recovery phrase; recover: rebuild from --phrase; phrase: print the phrase"); s.add_argument("path"); s.add_argument("--label"); s.add_argument("--phrase", help="twelve words (recover), or omit"); s.add_argument("--encrypt", action="store_true", help="seal the new wallet under a passphrase (prompted, or BERRY_WALLET_PASSPHRASE)"); s.set_defaults(fn=cmd_wallet)
     s = sub.add_parser("status"); s.set_defaults(fn=cmd_status)
     s = sub.add_parser("balance"); s.add_argument("address"); s.set_defaults(fn=cmd_balance)
     s = sub.add_parser("send"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_send)

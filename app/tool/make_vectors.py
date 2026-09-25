@@ -82,6 +82,15 @@ for b in (b0, b1):
     assert B.block_hash(b) == b["hash"]
 v["mainnet"] = {"chain_id": params.CHAIN_ID, "genesis_hash": b0["hash"], "block0": b0, "block1": b1, "headers": hdrs,
                 "max_target_hex": B.target_to_hex(params.MAX_TARGET), "work_0_2": B.work_for_target(B.hex_to_target(hdrs[1]["target"])) + B.work_for_target(B.hex_to_target(hdrs[2]["target"]))}
+from berrychain import mnemonic as M  # noqa: E402
+_zero = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+_sp, _ep = M.keys_from_phrase(_zero)
+_p2 = M.new_phrase(bytes(range(16)))
+_sp2, _ep2 = M.keys_from_phrase(_p2)
+v["mnemonic"] = {"zero_phrase": _zero, "zero_seed_hex": M.seed_from_phrase(_zero).hex(), "zero_sign_priv": _sp, "zero_enc_priv": _ep,
+                 "zero_address": crypto.address_from_pubkey(crypto.public_from_private(_sp)),
+                 "entropy_hex": bytes(range(16)).hex(), "phrase": _p2, "sign_priv": _sp2, "enc_priv": _ep2,
+                 "address": crypto.address_from_pubkey(crypto.public_from_private(_sp2))}
 v["merkle"] = {"three": B.merkle_root(["11" * 32, "22" * 32, "33" * 32]), "empty": B.merkle_root([])}
 
 out = os.path.join(ROOT, "app", "test", "vectors.json")

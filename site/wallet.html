@@ -68,6 +68,7 @@
   <ol>
     <li>Choose a name for it, for example <code>savings</code>. Paste and press Enter:
 <pre>python -m berrychain.cli wallet new keys\savings.json --label savings --encrypt</pre></li>
+    <li>It also prints twelve <strong>recovery words</strong>. Write them on paper, in order, and keep them away from the PC: they rebuild this exact wallet on any phone or PC, with the same address. Anyone holding the words holds the wallet.</li>
     <li>It asks for a new passphrase, then asks again. <strong>Nothing shows while you type.</strong> Use a long passphrase, five or six random words is ideal.</li>
     <li>It prints your new address, the line starting <code>"address": "brry1</code>. This is what you give to anyone who wants to send you BERRY, and what you paste into the miner or the LLM config. It's safe to share.</li>
   </ol>
@@ -79,7 +80,7 @@
 
   <h2><span class="part">Part D</span>Back it up</h2>
   <ol>
-    <li>Write the passphrase on paper and keep it somewhere other than with the PC.</li>
+    <li>Write the passphrase on paper and keep it somewhere other than with the PC. The twelve recovery words are the real backup: <code>python -m berrychain.cli wallet phrase keys\savings.json</code> shows them again, and <code>wallet recover new.json --phrase "your twelve words" --encrypt</code> rebuilds the wallet anywhere.</li>
     <li>Copy the file <code>C:\berrychain\keys\savings.json</code> to a USB stick, or print it. The file is encrypted, so a copy is safe on its own; it's only useful with the passphrase.</li>
     <li>For a wallet that holds anything you'd hate to lose, create it <em>on</em> a USB stick in the first place, so the key never sits on an internet-connected disk:
 <pre>python -m berrychain.cli wallet new E:\savings.json --label savings --encrypt</pre>

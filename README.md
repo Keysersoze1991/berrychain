@@ -191,6 +191,7 @@ berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
 docs/LETTERS.md         sealed letters: private end-to-end encrypted messages between two addresses
 docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots
+berrychain/mnemonic.py   twelve-word recovery phrases (BIP-39 words and seed, HKDF to the two keys)
 berrychain/wallet.py    key files
 berrychain/genesis.py   genesis + launch kit generator
 berrychain/cli.py       command line

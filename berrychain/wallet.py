@@ -43,7 +43,7 @@ from . import crypto, tx as T
 
 PASSPHRASE_ENV = "BERRY_WALLET_PASSPHRASE"
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 1 << 15, 8, 1          # ~32 MB, ~0.1 s on a laptop
-_SECRET_FIELDS = ("sign_priv", "enc_priv", "packet_keys")
+_SECRET_FIELDS = ("sign_priv", "enc_priv", "packet_keys", "mnemonic")
 _AAD = b"berry-wallet-v1"
 
 
@@ -109,15 +109,28 @@ class Wallet:
         self.sign_pub = d.get("sign_pub") or crypto.public_from_private(self.sign_priv)
         self.enc_priv = d["enc_priv"]
         self.enc_pub = d.get("enc_pub") or crypto.encryption_public_from_private(self.enc_priv)
+        self.mnemonic: str | None = d.get("mnemonic")      # recovery phrase, if the wallet was made from one
         self.address = crypto.address_from_pubkey(self.sign_pub)
         self.packet_keys: dict[str, str] = dict(d.get("packet_keys", {}))
 
     # ------------------------------------------------------------ files
     @classmethod
-    def create(cls, label: str = "", passphrase: str | None = None) -> "Wallet":
-        sp, spub = crypto.generate_signing_keypair()
-        ep, epub = crypto.generate_encryption_keypair()
-        w = cls({"label": label, "sign_priv": sp, "sign_pub": spub, "enc_priv": ep, "enc_pub": epub})
+    def create(cls, label: str = "", passphrase: str | None = None, phrase: str | None = None) -> "Wallet":
+        """A new wallet. With `phrase` (or phrase="new"), the keys are derived
+        from a twelve-word recovery phrase and the phrase is kept in the
+        sealed secrets, so the wallet can be rebuilt anywhere from the words."""
+        if phrase == "new":
+            from .mnemonic import new_phrase
+            phrase = new_phrase()
+        if phrase:
+            from .mnemonic import keys_from_phrase, validate
+            phrase = validate(phrase)
+            sp, ep = keys_from_phrase(phrase)
+            spub, epub = crypto.public_from_private(sp), crypto.encryption_public_from_private(ep)
+        else:
+            sp, spub = crypto.generate_signing_keypair()
+            ep, epub = crypto.generate_encryption_keypair()
+        w = cls({"label": label, "sign_priv": sp, "sign_pub": spub, "enc_priv": ep, "enc_pub": epub, "mnemonic": phrase})
         w.passphrase = passphrase or None
         return w
 
@@ -146,6 +159,8 @@ class Wallet:
     def to_dict(self) -> dict:
         pub = {"label": self.label, "address": self.address, "sign_pub": self.sign_pub, "enc_pub": self.enc_pub}
         secrets = {"sign_priv": self.sign_priv, "enc_priv": self.enc_priv, "packet_keys": self.packet_keys}
+        if self.mnemonic:
+            secrets["mnemonic"] = self.mnemonic
         if self.passphrase:
             return {**pub, "encrypted": seal(secrets, self.passphrase)}
         return {**pub, **secrets}

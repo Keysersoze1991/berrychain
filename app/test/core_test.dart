@@ -6,6 +6,7 @@ import 'package:berrychain_app/core/canonical.dart';
 import 'package:berrychain_app/core/crypto.dart';
 import 'package:berrychain_app/core/letters.dart';
 import 'package:berrychain_app/core/light.dart';
+import 'package:berrychain_app/core/mnemonic.dart';
 import 'package:berrychain_app/core/tx.dart';
 import 'package:berrychain_app/core/units.dart';
 import 'package:berrychain_app/core/wallet.dart';
@@ -110,6 +111,27 @@ void main() {
     expect(merkleRoot(['11' * 32, '22' * 32, '33' * 32]), mk['three']);
     expect(merkleRoot([]), mk['empty']);
   });
+
+  test('recovery phrases match the reference and the BIP-39 vector', () async {
+    final m = v['mnemonic'] as Map<String, dynamic>;
+    expect(newPhrase(Uint8List(16)), m['zero_phrase']);
+    expect(toHex(await seedFromPhrase(m['zero_phrase'])), m['zero_seed_hex']);
+    final (sp, ep) = await keysFromPhrase(m['zero_phrase']);
+    expect([sp, ep], [m['zero_sign_priv'], m['zero_enc_priv']]);
+    expect(newPhrase(fromHex(m['entropy_hex'])), m['phrase']);
+    final w = await Wallet.fromPhrase(m['phrase']);
+    expect(w.address, m['address']);
+    expect(w.encPriv, m['enc_priv']);
+    expect(w.mnemonic, m['phrase']);
+    expect(() => validatePhrase('abandon abandon abandon'), throwsFormatException);
+    expect(() => validatePhrase((m['phrase'] as String).replaceFirst(RegExp(r'^\w+'), 'zoo')), throwsFormatException);
+    final fresh = await Wallet.create(label: 'x');
+    final again = await Wallet.fromPhrase(fresh.mnemonic!);
+    expect(again.address, fresh.address);
+    fresh.passphrase = 'correct horse';
+    final back = await Wallet.fromJson(await fresh.toJson(), passphrase: 'correct horse');
+    expect(back.mnemonic, fresh.mnemonic);
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('letter envelope and units', () {
     final env = openLetter(composeLetter('Bring the charts.', subject: 'Tomorrow', replyTo: 'abc', senderName: 'alice'));

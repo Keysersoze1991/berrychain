@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../session.dart';
 import 'common.dart';
+import 'welcome.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,6 +43,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 32),
           const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),
+          if (s.wallet?.mnemonic != null) ...[
+            const Text('Your twelve recovery words rebuild this wallet on any phone or PC. Show them only when nobody is looking over your shoulder.', style: TextStyle(height: 1.4)),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.key_outlined),
+              label: const Text('Show recovery phrase'),
+              onPressed: () async {
+                final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Show the words?'), content: const Text('Anyone who sees them can take the wallet.'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Show'))]));
+                if (ok == true && context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ShowPhraseScreen(s.wallet!.mnemonic!)));
+              },
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            const Text('This wallet was made before recovery phrases existed, so it has no words. Keep the exported file safe; it is the only way to move it to another phone.', style: TextStyle(height: 1.4, color: Palette.band)),
+            const SizedBox(height: 10),
+          ],
           const Text('Export copies the sealed wallet file to the clipboard. Paste it into a text file on a PC and it opens there with the same passphrase. Keep a copy somewhere safe; without the file and the passphrase the coins are gone.', style: TextStyle(height: 1.4)),
           const SizedBox(height: 10),
           OutlinedButton.icon(

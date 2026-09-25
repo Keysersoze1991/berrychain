@@ -121,8 +121,19 @@ class Session extends ChangeNotifier {
   }
 
   // -------------------------------------------------------------- wallet
-  Future<void> createWallet(String label, String passphrase) async {
+  /// Makes a wallet from a fresh recovery phrase and returns the phrase.
+  Future<String> createWallet(String label, String passphrase) async {
     final w = await Wallet.create(label: label);
+    w.passphrase = passphrase;
+    await w.save(walletPath);
+    wallet = w;
+    hasWalletFile = true;
+    notifyListeners();
+    return w.mnemonic!;
+  }
+
+  Future<void> recoverWallet(String phrase, String label, String passphrase) async {
+    final w = await Wallet.fromPhrase(phrase, label: label);
     w.passphrase = passphrase;
     await w.save(walletPath);
     wallet = w;

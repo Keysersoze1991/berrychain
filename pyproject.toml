@@ -19,5 +19,8 @@ agent = ["anthropic>=1"]
 berrychain = "berrychain.cli:main"
 berrychain-mcp = "berrychain.mcp_server:main"
 
+[tool.setuptools.package-data]
+berrychain = ["wordlist_en.txt"]
+
 [tool.setuptools]
 packages = ["berrychain"]
