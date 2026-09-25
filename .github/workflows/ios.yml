@@ -41,7 +41,19 @@ jobs:
           cache: true
       - run: flutter --version
       - run: flutter pub get
-      - run: flutter test --reporter github
+      - name: Run the tests, and put any failure in the run summary
+        run: |
+          set +e
+          flutter test --reporter expanded > test.log 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            { echo "## Test failure"; echo; echo '```'; grep -n -A 40 '\[E\]' test.log | head -150; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            tail -60 test.log
+          else
+            echo "## Tests passed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
 
   compile:
     name: Compile (unsigned)
