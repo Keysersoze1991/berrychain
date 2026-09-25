@@ -1,0 +1,127 @@
+name: iOS
+
+# Two jobs on GitHub's macOS runners (free for public repositories):
+#   compile   - on every push that touches the app: an unsigned build, proving
+#               the code compiles for iPhone. Needs nothing from Apple.
+#   testflight - on manual dispatch or a tag like ios-v0.5.1: signs with the
+#               distribution certificate and profile held in repository secrets
+#               and uploads to TestFlight through an App Store Connect API key.
+#               See docs/IOS_RELEASE.md for the secrets.
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", ".github/workflows/ios.yml"]
+    tags: ["ios-v*"]
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Sign and upload to TestFlight"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  compile:
+    name: Compile (unsigned)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - run: flutter test
+      - name: Build for iPhone without signing
+        run: flutter build ios --release --no-codesign
+      - name: Report
+        run: du -sh build/ios/iphoneos/Runner.app && echo "compiles for iPhone"
+
+  testflight:
+    name: Sign and upload to TestFlight
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ios-v')
+    needs: compile
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_PROFILE_BASE64: ${{ secrets.APPLE_PROFILE_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secrets are present
+        run: |
+          for v in APPLE_CERT_P12_BASE64 APPLE_CERT_PASSWORD APPLE_PROFILE_BASE64 APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            if [ -z "${!v}" ]; then echo "missing secret $v (see docs/IOS_RELEASE.md)"; exit 1; fi
+          done
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Install the certificate and profile
+        run: |
+          set -e
+          KEYCHAIN=$RUNNER_TEMP/build.keychain-db
+          KEYPASS=$(uuidgen)
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/dist.p12
+          echo "$APPLE_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/app.mobileprovision
+          security create-keychain -p "$KEYPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYPASS" "$KEYCHAIN"
+          security import $RUNNER_TEMP/dist.p12 -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYPASS" "$KEYCHAIN" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i $RUNNER_TEMP/app.mobileprovision)")
+          cp $RUNNER_TEMP/app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i $RUNNER_TEMP/app.mobileprovision)")
+          echo "PROFILE_NAME=$NAME" >> $GITHUB_ENV
+      - name: Write export options
+        run: |
+          cat > $RUNNER_TEMP/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>link.berrychain.wallet</key><string>$PROFILE_NAME</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+      - name: Build the signed archive
+        run: |
+          flutter build ipa --release \
+            --export-options-plist=$RUNNER_TEMP/ExportOptions.plist \
+            --build-number=${{ github.run_number }}
+          ls -la build/ios/ipa/
+      - name: Upload to TestFlight
+        run: |
+          mkdir -p ~/.private_keys
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > ~/.private_keys/AuthKey_$ASC_KEY_ID.p8
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Keep the ipa as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: berrychain-ios-${{ github.run_number }}
+          path: app/build/ios/ipa/*.ipa
+          retention-days: 14
