@@ -244,9 +244,13 @@ class Session extends ChangeNotifier {
     for (final l in sent) {
       note(l.to, l.height);
     }
-    seen.putIfAbsent(Network.harbourmaster, () => Contact(Network.harbourmaster, name: 'the Harbourmaster'));
+    seen.putIfAbsent(Network.harbourmaster, () => Contact(Network.harbourmaster));
     for (final c in seen.values) {
       c.nickname = _nicknames[c.address] ?? '';
+      if (c.address == Network.harbourmaster) {
+        c.name = 'the Harbourmaster'; // his chain name is the genesis label; people know him by this one
+        continue;
+      }
       if (c.name.isEmpty) {
         var n = _nameCache[c.address];
         if (n == null) {
