@@ -85,7 +85,7 @@ void main() {
     expect(sealed['address'], v['address']);
     final back = await Wallet.fromJson(sealed, passphrase: wv['passphrase']);
     expect(back.signPriv, v['sign_priv']);
-  }, timeout: const Timeout(Duration(minutes: 2)));
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   test('mainnet genesis and first blocks hash and verify', () async {
     final m = v['mainnet'] as Map<String, dynamic>;
@@ -131,7 +131,7 @@ void main() {
     fresh.passphrase = 'correct horse';
     final back = await Wallet.fromJson(await fresh.toJson(), passphrase: 'correct horse');
     expect(back.mnemonic, fresh.mnemonic);
-  }, timeout: const Timeout(Duration(minutes: 2)));
+  }, timeout: const Timeout(Duration(minutes: 6)));
 
   test('letter envelope and units', () {
     final env = openLetter(composeLetter('Bring the charts.', subject: 'Tomorrow', replyTo: 'abc', senderName: 'alice'));

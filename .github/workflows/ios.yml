@@ -29,19 +29,33 @@ defaults:
     working-directory: app
 
 jobs:
-  compile:
-    name: Compile (unsigned)
-    runs-on: macos-15
-    timeout-minutes: 45
+  test:
+    name: Tests (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - run: flutter --version
       - run: flutter pub get
-      - run: flutter test
+      - run: flutter test --reporter github
+
+  compile:
+    name: Compile (unsigned)
+    runs-on: macos-15
+    timeout-minutes: 45
+    needs: test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
       - name: Build for iPhone without signing
         run: flutter build ios --release --no-codesign
       - name: Report
@@ -62,7 +76,7 @@ jobs:
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check the secrets are present
         run: |
           for v in APPLE_CERT_P12_BASE64 APPLE_CERT_PASSWORD APPLE_PROFILE_BASE64 APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
