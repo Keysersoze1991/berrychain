@@ -10,6 +10,9 @@ void main() {
   runApp(BerryApp(Session()));
 }
 
+/// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
+const appVersion = '0.2.2';
+
 /// The chain's palette: open-water navy, straw gold, parchment.
 class Palette {
   static const sea = Color(0xFF0C1F33);

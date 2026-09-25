@@ -44,6 +44,7 @@ class WelcomeScreen extends StatelessWidget {
                 child: const Text('Import a wallet file'),
               ),
               const SizedBox(height: 8),
+              const Text('version $appVersion', textAlign: TextAlign.center, style: TextStyle(color: Color(0x80A9BACC), fontSize: 12)),
             ],
           ),
         ),

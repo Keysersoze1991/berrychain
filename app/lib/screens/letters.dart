@@ -178,7 +178,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
     final used = composeLetter(body.text, subject: subject.text, replyTo: widget.replyTo, senderName: s.wallet!.label).length - composeLetter('').length;
     final left = budget - used;
     return Scaffold(
-      appBar: AppBar(title: const Text('Write a letter')),
+      appBar: AppBar(
+        title: const Text('Write a letter'),
+        actions: [
+          IconButton(icon: const Icon(Icons.photo_camera_outlined), tooltip: 'Take a picture', onPressed: photo == null ? () => takePhoto(ImageSource.camera) : null),
+          IconButton(icon: const Icon(Icons.photo_library_outlined), tooltip: 'Picture from gallery', onPressed: photo == null ? () => takePhoto(ImageSource.gallery) : null),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
