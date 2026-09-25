@@ -20,6 +20,7 @@ class Network {
   static const checkpointHeight = 94;
   static const checkpointHash = '000016e8e41005dc8b0bcc21f8d29a1c18a65712afac81e4c7871c6909324b8e';
   static const seeds = ['https://seed1.berrychain.link', 'https://seed2.berrychain.link'];
+  static const harbourmaster = 'brry1eba16ee17764413d1c1aa73a5ba43521880b9e5f4dd010e2';
 }
 
 class LetterItem {
@@ -32,6 +33,17 @@ class LetterItem {
   int get height => meta['height'] as int;
   int get amount => meta['amount'] as int;
   int get size => meta['size'] as int;
+}
+
+/// Someone this wallet has written to or heard from, or a well-known address.
+class Contact {
+  final String address;
+  String name;      // the name they registered on the chain, if any
+  String nickname;  // what you call them, kept on this phone only
+  int letters;      // letters exchanged
+  int lastHeight;
+  Contact(this.address, {this.name = '', this.nickname = '', this.letters = 0, this.lastHeight = 0});
+  String get label => nickname.isNotEmpty ? nickname : (name.isNotEmpty ? name : address.substring(0, 12));
 }
 
 /// A grant the account can earn by corresponding, and where it stands.
@@ -62,6 +74,9 @@ class Session extends ChangeNotifier {
   Map<String, dynamic>? chainParams;
   List<LetterItem> inbox = [];
   List<LetterItem> sent = [];
+  List<Contact> contacts = [];
+  final Map<String, String> _nicknames = {};
+  final Map<String, String> _nameCache = {};
   String? lastError;
   bool busy = false;
 
@@ -84,6 +99,13 @@ class Session extends ChangeNotifier {
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
+    final nick = File('${d.path}/contacts.json');
+    if (await nick.exists()) {
+      try {
+        final m = jsonDecode(await nick.readAsString()) as Map<String, dynamic>;
+        m.forEach((k, v) => _nicknames[k] = v as String);
+      } catch (_) {}
+    }
     light = await LightClient.open(Profile.mainnet, Network.genesisHash,
         checkpointHeight: Network.checkpointHeight, checkpointHash: Network.checkpointHash, path: '${d.path}/headers-${Network.chainId}.json');
     notifyListeners();
@@ -160,6 +182,7 @@ class Session extends ChangeNotifier {
           balanceOther = (await Node(nodeUrls[1]).account(w.address))['balance'] as int;
         } catch (_) {}
       }
+      await _buildContacts();
       await _verifyChain();
     } on NodeError catch (e) {
       lastError = e.message;
@@ -191,6 +214,62 @@ class Session extends ChangeNotifier {
   }
 
   int get verifiedHeight => light?.height ?? -1;
+
+  /// Everyone this wallet has corresponded with, newest first, plus the
+  /// Harbourmaster so there is always someone to write to. Names come from
+  /// the chain registry and are cached; nicknames are yours alone.
+  Future<void> _buildContacts() async {
+    final me = wallet!.address;
+    final seen = <String, Contact>{};
+    void note(String addr, int height) {
+      if (addr == me) return;
+      final c = seen.putIfAbsent(addr, () => Contact(addr));
+      c.letters++;
+      if (height > c.lastHeight) c.lastHeight = height;
+    }
+    for (final l in inbox) {
+      note(l.from, l.height);
+    }
+    for (final l in sent) {
+      note(l.to, l.height);
+    }
+    seen.putIfAbsent(Network.harbourmaster, () => Contact(Network.harbourmaster, name: 'the Harbourmaster'));
+    for (final c in seen.values) {
+      c.nickname = _nicknames[c.address] ?? '';
+      if (c.name.isEmpty) {
+        var n = _nameCache[c.address];
+        if (n == null) {
+          try {
+            n = (((await node.account(c.address))['llm'] as Map?)?['name'] as String?) ?? '';
+          } catch (_) {
+            n = '';
+          }
+          if (n.isNotEmpty) _nameCache[c.address] = n;
+        }
+        c.name = n;
+      }
+    }
+    contacts = seen.values.toList()
+      ..sort((a, b) {
+        if (a.address == Network.harbourmaster && a.letters == 0) return 1;
+        if (b.address == Network.harbourmaster && b.letters == 0) return -1;
+        return b.lastHeight.compareTo(a.lastHeight);
+      });
+  }
+
+  Future<void> setNickname(String address, String nickname) async {
+    if (nickname.trim().isEmpty) {
+      _nicknames.remove(address);
+    } else {
+      _nicknames[address] = nickname.trim();
+    }
+    for (final c in contacts) {
+      if (c.address == address) c.nickname = _nicknames[address] ?? '';
+    }
+    final d = await _dir();
+    await File('${d.path}/contacts.json').writeAsString(jsonEncode(_nicknames));
+    notifyListeners();
+  }
 
   /// The grants this account can earn by corresponding, with current amounts.
   List<EarnedGrant> get earnedGrants {

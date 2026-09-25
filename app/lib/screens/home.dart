@@ -5,6 +5,7 @@ import '../main.dart';
 import '../session.dart';
 import 'claim.dart';
 import 'common.dart';
+import 'contacts.dart';
 import 'letters.dart';
 import 'receive.dart';
 import 'send.dart';
@@ -125,6 +126,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 10),
                   Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.qr_code_2), label: const Text('Receive'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())))),
                 ]),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.people_outline),
+                  label: Text(s.contacts.isEmpty ? 'People' : 'People (${s.contacts.length})'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.mail_outline),

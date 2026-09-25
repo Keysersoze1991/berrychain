@@ -8,6 +8,7 @@ import '../core/units.dart';
 import '../main.dart';
 import '../session.dart';
 import 'common.dart';
+import 'contacts.dart';
 
 class LettersScreen extends StatelessWidget {
   const LettersScreen({super.key});
@@ -58,9 +59,11 @@ class _LetterList extends StatelessWidget {
               itemBuilder: (context, i) {
                 final l = items[i];
                 final other = incoming ? l.from : l.to;
+                final known = s.contacts.where((c) => c.address == other).toList();
+                final title = known.isNotEmpty && known.first.label != other.substring(0, 12) ? known.first.label : shortAddress(other);
                 return ListTile(
                   leading: Icon(incoming ? Icons.mail_outline : Icons.send_outlined, color: Palette.brass),
-                  title: Text(shortAddress(other), style: const TextStyle(fontFamily: 'monospace')),
+                  title: Text(title, style: TextStyle(fontFamily: title == shortAddress(other) ? 'monospace' : null)),
                   subtitle: Text('block ${l.height} · ${l.size} bytes${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadLetterScreen(l, incoming: incoming))),
@@ -188,7 +191,22 @@ class _ComposeScreenState extends State<ComposeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          TextField(controller: to, decoration: const InputDecoration(labelText: 'To (brry1…)'), autocorrect: false, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+          TextField(
+            controller: to,
+            decoration: InputDecoration(
+              labelText: 'To (brry1…)',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.people_outline),
+                tooltip: 'Choose from your people',
+                onPressed: () async {
+                  final c = await pickContact(context);
+                  if (c != null) setState(() => to.text = c.address);
+                },
+              ),
+            ),
+            autocorrect: false,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          ),
           const SizedBox(height: 12),
           TextField(controller: subject, decoration: const InputDecoration(labelText: 'Subject (sealed)')),
           const SizedBox(height: 12),
