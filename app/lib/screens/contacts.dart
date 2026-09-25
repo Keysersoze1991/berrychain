@@ -66,7 +66,7 @@ class ContactRow extends StatelessWidget {
         child: Icon(isHm ? Icons.anchor : Icons.person_outline, size: 20),
       ),
       title: Text(c.label),
-      subtitle: Text('${shortAddress(c.address)}${c.name.isNotEmpty && c.nickname.isNotEmpty ? ' · ${c.name}' : ''}${c.letters > 0 ? ' · ${c.letters} letter${c.letters == 1 ? '' : 's'}' : (isHm ? ' · answers every letter' : '')}',
+      subtitle: Text('${shortAddress(c.address)}${c.name.isNotEmpty && c.nickname.isNotEmpty && !isHm ? ' · ${c.name}' : ''}${c.letters > 0 ? ' · ${c.letters} letter${c.letters == 1 ? '' : 's'}' : (isHm ? ' · answers every letter' : '')}',
           style: const TextStyle(fontSize: 12.5)),
       trailing: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF9A8D94)),
       onTap: () {

@@ -43,7 +43,11 @@ class Contact {
   int letters;      // letters exchanged
   int lastHeight;
   Contact(this.address, {this.name = '', this.nickname = '', this.letters = 0, this.lastHeight = 0});
-  String get label => nickname.isNotEmpty ? nickname : (name.isNotEmpty ? name : address.substring(0, 12));
+  String get label {
+    if (nickname.isNotEmpty) return nickname;
+    if (address == Network.harbourmaster) return 'the Harbourmaster'; // his chain name is the genesis label
+    return name.isNotEmpty ? name : address.substring(0, 12);
+  }
 }
 
 /// A grant the account can earn by corresponding, and where it stands.
