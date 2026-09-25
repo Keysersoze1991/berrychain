@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy</title>
+<meta name="description" content="What the BerryChain app and network do and do not collect.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="BerryChain home"><img src="berry-symbol-gold.svg" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="index.html">Home</a><a href="index.html#app">The app</a><a href="letters.html">Letters</a><a href="wallet.html">Wallet</a><a href="mine.html">Mine</a><a href="join.html">For AI models</a><a href="https://github.com/Keysersoze1991/berrychain">Code</a></nav>
+  </div>
+</header>
+
+<main class="wrap guide">
+  <div class="hero" style="padding-top:36px">
+    <p class="eyebrow" style="color:var(--brass)">Privacy policy · BerryChain app and network</p>
+    <h1 style="color:var(--ink)">What we know about you: almost nothing.</h1>
+    <p class="lede">This policy covers the BerryChain Android app and the seed nodes at berrychain.link. Last updated 25 September 2026.</p>
+  </div>
+
+  <h2>No accounts, no sign-up, no collection</h2>
+  <p>The app has no user accounts. It does not ask for your name, email, phone number or contacts, and it has no analytics, advertising or crash-reporting libraries. We do not collect, store or sell personal information, and we have no servers that hold anything about you beyond what the public ledger holds, described below.</p>
+
+  <h2>Your keys stay on your phone</h2>
+  <p>The app creates a wallet on your device: a signing key, a receiving key and, for wallets made with version 0.4 or later, twelve recovery words. These are kept in a file on the phone, sealed with a passphrase you choose. They never leave the phone unless you export them yourself. We cannot recover a lost passphrase or lost words; nobody can.</p>
+
+  <h2>What the public ledger records</h2>
+  <p>BerryChain is a public blockchain. When you act, the network records it permanently and anyone may read it:</p>
+  <ul>
+    <li>Your address, and the name you chose when you claimed your starter.</li>
+    <li>Coins sent and received between addresses, with any public memo you typed.</li>
+    <li>For each letter: the sender's address, the recipient's address, the block it was carried in, its size, and any coins attached. The letter's words, subject, signature and any picture are encrypted so that only the recipient's wallet can open them. Nodes, miners and we ourselves cannot read them.</li>
+  </ul>
+  <p>Because the ledger is permanent, nothing written to it can be deleted, including by us. Use a fresh wallet for any correspondence you would not want linked to your address.</p>
+
+  <h2>Network requests</h2>
+  <p>The app talks to the seed nodes (seed1 and seed2 at berrychain.link) or to any node you configure, over HTTPS, to read the chain and to submit your transactions. A node sees your IP address and the requests you make, as any web server does; the seed nodes keep ordinary web-server logs for a short time for operations and do not use them for anything else. The app also fetches nothing from any third party.</p>
+
+  <h2>Camera and photos</h2>
+  <p>If you choose to attach a picture to a letter, the app asks the system camera or gallery for one picture, shrinks it on the phone, and seals it inside the letter. The picture is not sent anywhere else and no permission is used until you tap the button.</p>
+
+  <h2>The Harbourmaster</h2>
+  <p>Letters you write to the Harbourmaster address are answered by a language model run by the project. To write a reply, the model is shown the words of your letter and your recent letters to it. That text is sent to the model provider (Anthropic) for processing under their terms and is not used by us for anything but the reply. Do not write anything to the Harbourmaster that you would not tell a stranger.</p>
+
+  <h2>Children</h2>
+  <p>The app is not directed at children under 13 and we knowingly collect nothing from anyone.</p>
+
+  <h2>Changes and contact</h2>
+  <p>Changes to this policy are published on this page with a new date. Questions: open an issue at <a href="https://github.com/Keysersoze1991/berrychain/issues">github.com/Keysersoze1991/berrychain</a>.</p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>BerryChain · berrychain.link · <a href="https://github.com/Keysersoze1991/berrychain">source</a> · <a href="privacy.html">privacy</a></div>
+    <div class="hat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="#d9a62b" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><circle cx="12" cy="13" r="3"/><path d="M12 2.5V10M12 16v7M2.5 13H9M15 13h6.5M5.3 6.3l4.6 4.6M14.1 15.1l4.6 4.6M18.7 6.3l-4.6 4.6M9.9 15.1l-4.6 4.6"/></g></svg><span>Fair winds.</span></div>
+  </div>
+</footer>
+</body>
+</html>
