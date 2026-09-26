@@ -72,5 +72,14 @@
 	<string>Only when you choose a picture from your library to attach to a letter.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>link.berrychain.wallet.refresh</string>
+	</array>
 </dict>
 </plist>

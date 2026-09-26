@@ -41,6 +41,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(onPressed: () => setState(() => nodes.text = Network.seeds.join('\n')), child: const Text('Reset to the seed nodes')),
           const Divider(height: 32),
+          const Text('LETTERS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          ListenableBuilder(
+            listenable: s,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Tell me when a letter arrives'),
+              subtitle: const Text('Checks a seed node about every fifteen minutes, even with the app closed, and shows a badge. No server of ours is involved.'),
+              value: s.backgroundChecks,
+              onChanged: (v) => s.saveSettings(s.nodeUrls, background: v),
+            ),
+          ),
+          const Divider(height: 32),
           const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),
           if (s.wallet?.mnemonic != null) ...[

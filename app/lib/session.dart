@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:workmanager/workmanager.dart';
+
+import 'background.dart';
 
 import 'core/crypto.dart';
 import 'core/letters.dart';
@@ -65,6 +68,7 @@ class Session extends ChangeNotifier {
   String? walletPath;
   bool hasWalletFile = false;
   List<String> nodeUrls = List.of(Network.seeds);
+  bool backgroundChecks = true;
   late Node node;
   LightClient? light;
 
@@ -100,9 +104,14 @@ class Session extends ChangeNotifier {
         final s = jsonDecode(await settings.readAsString()) as Map<String, dynamic>;
         final urls = (s['nodes'] as List?)?.cast<String>();
         if (urls != null && urls.isNotEmpty) nodeUrls = urls;
+        backgroundChecks = (s['background'] as bool?) ?? true;
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
+    try {
+      await Workmanager().initialize(callbackDispatcher);
+      await initNotifications();
+    } catch (_) {}
     final nick = File('${d.path}/contacts.json');
     if (await nick.exists()) {
       try {
@@ -115,12 +124,20 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveSettings(List<String> urls) async {
+  Future<void> saveSettings(List<String> urls, {bool? background}) async {
     nodeUrls = urls.where((u) => u.trim().isNotEmpty).map((u) => u.trim()).toList();
     if (nodeUrls.isEmpty) nodeUrls = List.of(Network.seeds);
     node = Node(nodeUrls.first);
+    if (background != null) backgroundChecks = background;
     final d = await _dir();
-    await File('${d.path}/settings.json').writeAsString(jsonEncode({'nodes': nodeUrls}));
+    await File('${d.path}/settings.json').writeAsString(jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks}));
+    try {
+      if (backgroundChecks && wallet != null) {
+        await enableBackgroundChecks();
+      } else {
+        await disableBackgroundChecks();
+      }
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -199,6 +216,12 @@ class Session extends ChangeNotifier {
       }
       await _buildContacts();
       await _verifyChain();
+      if (nodeHeight != null) {
+        try {
+          await markSeen(address: w.address, height: nodeHeight!, nodes: nodeUrls);
+          if (backgroundChecks) await enableBackgroundChecks();
+        } catch (_) {}
+      }
     } on NodeError catch (e) {
       lastError = e.message;
     } on VerifyError catch (e) {

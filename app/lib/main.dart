@@ -11,7 +11,7 @@ void main() {
 }
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
-const appVersion = '0.5.1';
+const appVersion = '0.6.0';
 
 /// The chain's palette: open-water navy, straw gold, parchment.
 class Palette {
