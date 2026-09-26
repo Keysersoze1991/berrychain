@@ -166,11 +166,10 @@ jobs:
           mkdir -p ~/.private_keys
           KEY=~/.private_keys/AuthKey_$ASC_KEY_ID.p8
           if printf '%s' "$ASC_KEY_P8_BASE64" | grep -q 'BEGIN PRIVATE KEY'; then
-            printf '%s
-' "$ASC_KEY_P8_BASE64" | tr -d '' > "$KEY"
+            printf '%s\n' "$ASC_KEY_P8_BASE64" | tr -d '\r' > "$KEY"
           else
-            printf '%s' "$ASC_KEY_P8_BASE64" | tr -d ' 
-	' | base64 --decode > "$KEY"               || fail "ASC_KEY_P8_BASE64 is neither the .p8 file's text nor valid base64: re-paste it from paste_ASC_KEY_P8_BASE64.txt"
+            printf '%s' "$ASC_KEY_P8_BASE64" | tr -d ' \r\n\t' | base64 --decode > "$KEY" \
+              || fail "ASC_KEY_P8_BASE64 is neither the .p8 file's text nor valid base64: re-paste it from paste_ASC_KEY_P8_BASE64.txt"
           fi
           grep -q 'BEGIN PRIVATE KEY' "$KEY" || fail "the decoded ASC_KEY_P8_BASE64 does not look like a .p8 key: re-paste it from paste_ASC_KEY_P8_BASE64.txt"
           echo "::notice::App Store Connect key sha256 $(shasum -a 256 "$KEY" | cut -c1-16)"
