@@ -1,1 +1,2 @@
 d7b23333e965816ba0075c4eab60b8aef7dd7bc61b4385ae539702a310418b7a *berrychain-wallet.apk
+d7b23333e965816ba0075c4eab60b8aef7dd7bc61b4385ae539702a310418b7a *berrychain-wallet-0.7.0.apk
