@@ -117,7 +117,9 @@ jobs:
           KEYPASS=$(uuidgen)
           echo "$APPLE_CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/dist.p12 || fail "APPLE_CERT_P12_BASE64 is not valid base64"
           echo "$APPLE_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/app.mobileprovision || fail "APPLE_PROFILE_BASE64 is not valid base64"
-          echo "p12 bytes: $(wc -c < $RUNNER_TEMP/dist.p12), profile bytes: $(wc -c < $RUNNER_TEMP/app.mobileprovision)"
+          echo "p12 bytes: $(wc -c < $RUNNER_TEMP/dist.p12) sha256 $(shasum -a 256 $RUNNER_TEMP/dist.p12 | cut -c1-16)"
+          echo "profile bytes: $(wc -c < $RUNNER_TEMP/app.mobileprovision) sha256 $(shasum -a 256 $RUNNER_TEMP/app.mobileprovision | cut -c1-16)"
+          echo "::notice::decoded p12 sha256 $(shasum -a 256 $RUNNER_TEMP/dist.p12 | cut -c1-16), profile sha256 $(shasum -a 256 $RUNNER_TEMP/app.mobileprovision | cut -c1-16), profile bytes $(wc -c < $RUNNER_TEMP/app.mobileprovision)"
           [ "$(wc -c < $RUNNER_TEMP/dist.p12)" -gt 1000 ] || fail "the decoded p12 is too small: APPLE_CERT_P12_BASE64 was probably pasted incompletely"
           [ "$(wc -c < $RUNNER_TEMP/app.mobileprovision)" -gt 5000 ] || fail "the decoded profile is too small: APPLE_PROFILE_BASE64 was probably pasted incompletely"
           openssl pkcs12 -in $RUNNER_TEMP/dist.p12 -passin "pass:$APPLE_CERT_PASSWORD" -noout -legacy 2>/dev/null             || openssl pkcs12 -in $RUNNER_TEMP/dist.p12 -passin "pass:$APPLE_CERT_PASSWORD" -noout 2>/dev/null             || fail "the p12 does not open with APPLE_CERT_PASSWORD (wrong password, or the p12 was pasted incompletely)"
@@ -129,7 +131,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
           security find-identity -v -p codesigning "$KEYCHAIN" | head -3
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          security cms -D -i $RUNNER_TEMP/app.mobileprovision > $RUNNER_TEMP/profile.plist || fail "the profile could not be decoded"
+          security cms -D -i $RUNNER_TEMP/app.mobileprovision > $RUNNER_TEMP/profile.plist 2>/dev/null             || openssl smime -inform DER -verify -noverify -in $RUNNER_TEMP/app.mobileprovision -out $RUNNER_TEMP/profile.plist 2>/dev/null             || fail "the profile could not be decoded: APPLE_PROFILE_BASE64 does not contain the .mobileprovision file (bytes $(wc -c < $RUNNER_TEMP/app.mobileprovision), sha256 $(shasum -a 256 $RUNNER_TEMP/app.mobileprovision | cut -c1-16))"
           UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' $RUNNER_TEMP/profile.plist) || fail "no UUID in the profile"
           NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' $RUNNER_TEMP/profile.plist) || fail "no Name in the profile"
           cp $RUNNER_TEMP/app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
