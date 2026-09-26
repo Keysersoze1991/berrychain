@@ -58,4 +58,12 @@ lines = [
 out = os.path.join(HERE, "secrets.txt")
 with open(out, "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
-print(f"wrote {out}: paste each line as a repository secret (name = value), then delete the file")
+# One file per value as well, with no newline: open it in Notepad, Ctrl+A,
+# Ctrl+C, paste. Selecting a 16,000-character value out of secrets.txt by
+# hand dropped characters twice.
+for line in lines:
+    name, value = line.split("=", 1)
+    with open(os.path.join(HERE, f"paste_{name}.txt"), "w", encoding="utf-8", newline="") as f:
+        f.write(value)
+print(f"wrote {out} and one paste_NAME.txt per secret: open each paste file, Ctrl+A, Ctrl+C,")
+print("paste it as the repository secret of that name, then delete the files")

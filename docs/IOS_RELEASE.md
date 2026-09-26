@@ -43,7 +43,12 @@ values below, written to `app/ios/signing/secrets.txt`.
 ## Once: repository secrets
 
 GitHub > the repository > Settings > Secrets and variables > Actions >
-New repository secret, one per line of `secrets.txt`:
+New repository secret, one per line of `secrets.txt`. Copy each value
+from its own `paste_NAME.txt` file (open, Ctrl+A, Ctrl+C) rather than
+selecting it out of `secrets.txt`: two of the long values lost a few
+characters that way. The workflow prints the SHA-256 of what it decoded
+as a notice, so a bad paste shows up as a checksum that differs from
+`shasum -a 256` of the local file.
 
 | Secret | What |
 |---|---|
@@ -64,7 +69,10 @@ git tag ios-v0.5.1 && git push origin ios-v0.5.1
 or Actions > iOS > Run workflow. The workflow compiles, tests, signs,
 uploads to TestFlight and keeps the `.ipa` as an artifact for two weeks.
 The build number is the run number, so every upload is newer than the
-last; the version is the one in `pubspec.yaml`.
+last; the version is the one in `pubspec.yaml`. The Xcode project pins
+the team, manual signing, the "Apple Distribution" identity and the
+"BerryChain App Store" profile for Release builds; without that,
+`flutter build ipa` insists on a development certificate and stops.
 
 After the first upload, in App Store Connect > TestFlight: add yourself
 as an internal tester (instant), then create an external group, add the
