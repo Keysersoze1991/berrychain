@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'store.dart';
 
 import 'crypto.dart';
 import 'mnemonic.dart';
@@ -53,7 +53,9 @@ class Wallet {
   }
 
   static Future<Wallet> load(String path, {String? passphrase}) async {
-    final d = jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+    final text = await readText(path);
+    if (text == null) throw StateError('no wallet at $path');
+    final d = jsonDecode(text) as Map<String, dynamic>;
     final w = await fromJson(d, passphrase: passphrase);
     w.path = path;
     return w;
@@ -78,9 +80,7 @@ class Wallet {
   Future<void> save([String? to]) async {
     final target = to ?? path;
     if (target == null) throw StateError('wallet has no path');
-    final tmp = File('$target.tmp');
-    await tmp.writeAsString(jsonEncode(await toJson()), flush: true);
-    await tmp.rename(target);
+    await writeText(target, jsonEncode(await toJson()));
     path = target;
   }
 

@@ -13,7 +13,14 @@ Future<void> shareInvite(BuildContext context) async {
   final s = SessionScope.of(context);
   final w = s.wallet!;
   final name = (s.registry?['name'] as String?) ?? '';
-  await SharePlus.instance.share(ShareParams(text: Network.invite(w.address, name), subject: 'Write to me on BerryChain'));
+  final text = Network.invite(w.address, name);
+  try {
+    final r = await SharePlus.instance.share(ShareParams(text: text, subject: 'Write to me on BerryChain'));
+    if (r.status == ShareResultStatus.unavailable) throw StateError('no share sheet');
+  } catch (_) {
+    // Desktop browsers mostly have no share sheet: the note goes to the clipboard instead.
+    if (context.mounted) await copyToClipboard(context, text, what: 'Invitation copied; paste it into a message');
+  }
 }
 
 class ReceiveScreen extends StatelessWidget {

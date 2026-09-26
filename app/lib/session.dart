@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'background.dart';
+import 'core/store.dart';
 
 import 'core/crypto.dart';
 import 'core/letters.dart';
@@ -105,35 +104,35 @@ class Session extends ChangeNotifier {
     node = Node(nodeUrls.first);
   }
 
-  Future<Directory> _dir() => getApplicationDocumentsDirectory();
-
   Future<void> init() async {
-    final d = await _dir();
-    walletPath = '${d.path}/wallet.json';
-    hasWalletFile = await File(walletPath!).exists();
-    final settings = File('${d.path}/settings.json');
-    if (await settings.exists()) {
+    final d = await storeDir();
+    walletPath = '${d}wallet.json';
+    hasWalletFile = await existsText(walletPath!);
+    final settings = await readText('${d}settings.json');
+    if (settings != null) {
       try {
-        final s = jsonDecode(await settings.readAsString()) as Map<String, dynamic>;
+        final s = jsonDecode(settings) as Map<String, dynamic>;
         final urls = (s['nodes'] as List?)?.cast<String>();
         if (urls != null && urls.isNotEmpty) nodeUrls = urls;
         backgroundChecks = (s['background'] as bool?) ?? true;
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
-    try {
-      await Workmanager().initialize(callbackDispatcher);
-      await initNotifications();
-    } catch (_) {}
-    final nick = File('${d.path}/contacts.json');
-    if (await nick.exists()) {
+    if (!kIsWeb) {
       try {
-        final m = jsonDecode(await nick.readAsString()) as Map<String, dynamic>;
+        await Workmanager().initialize(callbackDispatcher);
+        await initNotifications();
+      } catch (_) {}
+    }
+    final nick = await readText('${d}contacts.json');
+    if (nick != null) {
+      try {
+        final m = jsonDecode(nick) as Map<String, dynamic>;
         m.forEach((k, v) => _nicknames[k] = v as String);
       } catch (_) {}
     }
     light = await LightClient.open(Profile.mainnet, Network.genesisHash,
-        checkpointHeight: Network.checkpointHeight, checkpointHash: Network.checkpointHash, path: '${d.path}/headers-${Network.chainId}.json');
+        checkpointHeight: Network.checkpointHeight, checkpointHash: Network.checkpointHash, path: '${d}headers-${Network.chainId}.json');
     notifyListeners();
   }
 
@@ -142,8 +141,7 @@ class Session extends ChangeNotifier {
     if (nodeUrls.isEmpty) nodeUrls = List.of(Network.seeds);
     node = Node(nodeUrls.first);
     if (background != null) backgroundChecks = background;
-    final d = await _dir();
-    await File('${d.path}/settings.json').writeAsString(jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks}));
+    await writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks}));
     try {
       if (backgroundChecks && wallet != null) {
         await enableBackgroundChecks();
@@ -321,8 +319,7 @@ class Session extends ChangeNotifier {
     for (final c in contacts) {
       if (c.address == address) c.nickname = _nicknames[address] ?? '';
     }
-    final d = await _dir();
-    await File('${d.path}/contacts.json').writeAsString(jsonEncode(_nicknames));
+    await writeText('${await storeDir()}contacts.json', jsonEncode(_nicknames));
     notifyListeners();
   }
 
@@ -350,6 +347,8 @@ class Session extends ChangeNotifier {
     final info = chainParams ?? await node.params();
     final bits = (info['starter_claim_work_bits'] as int?) ?? 0;
     final tx = buildTx(type, w.address, await node.nextNonce(w.address), minFee, {...payload, 'work_nonce': 0}, Network.chainId);
+    // In the browser there is no second thread: give the busy sheet a frame to paint first.
+    if (kIsWeb) await Future<void>.delayed(const Duration(milliseconds: 80));
     final nonce = await compute(_grindInIsolate, {'tx': tx, 'bits': bits});
     (tx['payload'] as Map<String, dynamic>)['work_nonce'] = nonce;
     await w.sign(tx);

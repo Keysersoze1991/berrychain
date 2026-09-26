@@ -25,7 +25,7 @@ class WelcomeScreen extends StatelessWidget {
               const Text('Letters that only one person can open.', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600, height: 1.1)),
               const SizedBox(height: 14),
               const Text(
-                'Remember pen pals? A letter written to one person, carried a long way, opened by nobody else. BerryChain brings that back. Your letter is sealed on this phone, carried across the water by a crew that cannot read it, and opened only by the hand it was written for.',
+                'Remember pen pals? A letter written to one person, carried a long way, opened by nobody else. BerryChain brings that back. Your letter is sealed in $deviceThe, carried across the water by a crew that cannot read it, and opened only by the hand it was written for.',
                 style: TextStyle(color: Color(0xFFA9BACC), fontSize: 15.5, height: 1.45),
               ),
               const Spacer(),
@@ -76,11 +76,11 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text('The wallet lives on this phone, sealed with a passphrase you choose now. Next you will be shown twelve words: they rebuild the wallet on any phone or PC, so they matter more than the phone does.', style: TextStyle(height: 1.4)),
+            Text('The wallet lives in $deviceThe, sealed with a passphrase you choose now. Next you will be shown twelve words: they rebuild the wallet on any phone or PC, so they matter more than the $device does.', style: const TextStyle(height: 1.4)),
             const SizedBox(height: 18),
             TextField(controller: name, decoration: const InputDecoration(labelText: 'A name for this wallet (optional)')),
             const SizedBox(height: 12),
-            PassphraseField(controller: p1, label: 'Passphrase for this phone'),
+            PassphraseField(controller: p1, label: 'Passphrase for $deviceThe'),
             const SizedBox(height: 12),
             PassphraseField(controller: p2, label: 'Passphrase again', onSubmitted: (_) => create()),
             const SizedBox(height: 20),
@@ -104,7 +104,7 @@ class ShowPhraseScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text('Write these twelve words on paper, in order, and keep them somewhere other than with the phone. Anyone with the words has the wallet; without them, a lost phone means lost coins and letters.', style: TextStyle(height: 1.4)),
+          Text('Write these twelve words on paper, in order, and keep them somewhere other than with the $device. Anyone with the words has the wallet; without them, a lost $device means lost coins and letters.', style: const TextStyle(height: 1.4)),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -147,7 +147,7 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
   bool byFile = false;
 
   Future<void> recover() async {
-    if (p1.text.length < 8) return toast(context, 'Use a passphrase of at least 8 characters for this phone');
+    if (p1.text.length < 8) return toast(context, 'Use a passphrase of at least 8 characters for $deviceThe');
     if (p1.text != p2.text) return toast(context, 'The passphrases do not match');
     final s = SessionScope.of(context);
     try {
@@ -185,13 +185,13 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
             ),
             const SizedBox(height: 16),
             if (!byFile) ...[
-              const Text('Type the twelve words of your recovery phrase, in order. The same wallet, address and letters come back on this phone.', style: TextStyle(height: 1.4)),
+              Text('Type the twelve words of your recovery phrase, in order. The same wallet, address and letters come back in $deviceThe.', style: const TextStyle(height: 1.4)),
               const SizedBox(height: 14),
               TextField(controller: words, minLines: 3, maxLines: 4, autocorrect: false, enableSuggestions: false, decoration: const InputDecoration(labelText: 'Recovery phrase')),
               const SizedBox(height: 12),
               TextField(controller: name, decoration: const InputDecoration(labelText: 'A name for this wallet (optional)')),
               const SizedBox(height: 12),
-              PassphraseField(controller: p1, label: 'New passphrase for this phone'),
+              PassphraseField(controller: p1, label: 'New passphrase for $deviceThe'),
               const SizedBox(height: 12),
               PassphraseField(controller: p2, label: 'Passphrase again', onSubmitted: (_) => recover()),
               const SizedBox(height: 20),

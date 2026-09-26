@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -42,7 +43,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(onPressed: () => setState(() => nodes.text = Network.seeds.join('\n')), child: const Text('Reset to the seed nodes')),
           const Divider(height: 32),
           const Text('LETTERS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
-          ListenableBuilder(
+          if (kIsWeb)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('In the browser the letterbox is checked whenever this page is open. For a nudge when a letter arrives, install the phone app.', style: TextStyle(height: 1.4)),
+            ),
+          if (!kIsWeb) ListenableBuilder(
             listenable: s,
             builder: (context, _) => SwitchListTile(
               contentPadding: EdgeInsets.zero,

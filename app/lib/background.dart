@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:path_provider/path_provider.dart';
+import 'core/store.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'core/node.dart';
@@ -55,8 +54,8 @@ Future<void> disableBackgroundChecks() async {
 /// Remember where the app got to, so the background task only reports
 /// letters that arrived later. Also clears any badge, since the user is here.
 Future<void> markSeen({required String address, required int height, required List<String> nodes}) async {
-  final d = await getApplicationDocumentsDirectory();
-  await File('${d.path}/watch.json').writeAsString(jsonEncode({'address': address, 'height': height, 'nodes': nodes, 'seen': 0}));
+  if (kIsWeb) return;
+  await writeText('${await storeDir()}watch.json', jsonEncode({'address': address, 'height': height, 'nodes': nodes, 'seen': 0}));
   await notifications.cancelAll();
 }
 
@@ -75,10 +74,10 @@ void callbackDispatcher() {
 /// Returns true always (WorkManager retries on false); the outcome is the
 /// notification, or nothing.
 Future<bool> checkForLetters() async {
-  final d = await getApplicationDocumentsDirectory();
-  final f = File('${d.path}/watch.json');
-  if (!await f.exists()) return true;
-  final w = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+  final path = '${await storeDir()}watch.json';
+  final saved = await readText(path);
+  if (saved == null) return true;
+  final w = jsonDecode(saved) as Map<String, dynamic>;
   final address = w['address'] as String;
   final since = (w['height'] as int) + 1;
   final nodes = ((w['nodes'] as List?) ?? const ['https://seed1.berrychain.link', 'https://seed2.berrychain.link']).cast<String>();
@@ -105,7 +104,7 @@ Future<bool> checkForLetters() async {
       iOS: DarwinNotificationDetails(badgeNumber: fresh),
     ),
   );
-  await f.writeAsString(jsonEncode({...w, 'seen': fresh}));
+  await writeText(path, jsonEncode({...w, 'seen': fresh}));
   if (kDebugMode) debugPrint('background check: $fresh new letter(s)');
   return true;
 }

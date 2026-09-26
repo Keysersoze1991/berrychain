@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   s.nodeHeight == null
                       ? 'Not connected yet.'
-                      : 'Node at block ${s.nodeHeight}. Verified on this phone: ${s.verifiedHeight < 0 ? 'not yet' : 'block ${s.verifiedHeight}'}.',
+                      : 'Node at block ${s.nodeHeight}. Verified in $deviceThe: ${s.verifiedHeight < 0 ? 'not yet' : 'block ${s.verifiedHeight}'}.',
                   style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
                 ),
                 const SizedBox(height: 4),

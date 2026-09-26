@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'store.dart';
 
 import 'crypto.dart';
 import 'node.dart';
@@ -79,9 +79,10 @@ class LightClient {
   static Future<LightClient> open(Profile profile, String genesisHash,
       {int? checkpointHeight, String? checkpointHash, String? path, int window = 2880}) async {
     final lc = LightClient(profile, genesisHash, checkpointHeight: checkpointHeight, checkpointHash: checkpointHash, path: path, window: window);
-    if (path != null && await File(path).exists()) {
+    final saved = path == null ? null : await readText(path);
+    if (saved != null) {
       try {
-        final d = jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+        final d = jsonDecode(saved) as Map<String, dynamic>;
         if (d['genesis_hash'] == genesisHash) {
           lc.headers = (d['headers'] as List).cast<Map<String, dynamic>>();
           lc.work = BigInt.parse(d['work'] as String);
@@ -97,9 +98,7 @@ class LightClient {
   Future<void> save() async {
     final p = path;
     if (p == null) return;
-    final f = File('$p.tmp');
-    await f.writeAsString(jsonEncode({'genesis_hash': genesisHash, 'headers': headers, 'work': work.toString(), 'window_start': windowStart}), flush: true);
-    await f.rename(p);
+    await writeText(p, jsonEncode({'genesis_hash': genesisHash, 'headers': headers, 'work': work.toString(), 'window_start': windowStart}));
   }
 
   // --------------------------------------------------------------- rules

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'screens/home.dart';
@@ -12,6 +13,9 @@ void main() {
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
 const appVersion = '0.7.0';
+/// What the app is running on, for copy that says where the wallet lives.
+const device = kIsWeb ? 'browser' : 'phone';
+const deviceThe = kIsWeb ? 'this browser' : 'this phone';
 
 /// The chain's palette: open-water navy, straw gold, parchment.
 class Palette {
