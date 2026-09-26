@@ -112,22 +112,30 @@ jobs:
       - name: Install the certificate and profile
         run: |
           set -e
+          fail() { echo "::error::$1"; exit 1; }
           KEYCHAIN=$RUNNER_TEMP/build.keychain-db
           KEYPASS=$(uuidgen)
-          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/dist.p12
-          echo "$APPLE_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/app.mobileprovision
-          security create-keychain -p "$KEYPASS" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/dist.p12 || fail "APPLE_CERT_P12_BASE64 is not valid base64"
+          echo "$APPLE_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/app.mobileprovision || fail "APPLE_PROFILE_BASE64 is not valid base64"
+          echo "p12 bytes: $(wc -c < $RUNNER_TEMP/dist.p12), profile bytes: $(wc -c < $RUNNER_TEMP/app.mobileprovision)"
+          [ "$(wc -c < $RUNNER_TEMP/dist.p12)" -gt 1000 ] || fail "the decoded p12 is too small: APPLE_CERT_P12_BASE64 was probably pasted incompletely"
+          [ "$(wc -c < $RUNNER_TEMP/app.mobileprovision)" -gt 5000 ] || fail "the decoded profile is too small: APPLE_PROFILE_BASE64 was probably pasted incompletely"
+          openssl pkcs12 -in $RUNNER_TEMP/dist.p12 -passin "pass:$APPLE_CERT_PASSWORD" -noout -legacy 2>/dev/null             || openssl pkcs12 -in $RUNNER_TEMP/dist.p12 -passin "pass:$APPLE_CERT_PASSWORD" -noout 2>/dev/null             || fail "the p12 does not open with APPLE_CERT_PASSWORD (wrong password, or the p12 was pasted incompletely)"
+          security create-keychain -p "$KEYPASS" "$KEYCHAIN" || fail "create-keychain failed"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYPASS" "$KEYCHAIN"
-          security import $RUNNER_TEMP/dist.p12 -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYPASS" "$KEYCHAIN" > /dev/null
+          security unlock-keychain -p "$KEYPASS" "$KEYCHAIN" || fail "unlock-keychain failed"
+          security import $RUNNER_TEMP/dist.p12 -P "$APPLE_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN" || fail "security import of the p12 failed"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYPASS" "$KEYCHAIN" > /dev/null || fail "set-key-partition-list failed"
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          security find-identity -v -p codesigning "$KEYCHAIN" | head -3
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i $RUNNER_TEMP/app.mobileprovision)")
+          security cms -D -i $RUNNER_TEMP/app.mobileprovision > $RUNNER_TEMP/profile.plist || fail "the profile could not be decoded"
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' $RUNNER_TEMP/profile.plist) || fail "no UUID in the profile"
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' $RUNNER_TEMP/profile.plist) || fail "no Name in the profile"
           cp $RUNNER_TEMP/app.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
           echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
-          NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$(security cms -D -i $RUNNER_TEMP/app.mobileprovision)")
           echo "PROFILE_NAME=$NAME" >> $GITHUB_ENV
+          echo "installed profile '$NAME'"
       - name: Write export options
         run: |
           cat > $RUNNER_TEMP/ExportOptions.plist <<EOF
