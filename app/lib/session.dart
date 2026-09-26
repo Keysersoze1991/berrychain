@@ -24,6 +24,19 @@ class Network {
   static const checkpointHash = '000016e8e41005dc8b0bcc21f8d29a1c18a65712afac81e4c7871c6909324b8e';
   static const seeds = ['https://seed1.berrychain.link', 'https://seed2.berrychain.link'];
   static const harbourmaster = 'brry1eba16ee17764413d1c1aa73a5ba43521880b9e5f4dd010e2';
+  /// The Harbourmaster's purse, as published on berrychain.link. The prize and bonus halve
+  /// every 5,000 registered accounts (never below 0.5 BERRY); the welcome is flat.
+  static const welcomeTipBerry = '0.2';
+  static const prizeBerry = '5';
+  static const site = 'https://berrychain.link';
+
+  /// The note the share sheet sends to a friend.
+  static String invite(String address, String name) {
+    final who = name.isEmpty ? 'me' : '$name (that is me)';
+    return 'Hi! I am using BerryChain to send sealed letters: private mail only the person I write to can open. '
+        'Get the app at $site and write to $who at this address:\n\n$address\n\n'
+        'Your first letter to the Harbourmaster earns a small welcome, and the best letter each week wins a prize.';
+  }
 }
 
 class LetterItem {

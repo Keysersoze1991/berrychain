@@ -120,6 +120,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                Card(
+                  color: const Color(0xFFEEF3F8),
+                  child: ListTile(
+                    leading: const Icon(Icons.anchor, color: Palette.brass),
+                    title: const Text("The Harbourmaster's purse"),
+                    subtitle: const Text(
+                      'Write to the Harbourmaster and ${Network.welcomeTipBerry} BERRY rides back with his first reply. '
+                      'Each week the best letter he receives wins ${Network.prizeBerry} BERRY. Mine your first block on a PC with this '
+                      'address as the payout, and he sends ${Network.prizeBerry} BERRY more. The prizes shrink as the crew grows.',
+                      style: TextStyle(height: 1.35),
+                    ),
+                    trailing: IconButton(icon: const Icon(Icons.ios_share), tooltip: 'Tell a friend', onPressed: () => shareInvite(context)),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(children: [
                   Expanded(child: FilledButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),

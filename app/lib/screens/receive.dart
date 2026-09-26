@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../session.dart';
 
 import '../main.dart';
 import 'common.dart';
+
+/// Opens the phone's share sheet with a ready-made note: what BerryChain is,
+/// where to get the app, and this wallet's address to write to.
+Future<void> shareInvite(BuildContext context) async {
+  final s = SessionScope.of(context);
+  final w = s.wallet!;
+  final name = (s.registry?['name'] as String?) ?? '';
+  await SharePlus.instance.share(ShareParams(text: Network.invite(w.address, name), subject: 'Write to me on BerryChain'));
+}
 
 class ReceiveScreen extends StatelessWidget {
   const ReceiveScreen({super.key});
@@ -28,6 +40,12 @@ class ReceiveScreen extends StatelessWidget {
           SelectableText(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
           const SizedBox(height: 14),
           FilledButton.icon(icon: const Icon(Icons.copy), label: const Text('Copy address'), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.ios_share),
+            label: const Text('Tell a friend'),
+            onPressed: () => shareInvite(context),
+          ),
           const SizedBox(height: 18),
           const Text('Give this to anyone who wants to send you BERRY or a letter. Coins arrive whether or not the app is open; the chain holds them for you.', style: TextStyle(height: 1.4)),
           const SizedBox(height: 14),
