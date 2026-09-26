@@ -70,7 +70,16 @@ jobs:
       - run: flutter --version
       - run: flutter pub get
       - name: Build for iPhone without signing
-        run: flutter build ios --release --no-codesign
+        run: |
+          set +e
+          flutter build ios --release --no-codesign > build.log 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            grep -n -i -E "error:|error |failed|Undefined|not found|ambiguous" build.log | head -60 | while IFS= read -r line; do echo "::error::${line}"; done
+            tail -80 build.log
+          fi
+          exit $status
       - name: Report
         run: du -sh build/ios/iphoneos/Runner.app && echo "compiles for iPhone"
 
