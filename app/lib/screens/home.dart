@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/units.dart';
 import '../main.dart';
@@ -161,6 +162,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text('BERRY has no price and no exchange. It is a unit of account on this network, nothing more.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+                const SizedBox(height: 10),
+                Center(
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.open_in_new, size: 15),
+                    label: const Text('berrychain.link', style: TextStyle(fontSize: 13)),
+                    style: TextButton.styleFrom(foregroundColor: Palette.brass, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                    onPressed: () => launchUrl(Uri.parse(Network.site), mode: LaunchMode.externalApplication),
+                  ),
+                ),
               ],
             ),
           ),

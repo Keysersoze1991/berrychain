@@ -78,7 +78,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
           children: [
             Text('The wallet lives in $deviceThe, sealed with a passphrase you choose now. Next you will be shown twelve words: they rebuild the wallet on any phone or PC, so they matter more than the $device does.', style: const TextStyle(height: 1.4)),
             const SizedBox(height: 18),
-            TextField(controller: name, decoration: const InputDecoration(labelText: 'A name for this wallet (optional)')),
+            TextField(controller: name, decoration: const InputDecoration(labelText: 'Your name (optional)', helperText: 'How your letters are signed: the people you write to see it, the blockchain does not.', helperMaxLines: 2)),
             const SizedBox(height: 12),
             PassphraseField(controller: p1, label: 'Passphrase for $deviceThe'),
             const SizedBox(height: 12),
@@ -189,7 +189,7 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
               const SizedBox(height: 14),
               TextField(controller: words, minLines: 3, maxLines: 4, autocorrect: false, enableSuggestions: false, decoration: const InputDecoration(labelText: 'Recovery phrase')),
               const SizedBox(height: 12),
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'A name for this wallet (optional)')),
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'Your name (optional)', helperText: 'How your letters are signed: the people you write to see it, the blockchain does not.', helperMaxLines: 2)),
               const SizedBox(height: 12),
               PassphraseField(controller: p1, label: 'New passphrase for $deviceThe'),
               const SizedBox(height: 12),

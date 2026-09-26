@@ -12,7 +12,7 @@ void main() {
 }
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
-const appVersion = '0.7.0';
+const appVersion = '0.7.1';
 /// What the app is running on, for copy that says where the wallet lives.
 const device = kIsWeb ? 'browser' : 'phone';
 const deviceThe = kIsWeb ? 'this browser' : 'this phone';
