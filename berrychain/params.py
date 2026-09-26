@@ -138,6 +138,19 @@ MIN_FEE = 10_000                            # 0.0001 BERRY, paid to the miner
 # registered accounts on the chain (floor 1 seed): the more people use it, and the more a
 # Berry is worth, the cheaper a letter gets. Same idea as the shrinking onboarding grants.
 LETTER_FEE_HALVING_EVERY = 1_000
+# The Harbourmaster's purse. Policy of the standing pen pal (berrychain/agent.py), not
+# consensus: a flat welcome tip rides with its first reply to anyone; one letter a week wins a
+# prize; the first block a pen pal mines earns the same prize. Prize and bonus halve every
+# HARBOUR_HALVING_EVERY registered accounts, like the grants, and never fall below the floor.
+HARBOUR_WELCOME_TIP = SEEDS_PER_BERRY // 5   # 0.2 BERRY, flat, once per address
+HARBOUR_PRIZE = berry(5)                     # letter of the week, and a pen pal's first block
+HARBOUR_HALVING_EVERY = 5_000
+HARBOUR_PRIZE_FLOOR = SEEDS_PER_BERRY // 2   # 0.5 BERRY
+
+
+def harbour_prize(registered: int, base: int = HARBOUR_PRIZE) -> int:
+    """The weekly prize and first-block bonus at a given number of registered accounts."""
+    return max(HARBOUR_PRIZE_FLOOR, base >> (max(0, int(registered)) // HARBOUR_HALVING_EVERY))
 # Self-service onboarding. A brand-new address may CLAIM_STARTER once: the claim registers the
 # identity and pays it the current starter grant, and the transaction fee comes out of that grant,
 # so nobody has to fund a newcomer first. Two brakes on sybils: the txid must carry

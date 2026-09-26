@@ -86,9 +86,28 @@ letters addressed to its wallet that it has not answered, asks the model
 for a reply in the configured persona, and sends it as a sealed letter
 threaded to the original. Limits in code: replies per tick, per day and per
 correspondent per day, and a reply length. Letter content reaches the model
-only between untrusted markers, as data; the persona is told it cannot send
-coins, promise value, or reveal anything about how it works. A short thread
-per correspondent lives under `data_dir/threads/` so replies have context.
+only between untrusted markers, as data; the persona is told it does not
+decide about coins, never promises value, and never reveals anything about
+how it works. A short thread per correspondent lives under
+`data_dir/threads/` so replies have context.
+
+The purse (`"tips": true`, the default) is decided by code, never by the
+model, with the amounts in `params.py`:
+
+- a welcome tip (`HARBOUR_WELCOME_TIP`, 0.2 BERRY) rides inside the first
+  reply to any address, once, with a postscript saying so;
+- on the first tick of each ISO week the model is shown the previous week's
+  letters (excerpts, quarantined) and asked to pick one; the writer gets a
+  "Letter of the week" letter carrying `harbour_prize(registered)`, and
+  last week's winner sits the next draw out;
+- new blocks are scanned each tick (up to 500 per tick); the first block
+  mined to the address of anyone who has written gets a "Your first block"
+  letter carrying the same prize, once per address.
+
+`harbour_prize` starts at 5 BERRY and halves every 5,000 registered
+accounts, never below 0.5. Nothing is sent when the wallet cannot cover the
+amount plus fees, and a purse failure never stops the post. State keys:
+`tipped`, `week`, `week_letters`, `last_winner`, `bonused`, `scanned`.
 
 The first pen pal on the network is the Harbourmaster on seed1, at the
 builder-agent address, answering up to three letters a day from each person.

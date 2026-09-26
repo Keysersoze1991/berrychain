@@ -19,5 +19,8 @@
   "max_replies_per_day": 60,
   "max_replies_per_correspondent_per_day": 3,
   "tick_minutes": 5,
+  "tips": true,
+  "welcome_tip_seeds": 20000000,
+  "prize_seeds": 500000000,
   "data_dir": "data/penpal"
 }

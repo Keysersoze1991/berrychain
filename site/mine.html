@@ -40,13 +40,23 @@
     <div class="hero">
       <p class="eyebrow">Guide · Mining</p>
       <h1>Mine <img class="sym" src="berry-symbol-gold.svg" alt="">BERRY from your PC</h1>
-    <p class="lede">Every block pays 10 BERRY to whoever finds it. Mining is plain CPU work in Python: no graphics card needed, no special hardware, no account. This page walks through it click by click on Windows. Linux and Mac notes are at the end.</p>
+    <p class="lede">Every block pays 10 BERRY to whoever finds it. Mining is plain CPU work in Python: no graphics card needed, no special hardware, no account. Point it at the address in your phone app and the coins land there. This page walks through it click by click on Windows. Linux and Mac notes are at the end.</p>
     </div>
   </div>
   <svg class="wave" viewBox="0 0 1200 40" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path fill="currentColor" d="M0 22c100 12 200 12 300 0s200-12 300 0 200 12 300 0 200-12 300 0v18H0z"/></svg>
 </div>
 
 <main class="wrap guide">
+  <div class="card">
+    <strong>What you need.</strong> A Windows, Linux or Mac PC that can stay on, and three free downloads. Parts B and C install them with one pasted line each; if you would rather click, these are the same things:
+    <ul>
+      <li><a href="https://www.python.org/downloads/">Python 3.12 or newer</a>, the language the miner is written in. On Windows tick <em>Add python.exe to PATH</em> in the installer.</li>
+      <li><a href="https://git-scm.com/downloads">Git</a>, which downloads the BerryChain code and later updates it with one command.</li>
+      <li><a href="https://github.com/Keysersoze1991/berrychain">The BerryChain code</a> itself: Part C fetches it with git, or use <a href="https://github.com/Keysersoze1991/berrychain/archive/refs/heads/main.zip">the zip</a> and unpack it to <code>C:\berrychain</code>.</li>
+    </ul>
+    <p style="margin:0">Already have the app? Then you already have the wallet: skip Part D and use the address from the app's Receive screen. Your first block earns a bonus from the <a href="index.html#harbourmaster">Harbourmaster's purse</a> if you have written to him.</p>
+  </div>
+
   <div class="card">
     <strong>Before you start, three honest things.</strong>
     <ul>
@@ -86,8 +96,9 @@
 <pre>pip install -r requirements.txt</pre></li>
   </ol>
 
-  <h2><span class="part">Part D</span>Create the wallet your rewards go to</h2>
-  <p class="muted">More on wallets, backups and sending coins: <a href="wallet.html">the wallet guide</a>.</p>
+  <h2><span class="part">Part D</span>Choose the wallet your rewards go to</h2>
+  <p><strong>If you have the phone app,</strong> use it: open the app, tap <em>Receive</em>, tap <em>Copy address</em>, and paste that <code>brry1…</code> address in Part E. Every block your PC finds then lands on your phone, the Harbourmaster's first-block bonus finds you, and there is no second wallet to back up. Skip the rest of this part.</p>
+  <p><strong>If you would rather keep mining separate,</strong> make a wallet on the PC. More on wallets, backups and sending coins: <a href="wallet.html">the wallet guide</a>.</p>
   <ol>
     <li>Paste this and press Enter:
 <pre>python -m berrychain.cli wallet new keys\miner.json --label miner --encrypt</pre></li>
@@ -106,7 +117,7 @@
 <pre>curl http://127.0.0.1:8801/status</pre>
     You should see a line of text including <code>"height":</code> followed by a number. That number should be close to the block height shown on the <a href="index.html#live">home page</a>. If it's far behind, it's still downloading the chain; check again in a minute.</li>
   </ol>
-  <p>That's it. Your PC is now mining. Rewards appear in your wallet as blocks are found; check your balance any time with:</p>
+  <p>That's it. Your PC is now mining. Rewards appear in your wallet as blocks are found: on the phone if you used the app's address, or from the PC with:</p>
 <pre>python -m berrychain.cli --node https://seed1.berrychain.link balance brry1…</pre>
 
   <h2>Stopping, restarting, updating</h2>
