@@ -132,6 +132,19 @@ starts at 0. The walk now ends with a look at the genesis. Tests:
 
 ## Still open (needs work before real value is at stake)
 
+- **Rotating receiving keys (queued for the next chain upgrade).** A
+  letter is sealed to a long-lived X25519 key, so a leaked key opens every
+  past letter to that address, and the ledger keeps them forever. Plan: a
+  `ROTATE_KEY` transaction, signed by the account's Ed25519 key, publishing
+  a fresh receiving key; the state keeps each key with the height it took
+  effect and `recipient_key` returns the current one. Wallets derive
+  numbered receiving keys from the recovery phrase (HKDF with an index) so
+  the twelve words still restore everything, and `open_letter` picks the
+  key that was current at the letter's block. The app rotates on a schedule
+  and on demand. Rolled out with an activation height a few days ahead so
+  seeds and miners update first; balances, names and letters are untouched.
+  It limits what a leaked key exposes to letters since the last rotation; it
+  does not help if the recovery phrase itself leaks.
 - **Fair exchange.** The chain proves the seller released *a key matching
   the listing*, not that the content is worth anything. Mitigations are
   ratings, refund on non-delivery and small purchases first. Seller bonds
