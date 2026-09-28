@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from berrychain import params  # noqa: E402
 from berrychain.chain import Chain  # noqa: E402
-from berrychain.node import Node  # noqa: E402
+from berrychain.node import Node, make_handler  # noqa: E402
 from berrychain.wallet import Wallet  # noqa: E402
 from test_chain import Harness  # noqa: E402
 
@@ -134,3 +134,34 @@ class PersistenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HttpTests(unittest.TestCase):
+    """The HTTP face of a node: browsers preflight a JSON POST with OPTIONS and
+    need the CORS headers back, or the letterbox in a browser cannot send."""
+
+    def test_options_preflight_and_cors_headers(self):
+        import http.client
+        import threading
+        from http.server import ThreadingHTTPServer
+        h = Harness(founders=1)
+        node = Node(h.chain)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(node))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        port = server.server_address[1]
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("OPTIONS", "/tx", headers={"Origin": "https://berrychain.link", "Access-Control-Request-Method": "POST",
+                                            "Access-Control-Request-Headers": "content-type"})
+        r = c.getresponse()
+        r.read()
+        self.assertEqual(r.status, 204)
+        self.assertEqual(r.getheader("Access-Control-Allow-Origin"), "*")
+        self.assertIn("POST", r.getheader("Access-Control-Allow-Methods"))
+        self.assertIn("Content-Type", r.getheader("Access-Control-Allow-Headers"))
+        c.request("GET", "/status", headers={"Origin": "https://berrychain.link"})
+        r = c.getresponse()
+        body = r.read()
+        self.assertEqual(r.status, 200)
+        self.assertEqual(r.getheader("Access-Control-Allow-Origin"), "*")
+        self.assertIn(b'"height"', body)
