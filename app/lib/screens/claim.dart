@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../core/units.dart';
@@ -16,7 +17,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
   Future<void> claim() async {
     if (name.text.trim().isEmpty) return toast(context, 'Pick a name');
     final s = SessionScope.of(context);
-    final amount = await runBusy(context, 'Working for your starter. The phone hashes for a little while to prove you are one person, not a thousand. Keep the app open.', () => s.claimStarter(name.text.trim()));
+    final amount = await runBusy(context, kIsWeb ? 'Working for your starter. The browser hashes to prove you are one person, not a thousand; this can take a few minutes here, longer than on a phone. Keep this tab open and in front.' : 'Working for your starter. The phone hashes for a little while to prove you are one person, not a thousand. Keep the app open.', () => s.claimStarter(name.text.trim()), progress: s.claimProgress);
     if (amount != null && mounted) {
       await showDialog<void>(
         context: context,
@@ -40,7 +41,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
         children: [
           Text('Every new account gets ${s.starterAmount == null ? 'a starter grant' : '${formatBerry(s.starterAmount!)} BERRY'} from the treasury, and claims it itself. The claim also publishes your name and receiving key on the chain, which is what lets people send you letters. Once per wallet.', style: const TextStyle(height: 1.4)),
           const SizedBox(height: 10),
-          const Text('The starter halves every 10,000 claims, so the earlier you claim, the more you get. The name is public; the phone does a few seconds of work before the chain accepts the claim.', style: TextStyle(color: Color(0xFF6F7883), height: 1.4)),
+          Text('The starter halves every 10,000 claims, so the earlier you claim, the more you get. The name is public; the $device does some work before the chain accepts the claim: seconds on a phone, a few minutes in a browser.', style: const TextStyle(color: Color(0xFF6F7883), height: 1.4)),
           const SizedBox(height: 18),
           TextField(controller: name, decoration: const InputDecoration(labelText: 'Your name on the chain'), onSubmitted: (_) => claim()),
           const SizedBox(height: 20),

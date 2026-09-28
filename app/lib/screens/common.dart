@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -75,11 +76,28 @@ class _PassphraseFieldState extends State<PassphraseField> {
 }
 
 /// Runs [action] with a blocking progress dialog; shows errors as a toast.
-Future<T?> runBusy<T>(BuildContext context, String message, Future<T> Function() action) async {
+Future<T?> runBusy<T>(BuildContext context, String message, Future<T> Function() action, {ValueListenable<String>? progress}) async {
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => AlertDialog(content: Row(children: [const CircularProgressIndicator(), const SizedBox(width: 20), Expanded(child: Text(message))])),
+    builder: (_) => AlertDialog(
+      content: Row(children: [
+        const CircularProgressIndicator(),
+        const SizedBox(width: 20),
+        Expanded(
+          child: progress == null
+              ? Text(message)
+              : ValueListenableBuilder<String>(
+                  valueListenable: progress,
+                  builder: (_, p, __) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [Text(message), if (p.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(p, style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)))],
+                  ),
+                ),
+        ),
+      ]),
+    ),
   );
   try {
     final r = await action();

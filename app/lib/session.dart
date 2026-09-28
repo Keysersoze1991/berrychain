@@ -342,14 +342,29 @@ class Session extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------- acts
+  /// Live text for the busy sheet while a claim grinds ("1,200,000 tries so far").
+  final ValueNotifier<String> claimProgress = ValueNotifier('');
+
   Future<Map<String, dynamic>> _claim(String type, Map<String, dynamic> payload) async {
     final w = wallet!;
     final info = chainParams ?? await node.params();
     final bits = (info['starter_claim_work_bits'] as int?) ?? 0;
     final tx = buildTx(type, w.address, await node.nextNonce(w.address), minFee, {...payload, 'work_nonce': 0}, Network.chainId);
-    // In the browser there is no second thread: give the busy sheet a frame to paint first.
-    if (kIsWeb) await Future<void>.delayed(const Duration(milliseconds: 80));
-    final nonce = await compute(_grindInIsolate, {'tx': tx, 'bits': bits});
+    claimProgress.value = '';
+    final int nonce;
+    if (kIsWeb) {
+      // One thread in a browser: grind in slices so the page stays alive and the count moves.
+      var last = 0;
+      nonce = await grindClaimAsync(tx, bits, onProgress: (n) {
+        if (n - last >= 50000) {
+          last = n;
+          claimProgress.value = '${formatCount(n)} tries so far';
+        }
+      });
+    } else {
+      nonce = await compute(_grindInIsolate, {'tx': tx, 'bits': bits});
+    }
+    claimProgress.value = '';
     (tx['payload'] as Map<String, dynamic>)['work_nonce'] = nonce;
     await w.sign(tx);
     await node.sendTx(tx);
@@ -416,6 +431,16 @@ class Session extends ChangeNotifier {
     if (ct.isEmpty || toHex(sha256(ct)) != full['ciphertext_hash']) throw StateError('the node served a letter that does not match the chain');
     return openLetter(await decryptPacket(key, ct));
   }
+}
+
+String formatCount(int n) {
+  final s = n.toString();
+  final out = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) out.write(',');
+    out.write(s[i]);
+  }
+  return out.toString();
 }
 
 int _grindInIsolate(Map<String, dynamic> args) =>

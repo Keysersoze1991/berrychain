@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> claim(EarnedGrant g) async {
     final s = SessionScope.of(context);
-    final amount = await runBusy(context, 'Working for your ${g.title.toLowerCase()}. The phone hashes for a little while. Keep the app open.', () => s.claimGrant(g));
+    final amount = await runBusy(context, 'Working for your ${g.title.toLowerCase()}. The phone hashes for a little while. Keep the app open.', () => s.claimGrant(g), progress: s.claimProgress);
     if (amount != null && mounted) {
       toast(context, '${formatBerry(amount)} BERRY on its way; it lands with the next block.');
       s.refresh();

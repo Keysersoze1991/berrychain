@@ -58,3 +58,32 @@ int grindClaim(Map<String, dynamic> tx, int bits, {void Function(int tries)? onP
   assert(bits == 0 || bigFromBytes(fromHex(txid(tx))) < limit);
   return n;
 }
+
+/// The same grind, but it hands control back to the event loop every few
+/// thousand tries. In a browser there is no second thread, and a loop that
+/// never yields freezes the page until the browser offers to kill it (Edge
+/// does so quickly). Yielding keeps the busy sheet painting and lets
+/// [onProgress] show the count.
+Future<int> grindClaimAsync(Map<String, dynamic> tx, int bits, {void Function(int tries)? onProgress, int chunk = 4096}) async {
+  (tx['payload'] as Map<String, dynamic>)['work_nonce'] = 0;
+  final template = canonicalJson(signableBody(tx));
+  const marker = '"work_nonce":0';
+  final at = template.indexOf(marker);
+  if (at < 0 || template.indexOf(marker, at + 1) >= 0) throw StateError('cannot grind this claim');
+  final head = template.substring(0, at + '"work_nonce":'.length).codeUnits;
+  final tail = template.substring(at + marker.length).codeUnits;
+  final limit = BigInt.one << (256 - bits);
+  var n = 0;
+  while (true) {
+    for (var i = 0; i < chunk; i++) {
+      final digest = sha256([...head, ...n.toString().codeUnits, ...tail]);
+      if (bits == 0 || bigFromBytes(digest) < limit) {
+        (tx['payload'] as Map<String, dynamic>)['work_nonce'] = n;
+        return n;
+      }
+      n++;
+    }
+    onProgress?.call(n);
+    await Future<void>.delayed(Duration.zero);
+  }
+}
