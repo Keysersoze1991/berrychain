@@ -183,3 +183,4 @@ footer .hat svg { width: 22px; height: 22px; }
   td.num { white-space: normal; }
   nav { gap: 2px 12px; font-size: 13.5px; }
 }
+.tagline { font-family: Fraunces, Georgia, serif; font-style: italic; font-size: 21px; color: var(--gold); margin: 18px 0 6px; letter-spacing: .005em; }
