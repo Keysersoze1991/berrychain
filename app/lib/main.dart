@@ -14,8 +14,11 @@ void main() {
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
 const appVersion = '0.7.1';
 /// What the app is running on, for copy that says where the wallet lives.
-const device = kIsWeb ? 'browser' : 'phone';
-const deviceThe = kIsWeb ? 'this browser' : 'this phone';
+/// A web build made for store screenshots (--dart-define=SHOTS=true) speaks as the phone app.
+const shots = bool.fromEnvironment('SHOTS');
+const isBrowser = kIsWeb && !shots;
+const device = isBrowser ? 'browser' : 'phone';
+const deviceThe = isBrowser ? 'this browser' : 'this phone';
 
 /// The chain's palette: open-water navy, straw gold, parchment.
 class Palette {

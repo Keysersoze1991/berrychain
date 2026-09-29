@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../core/units.dart';
@@ -17,7 +16,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
   Future<void> claim() async {
     if (name.text.trim().isEmpty) return toast(context, 'Pick a name');
     final s = SessionScope.of(context);
-    final amount = await runBusy(context, kIsWeb ? 'Working for your starter. The browser hashes to prove you are one person, not a thousand; this can take a few minutes here, longer than on a phone. Keep this tab open and in front.' : 'Working for your starter. The phone hashes for a little while to prove you are one person, not a thousand. Keep the app open.', () => s.claimStarter(name.text.trim()), progress: s.claimProgress);
+    final amount = await runBusy(context, isBrowser ? 'Working for your starter. The browser hashes to prove you are one person, not a thousand; this can take a few minutes here, longer than on a phone. Keep this tab open and in front.' : 'Working for your starter. The phone hashes for a little while to prove you are one person, not a thousand. Keep the app open.', () => s.claimStarter(name.text.trim()), progress: s.claimProgress);
     if (amount != null && mounted) {
       await showDialog<void>(
         context: context,
