@@ -269,6 +269,16 @@ class Node:
         }
 
 
+def key_history(rec: dict) -> dict:
+    """Every receiving key an account has published, oldest first, with the
+    wrapped backup of each rotated key (None when the owner chose not to)."""
+    first = rec.get("registration_enc_pub") or rec["enc_pub"]
+    keys = [{"enc_pub": first, "height": rec.get("registered_height", 0), "backup": None, "root": True}]
+    for r in rec.get("rotations", []):
+        keys.append({"enc_pub": r["enc_pub"], "height": r["height"], "backup": r.get("backup"), "root": False})
+    return {"current": rec["enc_pub"], "keys": keys}
+
+
 def make_handler(node: Node):
     class Handler(BaseHTTPRequestHandler):
         server_version = "BerryChain/0.2"
@@ -347,6 +357,8 @@ def make_handler(node: Node):
                                    "min_fee": params.MIN_FEE, "letter_fee": st.letter_fee(),
                                    "letter_fee_halving_every": params.LETTER_FEE_HALVING_EVERY,
                                    "starter_claim_work_bits": c.profile.get("starter_claim_work_bits", 0),
+                                   "rotate_key_activation": c.profile.get("rotate_key_activation", 0),
+                                   "key_grace_blocks": params.KEY_GRACE_BLOCKS,
                                    "starter_claims_per_block": params.STARTER_CLAIMS_PER_BLOCK,
                                    "grant_claims_per_block": params.GRANT_CLAIMS_PER_BLOCK,
                                    "founding_min_correspondents": params.FOUNDING_MIN_CORRESPONDENTS,
@@ -366,6 +378,11 @@ def make_handler(node: Node):
                                    "llm": st.llms.get(arg), "reputation": st.reputation.get(arg),
                                    "correspondents": st.correspondents(arg),
                                    "is_registrar": arg in st.registrars})
+            if head == "keys" and arg:
+                rec = st.llms.get(arg)
+                if rec is None:
+                    return self._error("not registered", 404)
+                return self._send(key_history(rec))
             if head == "block" and arg:
                 if arg.isdigit():
                     h = int(arg)

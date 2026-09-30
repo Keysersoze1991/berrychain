@@ -100,8 +100,15 @@ class FakeNode(BerryClient):
                 if q.get(k):
                     items = [e for e in items if e[k] == q[k]]
             out = {"escrows": items}
+        elif head == "keys":
+            from berrychain.node import key_history
+            rec = st.llms.get(arg)
+            if rec is None:
+                raise AssertionError("not registered")
+            out = key_history(rec)
         elif head == "params":
             out = {"starter_claim_work_bits": c.profile.get("starter_claim_work_bits", 0),
+                   "rotate_key_activation": c.profile.get("rotate_key_activation", 0), "key_grace_blocks": params.KEY_GRACE_BLOCKS,
                    "starter_amount": st.grant_amount("starter", c.height + 1), "min_fee": params.MIN_FEE,
                    "current_amounts": {t: st.grant_amount(t, c.height + 1) for t in params.GRANT_TIERS}}
         elif head == "letters":

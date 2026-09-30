@@ -787,8 +787,12 @@ class State:
         enc_pub = p.get("enc_pub")
         if reg is not None:
             if enc_pub is not None and enc_pub != reg["enc_pub"]:
-                raise TxError("enc_pub does not match the recipient's registered key")
-            enc_pub = reg["enc_pub"]
+                prev = reg.get("prev_enc_pub")
+                since = reg.get("enc_since", 0)
+                if not (prev == enc_pub and height - since <= params.KEY_GRACE_BLOCKS):
+                    raise TxError("enc_pub does not match the recipient's current receiving key")
+            else:
+                enc_pub = reg["enc_pub"]
         elif not is_valid_enc_pub(enc_pub):
             raise TxError("recipient is not registered; supply their X25519 enc_pub")
         amount = p.get("amount", 0)
@@ -838,6 +842,38 @@ class State:
             "wrapped_key": dict(wk),
             "amount": amount,
         }
+
+    def _apply_rotate_key(self, tx, height):
+        """Publish a fresh receiving key for a registered account. The old key
+        keeps accepting letters for KEY_GRACE_BLOCKS. `backup`, if present, is
+        the new private key wrapped to the account's root key so the recovery
+        words can restore it; its absence is a deliberate choice."""
+        activation = self.profile.get("rotate_key_activation", 0)
+        if height < activation:
+            raise TxError(f"ROTATE_KEY is not active until height {activation}")
+        rec = self.llms.get(tx["from"])
+        if rec is None:
+            raise TxError("only a registered account can rotate its receiving key")
+        p = tx["payload"]
+        new = p.get("enc_pub")
+        if not is_valid_enc_pub(new):
+            raise TxError("enc_pub must be a 32-byte hex X25519 public key")
+        if new == rec["enc_pub"] or any(r["enc_pub"] == new for r in rec.get("rotations", [])):
+            raise TxError("that key has been used by this account before")
+        backup = p.get("backup")
+        if backup is not None:
+            if not isinstance(backup, dict) or set(backup) != {"epk", "nonce", "ct"}:
+                raise TxError("backup must be {epk, nonce, ct} hex strings or absent")
+            _hex(backup["epk"], 32, "backup.epk")
+            _hex(backup["nonce"], 12, "backup.nonce")
+            _hex(backup["ct"], 48, "backup.ct")
+        self._require_funds(tx["from"], 0, tx["fee"])
+        self._touch(self.llms, tx["from"])
+        rec.setdefault("registration_enc_pub", rec["enc_pub"])
+        rec["prev_enc_pub"] = rec["enc_pub"]
+        rec["enc_pub"] = new
+        rec["enc_since"] = height
+        rec.setdefault("rotations", []).append({"enc_pub": new, "height": height, "backup": dict(backup) if backup else None})
 
     def _apply_rate_seller(self, tx, height):
         p = tx["payload"]

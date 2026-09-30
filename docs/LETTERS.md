@@ -113,6 +113,31 @@ normal one.
 Plain text or bytes sent by another client still open; they come back as
 a body with no subject.
 
+## Rotating your receiving key
+
+Every letter is sealed to the recipient's X25519 receiving key. From the
+activation height (`rotate_key_activation` in `/params`; 14,400 on mainnet)
+an account can publish a fresh key:
+
+```
+python -m berrychain.cli rotate-key keys/me.json              # backed up: the words restore it
+python -m berrychain.cli rotate-key keys/me.json --no-backup  # lives only in this file
+```
+
+Senders always use the current key (`/account` or `/keys/<address>`). A
+letter sealed to the key just replaced is still accepted for 120 blocks, so
+one composed during a rotation is not lost. The wallet keeps every key it
+has held and opens each letter with the key it was sealed to.
+
+A backed-up rotation carries the new private key inside the transaction,
+wrapped to the wallet's root key (the one the twelve words derive), so a
+wallet rebuilt from its words gets it back with
+`recover-keys`. A rotation made with `--no-backup` is a deliberate choice:
+that key exists only in the wallet file, and burning it there makes every
+letter sealed to it unreadable for good, words or no words. A wallet
+recovered from words whose current published key was never backed up should
+rotate again so senders seal to a key it holds; `recover-keys` says so.
+
 ## Transaction
 
 `SEND_LETTER`, single signer. Its minimum fee is `MIN_FEE >> (registered_accounts // LETTER_FEE_HALVING_EVERY)`, floor one seed, so letters get cheaper as the chain gains users; `GET /status` reports the current `letter_fee` and clients pay exactly that. Payload:

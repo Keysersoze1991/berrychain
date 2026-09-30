@@ -43,7 +43,7 @@ from . import crypto, tx as T
 
 PASSPHRASE_ENV = "BERRY_WALLET_PASSPHRASE"
 SCRYPT_N, SCRYPT_R, SCRYPT_P = 1 << 15, 8, 1          # ~32 MB, ~0.1 s on a laptop
-_SECRET_FIELDS = ("sign_priv", "enc_priv", "packet_keys", "mnemonic")
+_SECRET_FIELDS = ("sign_priv", "enc_priv", "packet_keys", "mnemonic", "enc_keys", "enc_root_priv")
 _AAD = b"berry-wallet-v1"
 
 
@@ -112,6 +112,39 @@ class Wallet:
         self.mnemonic: str | None = d.get("mnemonic")      # recovery phrase, if the wallet was made from one
         self.address = crypto.address_from_pubkey(self.sign_pub)
         self.packet_keys: dict[str, str] = dict(d.get("packet_keys", {}))
+        # Receiving keys. The root key is the one the words derive (or the one the
+        # wallet was created with); rotated keys are random and live here, mapped
+        # public -> private. `enc_priv`/`enc_pub` are whichever key is current.
+        self.enc_root_priv: str = d.get("enc_root_priv") or self.enc_priv
+        self.enc_keys: dict[str, str] = dict(d.get("enc_keys", {}))
+        self.enc_keys.setdefault(crypto.encryption_public_from_private(self.enc_root_priv), self.enc_root_priv)
+        self.enc_keys.setdefault(self.enc_pub, self.enc_priv)
+
+    @property
+    def root_enc_pub(self) -> str:
+        return crypto.encryption_public_from_private(self.enc_root_priv)
+
+    def key_for(self, enc_pub: str) -> str | None:
+        """The private half of one of this wallet's receiving keys, or None if
+        the wallet does not hold it (rotated elsewhere without a backup, burned,
+        or not yet recovered from the chain)."""
+        return self.enc_keys.get(enc_pub)
+
+    def add_key(self, enc_priv: str, enc_pub: str | None = None, current: bool = True) -> str:
+        """Remember a receiving key; by default it becomes the current one."""
+        enc_pub = enc_pub or crypto.encryption_public_from_private(enc_priv)
+        self.enc_keys[enc_pub] = enc_priv
+        if current:
+            self.enc_priv, self.enc_pub = enc_priv, enc_pub
+        return enc_pub
+
+    def burn_key(self, enc_pub: str) -> bool:
+        """Forget a receiving key for good. The root key cannot be burned (the
+        words would just bring it back); the current key cannot be burned
+        either, rotate first."""
+        if enc_pub in (self.root_enc_pub, self.enc_pub):
+            return False
+        return self.enc_keys.pop(enc_pub, None) is not None
 
     # ------------------------------------------------------------ files
     @classmethod
@@ -158,7 +191,8 @@ class Wallet:
 
     def to_dict(self) -> dict:
         pub = {"label": self.label, "address": self.address, "sign_pub": self.sign_pub, "enc_pub": self.enc_pub}
-        secrets = {"sign_priv": self.sign_priv, "enc_priv": self.enc_priv, "packet_keys": self.packet_keys}
+        secrets = {"sign_priv": self.sign_priv, "enc_priv": self.enc_priv, "packet_keys": self.packet_keys,
+                   "enc_keys": self.enc_keys, "enc_root_priv": self.enc_root_priv}
         if self.mnemonic:
             secrets["mnemonic"] = self.mnemonic
         if self.passphrase:

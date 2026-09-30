@@ -116,6 +116,7 @@ PROFILES = {
         "escrow_timeout_blocks": 1440,      # ~1 day
         "min_confirmations": 6,             # depth a client wants before acting on a purchase
         "starter_claim_work_bits": 22,      # leading zero bits a CLAIM_STARTER txid must carry (~4M hashes, a few seconds)
+        "rotate_key_activation": 14400,     # first height at which ROTATE_KEY is valid (announced ahead; nodes update before it)
     },
     "devnet": {
         "chain_id": "berry-dev",
@@ -126,6 +127,7 @@ PROFILES = {
         "escrow_timeout_blocks": 5,
         "min_confirmations": 1,
         "starter_claim_work_bits": 6,
+        "rotate_key_activation": 0,
     },
 }
 
@@ -156,6 +158,13 @@ def harbour_prize(registered: int, base: int = HARBOUR_PRIZE) -> int:
 # so nobody has to fund a newcomer first. Two brakes on sybils: the txid must carry
 # starter_claim_work_bits of proof-of-work (profile), and a block accepts at most this many claims.
 STARTER_CLAIMS_PER_BLOCK = 10
+# Rotating receiving keys. An account may publish a fresh X25519 key with ROTATE_KEY (from the
+# profile's activation height). Letters sealed to the key it replaced are still accepted for
+# KEY_GRACE_BLOCKS afterwards, so a letter composed just before a rotation is not lost. The
+# rotation may carry a `backup`: the new private key wrapped to the wallet's root key (the one
+# derived from the recovery words), so the words restore it; without one the key lives only on
+# the device that made it, and burning it there makes its letters unreadable for good.
+KEY_GRACE_BLOCKS = 120
 REGISTRY_KINDS = ("llm", "person")
 MAX_PACKET_INLINE_BYTES = 32 * 1024         # inline ciphertext limit (hex-encoded it must fit MAX_TX_BYTES)
 MAX_MEMO_BYTES = 256

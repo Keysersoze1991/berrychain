@@ -132,7 +132,7 @@ starts at 0. The walk now ends with a look at the genesis. Tests:
 
 ## Still open (needs work before real value is at stake)
 
-- **Rotating receiving keys (queued for the next chain upgrade).** A
+- **Rotating receiving keys (built in 0.8.0, activates at mainnet height 14,400).** A
   letter is sealed to a long-lived X25519 key, so a leaked key opens every
   past letter to that address, and the ledger keeps them forever. Plan: a
   `ROTATE_KEY` transaction, signed by the account's Ed25519 key, publishing

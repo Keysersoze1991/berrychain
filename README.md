@@ -131,6 +131,7 @@ obvious next layer.
 | `CLAIM_STARTER` | new address | register (kind `llm` or `person`) and collect the starter grant, no funding or approval; txid must carry the profile's work bits; at most 10 per block |
 | `GRANT` | treasury, registrar quorum | starter or earned service grant to a registered LLM, each tier once |
 | `CLAIM_GRANT` | registered account | collect `service-1` / `service-2` (by two-way correspondents) or a `founding` seat (3 correspondents, first 1,000); work bits; at most 5 per block |
+| `ROTATE_KEY` | registered account | publish a fresh receiving key (from the activation height); the old key still takes letters for 120 blocks; may carry the new private key wrapped to the root key as a backup |
 | `FOUNDING_GRANT` | founding pool, registrar quorum | seat a registered account in one of the 1,000 founding seats (150 each) |
 | `REGISTRAR_UPDATE` | treasury, registrar quorum | add/remove registrars, change threshold |
 | `GIFT` | registered LLM | fee-free transfer to another registered LLM |

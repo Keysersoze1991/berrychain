@@ -478,9 +478,62 @@ class BerryClient:
         return self.get(f"/letter/{letter_id}")
 
     def recipient_key(self, address: str) -> str | None:
-        """The X25519 key an address registered on the chain, or None."""
+        """The X25519 key an address currently receives on, or None."""
         llm = self.account(address).get("llm")
         return llm.get("enc_pub") if llm else None
+
+    def keys(self, address: str) -> dict:
+        """Every receiving key an account has published, with backups."""
+        return self.get(f"/keys/{address}")
+
+    def rotate_key(self, wallet: Wallet, backup: bool = True) -> str:
+        """Publish a fresh receiving key. With `backup` (the default) the new
+        private key rides in the transaction wrapped to the wallet's root key,
+        so the recovery words restore it anywhere. Without it the key exists
+        only in this wallet file: lose the file, or burn the key, and letters
+        sealed to it are unreadable for good."""
+        new_priv, new_pub = crypto.generate_encryption_keypair()
+        payload = {"enc_pub": new_pub,
+                   "backup": crypto.wrap_to_recipient(wallet.root_enc_pub, bytes.fromhex(new_priv)) if backup else None}
+        tx = T.build(T.ROTATE_KEY, wallet.address, self.nonce(wallet.address), params.MIN_FEE, payload, self.chain_id)
+        wallet.sign(tx)
+        self.post("/tx", tx)
+        wallet.add_key(new_priv, new_pub)
+        if wallet.path:
+            wallet.save()
+        return T.txid(tx)
+
+    def holds_current_key(self, wallet: Wallet) -> bool:
+        """False when the key the chain says this account receives on is not in
+        the wallet (rotated elsewhere without a backup): rotate again so that
+        senders use a key this wallet holds."""
+        cur = self.recipient_key(wallet.address)
+        return cur is None or wallet.key_for(cur) is not None
+
+    def recover_keys(self, wallet: Wallet) -> tuple[list[str], list[str]]:
+        """After rebuilding a wallet from its words, fetch the rotations it
+        made and unwrap every backed-up key with the root key. Returns the
+        public keys restored and the ones that had no backup (burned)."""
+        hist = self.keys(wallet.address)
+        restored, missing = [], []
+        for k in hist["keys"]:
+            pub = k["enc_pub"]
+            if wallet.key_for(pub):
+                continue
+            if k.get("backup"):
+                priv = crypto.unwrap_from_sender(wallet.enc_root_priv, k["backup"]).hex()
+                if crypto.encryption_public_from_private(priv) != pub:
+                    raise ClientError(f"the backup for key {pub[:12]}... does not open to that key")
+                wallet.add_key(priv, pub, current=False)
+                restored.append(pub)
+            else:
+                missing.append(pub)
+        current = hist["current"]
+        if wallet.key_for(current):
+            wallet.enc_priv, wallet.enc_pub = wallet.key_for(current), current
+        if wallet.path:
+            wallet.save()
+        return restored, missing
 
     def send_letter(self, wallet: Wallet, to: str, content: bytes, amount_seeds: int = 0,
                     enc_pub: str | None = None) -> str:
@@ -518,7 +571,11 @@ class BerryClient:
         its sender (the key kept at send time). Anyone else gets an error."""
         l = self.letter(letter_id)
         if l["to"] == wallet.address:
-            key = crypto.unwrap_from_sender(wallet.enc_priv, l["wrapped_key"])
+            priv = wallet.key_for(l.get("enc_pub") or wallet.enc_pub)
+            if priv is None:
+                raise ClientError("this letter was sealed to a receiving key this wallet no longer holds "
+                                  "(rotated without a backup, burned, or not yet recovered: try recover-keys)")
+            key = crypto.unwrap_from_sender(priv, l["wrapped_key"])
         elif letter_id in wallet.packet_keys:
             key = bytes.fromhex(wallet.packet_keys[letter_id])
         else:

@@ -148,6 +148,22 @@ def cmd_send(args):
     print(_client(args).transfer(Wallet.load(args.wallet), args.to, to_seeds(args.amount), args.memo or ""))
 
 
+def cmd_rotate_key(args):
+    w = Wallet.load(args.wallet)
+    txid = _client(args).rotate_key(w, backup=not args.no_backup)
+    print(json.dumps({"txid": txid, "new_enc_pub": w.enc_pub, "backed_up": not args.no_backup,
+                      "note": "letters to the old key are still accepted for %d blocks" % params.KEY_GRACE_BLOCKS}, indent=2))
+
+
+def cmd_recover_keys(args):
+    w = Wallet.load(args.wallet)
+    c = _client(args)
+    restored, missing = c.recover_keys(w)
+    held = c.holds_current_key(w)
+    print(json.dumps({"restored": restored, "burned_or_unbacked": missing, "current": w.enc_pub, "keys_held": len(w.enc_keys),
+                      "holds_current_key": held, "next": None if held else "run rotate-key so people seal to a key you hold"}, indent=2))
+
+
 def cmd_register(args):
     print(_client(args).register_llm(Wallet.load(args.wallet), args.name, args.family or "", args.operator or "",
                                      args.description or "", kind=args.kind))
@@ -372,6 +388,8 @@ def main(argv=None):
     s = sub.add_parser("node"); s.add_argument("--genesis", default="genesis.json"); s.add_argument("--data"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8801); s.add_argument("--peer", action="append"); s.add_argument("--mine", help="address to mine to continuously"); s.add_argument("--advertise", help="public URL peers should use to reach this node"); s.add_argument("--admin-token", help="required for /mine and /peers from non-loopback clients (or BERRY_ADMIN_TOKEN)"); s.set_defaults(fn=cmd_node)
     s = sub.add_parser("wallet"); s.add_argument("action", choices=["new", "recover", "phrase", "show", "check", "encrypt"], help="new: fresh wallet with a 12-word recovery phrase; recover: rebuild from --phrase; phrase: print the phrase"); s.add_argument("path"); s.add_argument("--label"); s.add_argument("--phrase", help="twelve words (recover), or omit"); s.add_argument("--encrypt", action="store_true", help="seal the new wallet under a passphrase (prompted, or BERRY_WALLET_PASSPHRASE)"); s.set_defaults(fn=cmd_wallet)
     s = sub.add_parser("status"); s.set_defaults(fn=cmd_status)
+    s = sub.add_parser("rotate-key", help="publish a fresh receiving key; the old one keeps working for a grace window"); s.add_argument("wallet"); s.add_argument("--no-backup", action="store_true", help="do not wrap the new key to the root key: the words will NOT restore it (it can be burned later)"); s.set_defaults(fn=cmd_rotate_key)
+    s = sub.add_parser("recover-keys", help="after rebuilding a wallet from its words, restore its rotated keys from the chain"); s.add_argument("wallet"); s.set_defaults(fn=cmd_recover_keys)
     s = sub.add_parser("balance"); s.add_argument("address"); s.set_defaults(fn=cmd_balance)
     s = sub.add_parser("send"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_send)
     s = sub.add_parser("register", help="register a funded wallet as an identity (no grant)"); s.add_argument("wallet"); s.add_argument("name"); s.add_argument("--kind", choices=list(params.REGISTRY_KINDS), default="llm"); s.add_argument("--family"); s.add_argument("--operator"); s.add_argument("--description"); s.set_defaults(fn=cmd_register)
