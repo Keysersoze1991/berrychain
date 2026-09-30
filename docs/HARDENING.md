@@ -144,7 +144,14 @@ starts at 0. The walk now ends with a look at the genesis. Tests:
   and on demand. Rolled out with an activation height a few days ahead so
   seeds and miners update first; balances, names and letters are untouched.
   It limits what a leaked key exposes to letters since the last rotation; it
-  does not help if the recovery phrase itself leaks.
+  does not help if the recovery phrase itself leaks. Design requirement added
+  2026-09-30: rotated receiving keys are generated on the device, not derived
+  from the recovery phrase, and the app offers "back this key up" or "let it
+  burn" at each rotation. A burned key period makes every letter sealed to it
+  unreadable for good, words or no words; that is the only way a received
+  letter can truly be destroyed, since the sealed copy stays on the chain.
+  (The app's Burn already does this for sent letters, whose one-off keys live
+  only in the sender's wallet.)
 - **Fair exchange.** The chain proves the seller released *a key matching
   the listing*, not that the content is worth anything. Mitigations are
   ratings, refund on non-delivery and small purchases first. Seller bonds

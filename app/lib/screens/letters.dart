@@ -56,25 +56,68 @@ class LettersScreen extends StatelessWidget {
   }
 }
 
-/// Removes a letter from this phone after saying plainly what that means.
-Future<void> confirmRemove(BuildContext context, LetterItem l) async {
+/// Removes or burns a letter after saying plainly what each means. Returns
+/// true if the letter is no longer shown.
+Future<bool> confirmRemove(BuildContext context, LetterItem l) async {
   final s = SessionScope.of(context);
-  final ok = await showDialog<bool>(
+  final mine = l.from == s.wallet!.address;
+  final choice = await showModalBottomSheet<String>(
     context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Remove this letter?'),
-      content: const Text('It disappears from this phone. The sealed copy stays on the chain, as every letter does, and only the key that opens it could ever read it. '
-          'You can show removed letters again from Settings.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
-        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
+    showDragHandle: true,
+    builder: (ctx) => ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      children: [
+        const Text('Remove this letter', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+        const SizedBox(height: 6),
+        const Text('The sealed copy stays on the chain either way, as every letter does; only a key that opens it could ever read it.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
+        const SizedBox(height: 14),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.delete_outline, color: Palette.brass),
+          title: const Text('Remove from this phone'),
+          subtitle: const Text('Hidden here. You can show it again from Settings.'),
+          onTap: () => Navigator.pop(ctx, 'remove'),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.local_fire_department_outlined, color: Palette.band),
+          title: const Text('Burn'),
+          subtitle: Text(mine
+              ? 'Gone from this phone for good, and your key to this letter is destroyed with it: nothing on your side, not even your twelve words, can open the chain copy again. The recipient keeps theirs unless they burn it too.'
+              : 'Gone from this phone for good, not restorable from Settings. It was sealed to your wallet\'s receiving key, so your twelve words could still rebuild access to the chain copy; the coming rotating-keys update closes that.'),
+          onTap: () => Navigator.pop(ctx, 'burn'),
+        ),
+        const SizedBox(height: 6),
+        TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Keep it')),
       ],
     ),
   );
-  if (ok == true) {
+  if (choice == 'remove') {
     await s.removeLetter(l.id);
     if (context.mounted) toast(context, 'Removed from this phone');
+    return true;
   }
+  if (choice == 'burn') {
+    if (!context.mounted) return false;
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Burn this letter?'),
+        content: Text(mine ? 'This cannot be undone. Your key to it is destroyed.' : 'This cannot be undone on this phone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Palette.band, foregroundColor: Colors.white), onPressed: () => Navigator.pop(context, true), child: const Text('Burn')),
+        ],
+      ),
+    );
+    if (sure == true) {
+      await s.burnLetter(l);
+      if (context.mounted) toast(context, mine ? 'Burned. Your key to it is gone.' : 'Burned on this phone.');
+      return true;
+    }
+  }
+  return false;
 }
 
 class _LetterList extends StatelessWidget {
@@ -192,8 +235,8 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
               if (s.isRemoved(l.id)) {
                 await s.restoreLetter(l.id);
               } else {
-                await confirmRemove(context, l);
-                if (context.mounted && s.isRemoved(l.id)) Navigator.pop(context);
+                final gone = await confirmRemove(context, l);
+                if (context.mounted && gone) Navigator.pop(context);
               }
             },
           ),

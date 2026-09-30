@@ -112,15 +112,18 @@ class Session extends ChangeNotifier {
   List<LetterGroup> groups = [];
   List<Draft> drafts = [];
   final Set<String> _hidden = {};
+  final Set<String> _burned = {};
   bool showRemoved = false;
   final Map<String, String> _nicknames = {};
   final Map<String, String> _nameCache = {};
 
-  /// Letters, without the ones removed on this phone (unless [showRemoved]).
-  List<LetterItem> get inbox => showRemoved ? _inboxAll : _inboxAll.where((l) => !_hidden.contains(l.id)).toList();
-  List<LetterItem> get sent => showRemoved ? _sentAll : _sentAll.where((l) => !_hidden.contains(l.id)).toList();
+  /// Letters, without the ones removed on this phone (unless [showRemoved])
+  /// and never the burned ones.
+  List<LetterItem> get inbox => _inboxAll.where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
+  List<LetterItem> get sent => _sentAll.where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
   bool isRemoved(String id) => _hidden.contains(id);
   int get removedCount => _hidden.length;
+  int get burnedCount => _burned.length;
   String? lastError;
   bool busy = false;
 
@@ -363,6 +366,7 @@ class Session extends ChangeNotifier {
       if (h != null) {
         final m = jsonDecode(h) as Map<String, dynamic>;
         _hidden.addAll(((m['ids'] as List?) ?? []).cast<String>());
+        _burned.addAll(((m['burned'] as List?) ?? []).cast<String>());
         showRemoved = (m['show'] as bool?) ?? false;
       }
     } catch (_) {}
@@ -370,7 +374,24 @@ class Session extends ChangeNotifier {
 
   Future<void> _saveGroups() async => writeText('${await storeDir()}groups.json', jsonEncode(groups.map((g) => g.toJson()).toList()));
   Future<void> _saveDrafts() async => writeText('${await storeDir()}drafts.json', jsonEncode(drafts.map((d) => d.toJson()).toList()));
-  Future<void> _saveHidden() async => writeText('${await storeDir()}hidden.json', jsonEncode({'ids': _hidden.toList(), 'show': showRemoved}));
+  Future<void> _saveHidden() async => writeText('${await storeDir()}hidden.json', jsonEncode({'ids': _hidden.toList(), 'burned': _burned.toList(), 'show': showRemoved}));
+
+  /// Burn a letter: gone from this phone for good, not restorable. For a
+  /// letter this wallet sent, its one-off key is destroyed too, so nothing on
+  /// this side can ever open the chain copy again. For a received letter the
+  /// phone forgets it, but the wallet's receiving key (from the twelve words)
+  /// could still open the chain copy; rotating keys will close that.
+  Future<void> burnLetter(LetterItem l) async {
+    final w = wallet!;
+    if (l.from == w.address && w.packetKeys.containsKey(l.id)) {
+      w.packetKeys.remove(l.id);
+      await w.save();
+    }
+    _hidden.remove(l.id);
+    _burned.add(l.id);
+    await _saveHidden();
+    notifyListeners();
+  }
 
   /// The name to show for an address: your nickname, the name they registered
   /// on the chain, or nothing. Looks the chain up once per address.

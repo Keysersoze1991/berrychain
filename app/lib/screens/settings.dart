@@ -62,7 +62,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (context, _) => SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Show letters removed from this phone'),
-              subtitle: Text(s.removedCount == 0 ? 'Nothing removed yet.' : '${s.removedCount} removed. Removing a letter hides it here; the sealed copy stays on the chain, readable only with its key.'),
+              subtitle: Text('${s.removedCount == 0 ? 'Nothing removed yet.' : '${s.removedCount} removed; removing hides a letter here, and the sealed copy stays on the chain, readable only with its key.'}'
+                  '${s.burnedCount > 0 ? ' ${s.burnedCount} burned: those never come back on this phone.' : ''}'),
               value: s.showRemoved,
               onChanged: (v) => s.setShowRemoved(v),
             ),
