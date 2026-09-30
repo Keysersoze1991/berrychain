@@ -5,6 +5,103 @@ import '../session.dart';
 import 'common.dart';
 import 'welcome.dart';
 
+/// Rotate, recover and burn receiving keys, with the consequences spelled out.
+class KeysPanel extends StatelessWidget {
+  final Session s;
+  const KeysPanel(this.s, {super.key});
+
+  Future<void> rotate(BuildContext context, bool backup) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(backup ? 'Rotate, backed up to your words' : 'Rotate with no backup'),
+        content: Text(backup
+            ? 'New letters will be sealed to a fresh key. Its private half rides in the rotation record, locked to your root key, so your twelve words restore it on any phone. Old letters stay readable. Costs one fee.'
+            : 'New letters will be sealed to a fresh key that exists only on this phone. Your twelve words will NOT bring it back. If this phone is lost, or you burn the key later, every letter sealed to it is unreadable for good. Costs one fee.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(backup ? 'Rotate' : 'Rotate, no backup')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final id = await runBusy(context, 'Publishing the new key…', () => s.rotateKey(backup: backup));
+    if (id != null && context.mounted) toast(context, 'New receiving key published. The old one still takes letters for two hours.');
+  }
+
+  Future<void> burn(BuildContext context, String pub) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Burn this key?'),
+        content: const Text('Every letter sealed to it becomes unreadable for good, on this phone and everywhere else, words or no words. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Palette.band, foregroundColor: Colors.white), onPressed: () => Navigator.pop(context, true), child: const Text('Burn')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final done = await s.burnKey(pub);
+      if (context.mounted) toast(context, done ? 'Key burned.' : 'That key cannot be burned.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = s.wallet;
+    if (w == null) return const SizedBox.shrink();
+    final live = s.rotationLive;
+    final registered = s.registry != null;
+    final held = s.holdsCurrentKey;
+    final past = w.encKeys.keys.where((k) => k != w.encRootPub && k != w.encPub).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          !live
+              ? 'Key rotation switches on at block ${formatCount(s.rotateActivation)}. Until then letters use the key your words derive.'
+              : !registered
+                  ? 'Claim your starter first; then you can rotate.'
+                  : held
+                      ? 'This phone holds ${w.encKeys.length} receiving key${w.encKeys.length == 1 ? '' : 's'} and can open every letter sealed to them. New letters go to the current one. The app rotates it about monthly, backed up to your words.'
+                      : 'The key the chain says you receive on is not on this phone: it was rotated elsewhere without a backup. Rotate now so people seal to a key you hold.',
+          style: TextStyle(height: 1.4, color: held ? null : Palette.band),
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: FilledButton.tonal(onPressed: live && registered ? () => rotate(context, true) : null, child: const Text('Rotate now'))),
+          const SizedBox(width: 10),
+          Expanded(child: OutlinedButton(onPressed: live && registered ? () => rotate(context, false) : null, child: const Text('Rotate, no backup'))),
+        ]),
+        const SizedBox(height: 6),
+        TextButton.icon(
+          icon: const Icon(Icons.cloud_download_outlined, size: 18),
+          label: const Text('Recover rotated keys from the chain'),
+          onPressed: !registered
+              ? null
+              : () async {
+                  final r = await runBusy(context, 'Reading your rotations…', () => s.recoverKeys());
+                  if (r != null && context.mounted) toast(context, '${r.$1.length} restored${r.$2.isNotEmpty ? ', ${r.$2.length} had no backup' : ''}');
+                },
+        ),
+        if (past.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          const Text('Past keys on this phone', style: TextStyle(fontWeight: FontWeight.w600)),
+          for (final k in past)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text('${k.substring(0, 12)}…', style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+              subtitle: Text(s.keyIsBackedUp(k) ? 'Backed up to your words; burning here would change nothing.' : 'Only on this phone. Burn it and its letters are gone for good.'),
+              trailing: s.keyIsBackedUp(k) ? null : TextButton(onPressed: () => burn(context, k), child: const Text('Burn', style: TextStyle(color: Palette.band))),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
   @override
@@ -68,6 +165,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) => s.setShowRemoved(v),
             ),
           ),
+          const Divider(height: 32),
+          const Text('RECEIVING KEYS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          const SizedBox(height: 6),
+          ListenableBuilder(listenable: s, builder: (context, _) => KeysPanel(s)),
           const Divider(height: 32),
           const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),

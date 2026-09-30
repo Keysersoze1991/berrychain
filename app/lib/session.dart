@@ -198,6 +198,9 @@ class Session extends ChangeNotifier {
     await w.save(walletPath);
     wallet = w;
     hasWalletFile = true;
+    try {
+      await recoverKeys();   // rotated keys that were backed up to the chain
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -255,6 +258,7 @@ class Session extends ChangeNotifier {
       }
       await _buildContacts();
       await _verifyChain();
+      await _maybeAutoRotateOrRecover();
       if (nodeHeight != null) {
         try {
           await markSeen(address: w.address, height: nodeHeight!, nodes: nodeUrls);
@@ -494,6 +498,98 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ----------------------------------------------------- receiving keys
+  int get rotateActivation => (chainParams?['rotate_key_activation'] as int?) ?? 0;
+  bool get rotationLive => nodeHeight != null && nodeHeight! >= rotateActivation;
+  List<Map<String, dynamic>> get rotations => ((registry?['rotations'] as List?) ?? []).cast<Map<String, dynamic>>();
+  int get lastKeyHeight => rotations.isEmpty ? ((registry?['registered_height'] as int?) ?? 0) : (rotations.last['height'] as int);
+  /// Whether the key the chain says we receive on is on this phone.
+  bool get holdsCurrentKey {
+    final cur = registry?['enc_pub'] as String?;
+    return cur == null || wallet?.keyFor(cur) != null;
+  }
+  /// About a month at one block a minute.
+  static const autoRotateBlocks = 43200;
+  bool _autoRotateTried = false;
+
+  /// Publish a fresh receiving key. With [backup] the new private key rides in
+  /// the transaction wrapped to the root key, so the twelve words restore it
+  /// anywhere; without it the key lives only on this phone and can be burned.
+  Future<String> rotateKey({bool backup = true}) async {
+    final w = wallet!;
+    if (registry == null) throw StateError('claim your starter first; only a registered account can rotate');
+    if (!rotationLive) throw StateError('key rotation switches on at block ${formatCount(rotateActivation)}');
+    final (priv, pub) = await newEncryptionKeypair();
+    final payload = <String, dynamic>{'enc_pub': pub, 'backup': backup ? await wrapToRecipient(w.encRootPub, fromHex(priv)) : null};
+    final tx = buildTx(TxType.rotateKey, w.address, await node.nextNonce(w.address), minFee, payload, Network.chainId);
+    await w.sign(tx);
+    await node.sendTx(tx);
+    w.addKey(priv, pub);
+    await w.save();
+    notifyListeners();
+    return txid(tx);
+  }
+
+  /// After a restore from the words, fetch this account's rotations and
+  /// unwrap every backed-up key. Returns (restored, unrecoverable).
+  Future<(List<String>, List<String>)> recoverKeys() async {
+    final w = wallet!;
+    final hist = await node.keys(w.address);
+    final restored = <String>[], missing = <String>[];
+    for (final k in (hist['keys'] as List).cast<Map<String, dynamic>>()) {
+      final pub = k['enc_pub'] as String;
+      if (w.keyFor(pub) != null) continue;
+      final backup = k['backup'];
+      if (backup is Map) {
+        final priv = toHex(await unwrapFromSender(w.encRootPriv, Map<String, dynamic>.from(backup)));
+        if (await encryptionPublicFromPrivate(priv) != pub) throw StateError('a key backup on the chain does not open to its key');
+        w.addKey(priv, pub, current: false);
+        restored.add(pub);
+      } else {
+        missing.add(pub);
+      }
+    }
+    final cur = hist['current'] as String;
+    if (w.keyFor(cur) != null) w.addKey(w.keyFor(cur)!, cur);
+    await w.save();
+    notifyListeners();
+    return (restored, missing);
+  }
+
+  /// Forget a rotated key for good. Only keys that are neither the root nor
+  /// the current one, and that were never backed up to the chain, are worth
+  /// burning: the others come back from the words or the chain anyway.
+  bool keyIsBackedUp(String pub) => rotations.any((r) => r['enc_pub'] == pub && r['backup'] != null);
+  Future<bool> burnKey(String pub) async {
+    final ok = wallet!.burnKey(pub);
+    if (ok) {
+      await wallet!.save();
+      notifyListeners();
+    }
+    return ok;
+  }
+
+  Future<void> _maybeAutoRotateOrRecover() async {
+    final w = wallet;
+    if (w == null || registry == null || !rotationLive) return;
+    if (!holdsCurrentKey) {
+      try {
+        await recoverKeys();
+      } catch (_) {}
+      return; // if still missing, the home screen says so and offers a rotation
+    }
+    if (_autoRotateTried || nodeHeight == null) return;
+    if (nodeHeight! - lastKeyHeight >= autoRotateBlocks) {
+      _autoRotateTried = true;
+      try {
+        await rotateKey(backup: true);
+        lastNote = 'Your receiving key was rotated (about a month since the last one). It is backed up to your words.';
+      } catch (_) {}
+    }
+  }
+
+  String? lastNote;
+
   /// The grants this account can earn by corresponding, with current amounts.
   List<EarnedGrant> get earnedGrants {
     final reg = registry;
@@ -611,7 +707,11 @@ class Session extends ChangeNotifier {
     final full = await node.letter(l.id);
     final List<int> key;
     if (full['to'] == w.address) {
-      key = await unwrapFromSender(w.encPriv, Map<String, dynamic>.from(full['wrapped_key'] as Map));
+      final priv = w.keyFor((full['enc_pub'] as String?) ?? w.encPub);
+      if (priv == null) {
+        throw StateError('this letter was sealed to a receiving key this phone does not hold (rotated elsewhere without a backup, burned, or not yet recovered)');
+      }
+      key = await unwrapFromSender(priv, Map<String, dynamic>.from(full['wrapped_key'] as Map));
     } else if (w.packetKeys.containsKey(l.id)) {
       key = fromHex(w.packetKeys[l.id]!);
     } else {

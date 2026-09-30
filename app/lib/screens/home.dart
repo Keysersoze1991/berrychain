@@ -86,6 +86,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimScreen())),
                     ),
                   ),
+                if (s.registry != null && !s.holdsCurrentKey)
+                  Card(
+                    color: const Color(0xFFFBE4DC),
+                    child: ListTile(
+                      leading: const Icon(Icons.key_off_outlined, color: Palette.band),
+                      title: const Text('Your receiving key is not on this phone'),
+                      subtitle: const Text('It was rotated elsewhere without a backup. New letters cannot be read here until you rotate. Open Settings to do it.'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                    ),
+                  ),
+                if (s.lastNote != null)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastNote!, style: const TextStyle(color: Palette.leaf, fontSize: 13))),
                 if (s.registry != null)
                   Tile(
                     label: 'Registered as',

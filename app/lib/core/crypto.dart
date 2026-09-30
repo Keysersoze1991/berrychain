@@ -97,6 +97,14 @@ bool isValidAddress(String? addr) {
 
 // ------------------------------------------------------------- encryption
 
+/// A fresh random X25519 keypair (private, public), for rotating the
+/// receiving key. Not derived from the words: it must be backed up or it
+/// lives only here.
+Future<(String, String)> newEncryptionKeypair() async {
+  final priv = toHex(randomBytes(32));
+  return (priv, await encryptionPublicFromPrivate(priv));
+}
+
 Future<String> encryptionPublicFromPrivate(String privHex) async {
   final kp = await _x.newKeyPairFromSeed(fromHex(privHex));
   return toHex((await kp.extractPublicKey()).bytes);

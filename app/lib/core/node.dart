@@ -61,6 +61,8 @@ class Node {
   Future<Map<String, dynamic>> status() => get('/status');
   Future<Map<String, dynamic>> params() => get('/params');
   Future<Map<String, dynamic>> account(String address) => get('/account/$address');
+  /// Every receiving key an account has published, with rotation backups.
+  Future<Map<String, dynamic>> keys(String address) => get('/keys/$address');
   Future<Map<String, dynamic>> tx(String id) => get('/tx/$id');
   Future<Map<String, dynamic>> block(int height) => get('/block/$height');
   Future<Map<String, dynamic>> letter(String id) => get('/letter/$id');

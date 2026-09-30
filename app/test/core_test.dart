@@ -170,4 +170,37 @@ void main() {
     env['group'] = {'id': 1};
     expect(openLetter(utf8.encode(jsonEncode(env))).group, isNull);
   });
+
+  test('a wallet holds every receiving key it has used, and the file round-trips them', () async {
+    final w = await Wallet.create(label: 'rot');
+    w.passphrase = 'pw-rot';
+    final root = w.encPub;
+    expect(w.encRootPub, root);
+    expect(w.keyFor(root), w.encRootPriv);
+    final (p1, k1) = await newEncryptionKeypair();
+    final (p2, k2) = await newEncryptionKeypair();
+    expect(k1, isNot(k2));
+    w.addKey(p1, k1);
+    expect(w.encPub, k1);
+    w.addKey(p2, k2, current: false);
+    expect(w.encPub, k1);
+    expect(w.encKeys.length, 3);
+    // a backup wrapped to the root key unwraps to the same private key
+    final backup = await wrapToRecipient(w.encRootPub, fromHex(p1));
+    expect(toHex(await unwrapFromSender(w.encRootPriv, backup)), p1);
+    // the file keeps all of it
+    final again = await Wallet.fromJson(await w.toJson(), passphrase: 'pw-rot');
+    expect(again.encPub, k1);
+    expect(again.encRootPub, root);
+    expect(again.keyFor(k2), p2);
+    // burning: never the root, never the current, otherwise gone
+    expect(again.burnKey(root), isFalse);
+    expect(again.burnKey(k1), isFalse);
+    expect(again.burnKey(k2), isTrue);
+    expect(again.keyFor(k2), isNull);
+    // a wallet from the same words knows only the root key
+    final fromWords = await Wallet.fromPhrase(w.mnemonic!);
+    expect(fromWords.encPub, root);
+    expect(fromWords.keyFor(k1), isNull);
+  });
 }

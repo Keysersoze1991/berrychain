@@ -13,6 +13,7 @@ class TxType {
   static const sendLetter = 'SEND_LETTER';
   static const claimStarter = 'CLAIM_STARTER';
   static const claimGrant = 'CLAIM_GRANT';
+  static const rotateKey = 'ROTATE_KEY';
 }
 
 const _sigFields = {'sig', 'pubkey', 'approvals'};
