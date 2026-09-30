@@ -8988,7 +8988,7 @@ s=l==="delete"&&!g?4:5
 break
 case 4:s=6
 return A.l(h.z4(b.a),$async$vs)
-case 6:if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("Group removed from this phone",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
+case 6:if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("Crew disbanded on this phone",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
 s=1
 break
 case 5:if(l!=="save"){s=1
@@ -9001,9 +9001,9 @@ f=A.aG(i+" is not a BerryChain address",null,null,null,null,null,null,null)
 g.eQ(new A.uk(f,null,null,null,null,null,null,null,null,null,null,null,null,B.an,!1,null,null,null,B.B,null))}s=1
 break A}p.F(0,i)}f=h.a
 p.H(0,f==null?null:f.f)
-if(B.e.ct(o.a.a).length===0){if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("Give the group a name",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
+if(B.e.ct(o.a.a).length===0){if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("Give the crew a name",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
 s=1
-break}if(p.a<2){if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("A group needs at least two other people",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
+break}if(p.a<2){if(a.e!=null)a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG("A crew needs at least two other people",null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
 s=1
 break}s=!g?7:8
 break
@@ -9014,7 +9014,7 @@ f=A.N(p,p.$ti.c)
 s=10
 return A.l(h.a94(g,f),$async$vs)
 case 10:if(a.e!=null){g=B.e.ct(o.a.a)
-a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG('Group "'+g+'" saved. Send it a letter and everyone in it gets the group too.',null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))}case 1:return A.r(q,r)}})
+a.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG('Crew "'+g+'" saved. Send it a letter and everyone in it gets the crew too.',null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))}case 1:return A.r(q,r)}})
 return A.t($async$vs,r)},
 be1(a){var s,r,q,p,o,n,m,l,k,j,i=null,h=a.X(t.J).f,g=A.bN(a,!1)
 A.fI(a,B.bq,t.d).toString
@@ -50894,18 +50894,18 @@ return A.o5(r,B.c6,B.ae,B.bX)},
 $S:529}
 A.wu.prototype={
 L(a){var s=null,r=a.X(t.J).f
-return A.iD(A.jM(A.b([A.im(s,s,B.LB,s,s,new A.a9r(a),s,s,"New group")],t.D),!0,s,B.aar),s,new A.fY(new A.a9s(r),s,r,s),s)}}
+return A.iD(A.jM(A.b([A.im(s,s,B.LB,s,s,new A.a9r(a),s,s,"New crew")],t.D),!0,s,B.aar),s,new A.fY(new A.a9s(r),s,r,s),s)}}
 A.a9r.prototype={
 $0(){return A.vs(this.a,null)},
 $S:0}
 A.a9s.prototype={
 $2(a,b){var s,r,q,p=null,o=this.a,n=t.D,m=A.b([],n)
-if(o.cx.length!==0){n=A.b([B.a0F],n)
+if(o.cx.length!==0){n=A.b([B.a0B],n)
 for(s=o.cx,r=s.length,q=0;q<s.length;s.length===r||(0,A.G)(s),++q)n.push(new A.DF(s[q],p,p))
 n.push(B.Js)
-B.c.V(m,n)}m.push(new A.bx(B.qe,A.aG(o.cx.length===0?"Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The group button above makes a set of people you can write to at once.":"Everyone you have corresponded with, newest first. Tap to write; hold to name.",p,p,p,p,B.cw,p,p),p))
+B.c.V(m,n)}m.push(new A.bx(B.qe,A.aG(o.cx.length===0?"Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The crew button above makes a set of people you can write to at once.":"Everyone you have corresponded with, newest first. Tap to write; hold to name.",p,p,p,p,B.cw,p,p),p))
 for(n=o.CW,s=n.length,q=0;q<n.length;n.length===s||(0,A.G)(n),++q)m.push(new A.Co(n[q],p,p))
-if(o.CW.length===0)m.push(B.a0A)
+if(o.CW.length===0)m.push(B.a0C)
 return A.aMg(A.hM(m,p,!1),o.gQT())},
 $S:524}
 A.DF.prototype={
@@ -50941,7 +50941,7 @@ $1(a){var s=this
 return new A.un(new A.aIU(s.a,s.b,s.c,s.d,s.e),null)},
 $S:515}
 A.aIU.prototype={
-$2(a,b){var s,r,q,p,o,n,m,l,k,j=this,i=null,h=j.a==null,g=A.aG(h?"New group":"Edit group",i,i,i,i,i,i,i),f=t.D,e=A.b([A.h2(i,h,j.b,B.Mf,!0,i,i,1,i,!1,i,i),B.bM],f)
+$2(a,b){var s,r,q,p,o,n,m,l,k,j=this,i=null,h=j.a==null,g=A.aG(h?"New crew":"Edit crew",i,i,i,i,i,i,i),f=t.D,e=A.b([A.h2(i,h,j.b,B.M7,!0,i,i,1,i,!1,i,i),B.bM],f)
 for(s=j.c,r=s.CW,q=r.length,p=j.d,o=0;o<r.length;r.length===q||(0,A.G)(r),++o){n=r[o]
 m=A.aG(n.gnd(),i,i,i,i,i,i,i)
 l=n.a
@@ -50949,10 +50949,10 @@ k=l.length
 e.push(A.aQd(B.Z,B.mo,!0,new A.aIO(b,p,n),A.aG(k>16?B.e.a8(l,0,10)+"\u2026"+B.e.cD(l,k-6):l,i,i,i,i,B.a7g,i,i),m,p.n(0,l)))}for(r=p.gP(0),s=new A.lC(r,new A.aIP(s));s.t();){q=r.gN()
 m=q.length
 e.push(A.aQd(B.Z,B.mo,!0,new A.aIQ(b,p,q),i,A.aG(m>16?B.e.a8(q,0,10)+"\u2026"+B.e.cD(q,m-6):q,i,i,i,i,B.a84,i,i),!0))}e.push(B.cT)
-e.push(A.h2(!1,!1,j.e,B.M8,!0,i,i,3,1,!1,i,B.E8))
+e.push(A.h2(!1,!1,j.e,B.M9,!0,i,i,3,1,!1,i,B.E8))
 e=A.hl(A.hM(e,i,!0),i,420)
 f=A.b([],f)
-if(!h)f.push(A.ju(B.aaF,i,i,new A.aIR(a),i,i))
+if(!h)f.push(A.ju(B.aaT,i,i,new A.aIR(a),i,i))
 f.push(A.ju(B.hD,i,i,new A.aIS(a),i,i))
 f.push(A.ih(B.Ec,new A.aIT(a),i))
 return A.qq(f,e,g)},
@@ -51048,7 +51048,7 @@ $0(){return this.a.ts(this.b)},
 $S:0}
 A.aJA.prototype={
 $1(a){var s,r,q,p=this.a,o=t.D,n=A.b([],o)
-if(p.cx.length!==0){o=A.b([B.a0C],o)
+if(p.cx.length!==0){o=A.b([B.a0A],o)
 for(s=p.cx,r=s.length,q=0;q<s.length;s.length===r||(0,A.G)(s),++q)o.push(new A.DF(s[q],new A.aJy(a),null))
 o.push(B.Ju)
 B.c.V(n,o)}n.push(B.a0z)
@@ -51271,7 +51271,7 @@ if(q===0)return A.hM(B.UT,null,!1)
 return A.aSi(new A.ayD(r,s),q)}}
 A.ayD.prototype={
 $2(a,b){var s,r,q,p,o,n,m,l=null,k=this.a[b],j=this.b,i=j.wB(k.f)
-if(i!=null)s="To group "+i.b
+if(i!=null)s="To the crew "+i.b
 else{r=k.b
 s=r.length===0?"No address yet":"To "+A.NJ(r)}q=new A.ib(A.PH(k.w,0,!1),0,!1)
 r=A.m5(B.oy,B.Lu,B.F,B.eq,l,l,l,l,l,B.JY,l,l,l)
@@ -51318,7 +51318,7 @@ p=p?A.aD(q.h(0,"from")):A.aD(q.h(0,"to"))
 m=(f?j:g.c.length!==0)===!0?"  ("+g.c+")":""
 m=A.b([A.aG(o+": "+p+m,j,j,j,j,B.nQ,j,j)],n)
 p=s!=null
-if(p)m.push(new A.bx(B.K2,A.aG('Sent to the group "'+s.b+'" ('+(s.c.length+1)+" people, including you)",j,j,j,j,B.a8M,j,j),j))
+if(p)m.push(new A.bx(B.K2,A.aG('Sent to the crew "'+s.b+'" ('+(s.c.length+1)+" people, including you)",j,j,j,j,B.a8M,j,j),j))
 o=A.au(q.h(0,"height"))
 if(A.au(q.h(0,"amount"))>0){q=A.ha(A.au(q.h(0,"amount")))
 l=h.b?", verified against the chain":""
@@ -51339,7 +51339,7 @@ if(f){q=g.b
 m.push(A.aMn(q,A.h3(j,j,j,j,j,j,j,j,g.r?"monospace":j,j,j,16,j,j,j,j,1.5,!0,j,j,j,j,j,j,j,j)))}if(f&&k.a.d){if(p){f=g.c
 f="Reply to "+(f.length!==0?f:"the sender")+" only"}else f="Reply"
 f=A.b([B.a4C,A.mJ(B.Lx,A.aG(f,j,j,j,j,j,j,j),new A.aCU(a,h,g))],n)
-if(p)B.c.V(f,A.b([B.bM,A.acX(B.Lw,A.aG("Reply to the group ("+s.c.length+" people)",j,j,j,j,j,j,j),new A.aCV(a,i,s,g,h))],n))
+if(p)B.c.V(f,A.b([B.bM,A.acX(B.Lw,A.aG("Reply to the crew ("+s.c.length+" people)",j,j,j,j,j,j,j),new A.aCV(a,i,s,g,h))],n))
 B.c.V(m,f)}return A.iD(r,j,A.hM(m,B.bS,!1),j)}}
 A.aCY.prototype={
 $1(a){return this.a8n(a)},
@@ -51355,7 +51355,7 @@ case 3:s=5
 return A.l(p.b.Ev(o,A.aD(m.a.c.a.h(0,"from"))),$async$$1)
 case 5:if(c&&m.c!=null){m=m.c
 n=o.b
-m.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG('Group "'+n+'" saved to People so you can reply to everyone',null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))}case 4:case 1:return A.r(q,r)}})
+m.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG('Crew "'+n+'" saved to People so you can reply to everyone',null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))}case 4:case 1:return A.r(q,r)}})
 return A.t($async$$1,r)},
 $S:446}
 A.aCX.prototype={
@@ -51580,7 +51580,7 @@ s=9
 return A.l(m.vb(g),$async$kv)
 case 9:g=p.c
 if(g==null){s=1
-break}f=f?"Sealed and sent. Readable once the block is mined.":"Sealed and sent to everyone in "+l.b+"."
+break}f=f?"Sealed and sent. Readable once the block is mined.":"Sealed and sent to the whole crew "+l.b+"."
 g.X(t.Q).f.eQ(A.dX(null,null,null,null,null,B.B,null,A.aG(f,null,null,null,null,null,null,null),null,B.an,null,null,null,null,null,null,null,null,null,null))
 m.hX()
 f=p.c
@@ -51606,7 +51606,7 @@ m=A.im(d,d,B.r0,d,d,q?new A.ax4(e):d,d,d,"Take a picture")
 l=t.D
 s=A.jM(A.b([m,A.im(d,d,B.r1,d,d,q?new A.ax5(e):d,d,d,"Picture from gallery"),A.im(d,d,B.LK,d,d,e.gaBT(),d,d,"Discard draft")],l),!0,d,s)
 m=A.b([],l)
-if(!a){q=A.E9(d,d,d,d,d,d,d,d,!0,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,"To group",!0,!0,!1,d,d,d,d,d,d,d,d,A.im(d,d,B.r5,d,d,new A.ax6(e),d,d,"Write to one person instead"),d,d,d,d,d)
+if(!a){q=A.E9(d,d,d,d,d,d,d,d,!0,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,"To crew",!0,!0,!1,d,d,d,d,d,d,d,d,A.im(d,d,B.r5,d,d,new A.ax6(e),d,d,"Write to one person instead"),d,d,d,d,d)
 k=A.b([A.aQg(B.Ly,A.aG(b.b,d,d,d,d,B.a6E,d,d))],l)
 for(j=B.c.gP(b.c),i=new A.lC(j,new A.ax7(c));i.t();){h=j.gN()
 g=c.CW
@@ -51616,7 +51616,7 @@ if(f==null){g=h.length
 if(g>16)h=B.e.a8(h,0,10)+"\u2026"+B.e.cD(h,g-6)}else h=f
 k.push(A.aQg(d,A.aG(h,d,d,d,d,B.nP,d,d)))}m.push(A.aRU(d,A.aUE(k,-6,6),q,!1,!1,!1,!1,d,d))}else{q=e.d
 q===$&&A.a()
-k=A.b([A.h2(!1,!1,q,A.E9(d,d,d,d,d,d,d,d,!0,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,"To (brry1\u2026)",!0,!0,!1,d,d,d,d,d,d,d,d,A.im(d,d,B.r6,d,d,new A.axa(e,a1),d,d,"Choose from your people or groups"),d,d,d,d,d),!0,d,d,1,d,!1,d,B.k0)],l)
+k=A.b([A.h2(!1,!1,q,A.E9(d,d,d,d,d,d,d,d,!0,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,d,"To (brry1\u2026)",!0,!0,!1,d,d,d,d,d,d,d,d,A.im(d,d,B.r6,d,d,new A.axa(e,a1),d,d,"Choose from your people or crews"),d,d,d,d,d),!0,d,d,1,d,!1,d,B.k0)],l)
 if(B.e.ct(q.a.a).length!==0){q=!e.as
 if(q)j="Not a BerryChain address yet"
 else{j=e.Q
@@ -51624,9 +51624,9 @@ if(j==null)j="Looking up\u2026"
 else j=j.length===0?"This address has no registered name; check it carefully":"Sending to "+j}if(q)q=B.eq
 else{q=e.Q
 q=(q==null?d:q.length!==0)===!0?B.l0:B.cD}k.push(new A.bx(B.lv,A.aG(j,d,d,d,d,A.h3(d,d,q,d,d,d,d,d,d,d,d,13,d,d,B.bB,d,d,!0,d,d,d,d,d,d,d,d),d,d),d))}B.c.V(m,k)}m.push(B.bp)
-m.push(A.h2(d,!1,r,B.Md,!0,d,d,1,d,!1,d,d))
+m.push(A.h2(d,!1,r,B.Me,!0,d,d,1,d,!1,d,d))
 m.push(B.bp)
-m.push(A.h2(d,!1,a0,B.Mc,!0,d,d,14,6,!1,d,d))
+m.push(A.h2(d,!1,a0,B.Md,!0,d,d,14,6,!1,d,d))
 m.push(B.cT)
 a0=p<0
 if(a0)r="Too long by "+-p+" characters"
@@ -51644,7 +51644,7 @@ m.push(B.e4)
 r=A.aG(a?"Seal and send":"Seal and send to "+n+" people",d,d,d,d,d,d,d)
 m.push(A.acX(B.r_,r,a0?d:e.gIm()))
 m.push(B.bp)
-m.push(A.aG(a?"Fee "+A.ha(o)+" BERRY. Only the recipient can read this; the ledger shows the two addresses, the time and the size. Drafts are kept on this phone until you send or discard them.":"One sealed copy per person, "+A.ha(o)+" BERRY each. Each copy carries the group so they can reply to everyone. The ledger shows you writing to "+n+" addresses.",d,d,d,d,B.cw,d,d))
+m.push(A.aG(a?"Fee "+A.ha(o)+" BERRY. Only the recipient can read this; the ledger shows the two addresses, the time and the size. Drafts are kept on this phone until you send or discard them.":"One sealed copy per person, "+A.ha(o)+" BERRY each. Each copy carries the crew so they can reply to everyone. The ledger shows you writing to "+n+" addresses.",d,d,d,d,B.cw,d,d))
 return A.iD(s,d,A.hM(m,B.bS,!1),d)}}
 A.axe.prototype={
 $0(){var s=this.a,r=s.d
@@ -51858,9 +51858,9 @@ if(s==null)s="Looking up\u2026"
 else s=s.length===0?"Sending to an address with no registered name":"Sending to "+s}if(m)m=B.eq
 else{m=r.r
 m=(m==null?q:m.length!==0)===!0?B.l0:B.cD}n.push(new A.bx(B.lv,A.aG(s,q,q,q,q,A.h3(q,q,m,q,q,q,q,q,q,q,q,13,q,q,B.bB,q,q,!0,q,q,q,q,q,q,q,q),q,q),q))}n.push(B.bp)
-n.push(A.h2(q,!1,r.e,B.Ma,!0,B.E4,q,1,q,!1,q,q))
+n.push(A.h2(q,!1,r.e,B.Mb,!0,B.E4,q,1,q,!1,q,q))
 n.push(B.bp)
-n.push(A.h2(q,!1,r.f,B.M7,!0,q,200,1,q,!1,q,q))
+n.push(A.h2(q,!1,r.f,B.M8,!0,q,200,1,q,!1,q,q))
 n.push(B.f8)
 n.push(A.ih(B.abb,r.gIm(),q))
 n.push(B.bp)
@@ -51910,20 +51910,20 @@ q.d=new A.dh(new A.cm(s,B.ch,B.aD),r)},
 L(a){var s,r,q=null,p=a.X(t.J).f,o=A.jM(q,!0,q,B.ab4),n=this.d
 n===$&&A.a()
 s=t.D
-n=A.b([B.aaq,B.cT,A.h2(q,!1,n,B.Me,!0,q,q,4,q,!1,q,B.k0),B.bM,A.aSK(B.aaA,new A.aFd(this,p,a),q),A.ju(B.aae,q,q,new A.aFe(this),q,q),B.ls,B.abg],s)
-n.push(B.a0E)
+n=A.b([B.aaq,B.cT,A.h2(q,!1,n,B.Mf,!0,q,q,4,q,!1,q,B.k0),B.bM,A.aSK(B.aaA,new A.aFd(this,p,a),q),A.ju(B.aae,q,q,new A.aFe(this),q,q),B.ls,B.abg],s)
+n.push(B.a0F)
 n.push(new A.fY(new A.aFf(p),q,p,q))
 n.push(B.ls)
 n.push(B.abe)
 n.push(B.cT)
 r=p.a
-if((r==null?q:r.w)!=null)B.c.V(n,A.b([B.aaI,B.bM,A.mJ(B.LA,B.aas,new A.aFg(a,p)),B.e4],s))
+if((r==null?q:r.w)!=null)B.c.V(n,A.b([B.aaH,B.bM,A.mJ(B.LA,B.aas,new A.aFg(a,p)),B.e4],s))
 else B.c.V(n,A.b([B.aai,B.bM],s))
 n.push(B.ab6)
 n.push(B.bM)
-n.push(A.mJ(B.mi,B.aaG,new A.aFh(p,a)))
+n.push(A.mJ(B.mi,B.aaF,new A.aFh(p,a)))
 n.push(B.ls)
-n.push(A.aG("BerryChain wallet 0.8.0. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Pre-audit software; do not hold value you cannot afford to lose.",q,q,q,q,B.Ea,q,q))
+n.push(A.aG("BerryChain wallet 0.8.1. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Pre-audit software; do not hold value you cannot afford to lose.",q,q,q,q,B.Ea,q,q))
 n.push(B.cT)
 n.push(B.aaX)
 return A.iD(o,q,A.hM(n,B.bS,!1),q)}}
@@ -52138,8 +52138,8 @@ n.toString
 A.bN(n,!1).Qy(new A.aDb())}case 1:return A.r(q,r)}})
 return A.t($async$zR,r)},
 L(a){var s=this,r=null,q=A.jM(r,!0,r,B.aaB),p=t.D,o=A.b([new A.yv(B.Rt,A.ck([s.y],t.y),new A.aD7(s),r,t.Y0),B.e4],p)
-if(!s.y)B.c.V(o,A.b([A.aG("Type the twelve words of your recovery phrase, in order. The same wallet, address and letters come back in this browser.",r,r,r,r,B.cW,r,r),B.f7,A.h2(!1,!1,s.d,B.Mb,!1,r,r,4,3,!1,r,r),B.bp,A.h2(r,!1,s.e,B.rl,!0,r,r,1,r,!1,r,r),B.bp,new A.li(s.f,"New passphrase for this browser",r,r),B.bp,new A.li(s.r,"Passphrase again",new A.aD8(s),r),B.hz,A.ih(B.aaR,s.gaIg(),r),B.bp,B.abd],p))
-else B.c.V(o,A.b([B.aaZ,B.f7,A.h2(r,!1,s.w,B.M9,!0,r,r,6,r,!1,r,B.nQ),B.bp,new A.li(s.x,"Its passphrase",new A.aD9(s),r),B.hz,A.ih(B.ab1,s.gaEo(),r)],p))
+if(!s.y)B.c.V(o,A.b([A.aG("Type the twelve words of your recovery phrase, in order. The same wallet, address and letters come back in this browser.",r,r,r,r,B.cW,r,r),B.f7,A.h2(!1,!1,s.d,B.Mc,!1,r,r,4,3,!1,r,r),B.bp,A.h2(r,!1,s.e,B.rl,!0,r,r,1,r,!1,r,r),B.bp,new A.li(s.f,"New passphrase for this browser",r,r),B.bp,new A.li(s.r,"Passphrase again",new A.aD8(s),r),B.hz,A.ih(B.aaR,s.gaIg(),r),B.bp,B.abd],p))
+else B.c.V(o,A.b([B.aaZ,B.f7,A.h2(r,!1,s.w,B.Ma,!0,r,r,6,r,!1,r,B.nQ),B.bp,new A.li(s.x,"Its passphrase",new A.aD9(s),r),B.hz,A.ih(B.ab1,s.gaEo(),r)],p))
 return A.iD(q,r,A.hM(o,B.bS,!1),r)}}
 A.aDc.prototype={
 $0(){var s=0,r=A.u(t.y),q,p=this,o
@@ -52966,7 +52966,7 @@ for(;;)switch(s){case 0:i=a.c
 h=A.a4(i).i("aI<1>")
 g=A.N(new A.aI(i,new A.ar7(p.a.f),h),h.i("m.E"))
 i=g.length
-if(i===0)throw A.e(A.aJ("the group has nobody in it but you",null))
+if(i===0)throw A.e(A.aJ("the crew has nobody in it but you",null))
 o=0
 case 3:if(!(h=g.length,o<h)){s=5
 break}n=g[o]
@@ -52979,7 +52979,7 @@ e=A
 d=A
 s=9
 return A.l(p.vM(n),$async$tL)
-case 9:throw f.e(e.aJ(d.n(a4)+" ("+B.e.a8(n,0,12)+"\u2026) has no receiving key yet; remove them from the group or wait until they claim a starter",null))
+case 9:throw f.e(e.aJ(d.n(a4)+" ("+B.e.a8(n,0,12)+"\u2026) has no receiving key yet; remove them from the crew or wait until they claim a starter",null))
 case 7:case 4:g.length===i||(0,A.G)(g),++o
 s=3
 break
@@ -121145,17 +121145,17 @@ B.a0u=new A.jk(4,B.fp,B.oI)
 B.aJ=new A.dg(0,0,null,null)
 B.rk=new A.rH(null,B.iK,B.hW,!1,!1,!0,B.l,B.a0u,!1,B.aJ,null)
 B.M6=new A.fD(null,null,null,"To (brry1\u2026)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.M7=new A.fD(null,null,null,"Memo (public, optional)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.M8=new A.fD(null,null,null,"Other addresses (brry1\u2026, one per line)",null,null,null,"For people you have not written to yet",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.M9=new A.fD(null,null,null,"Wallet file contents",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.M7=new A.fD(null,null,null,"Crew name",null,null,null,"Travels inside each letter, sealed; never on the chain",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.M8=new A.fD(null,null,null,"Memo (public, optional)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.M9=new A.fD(null,null,null,"Other addresses (brry1\u2026, one per line)",null,null,null,"For people you have not written to yet",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Ma=new A.fD(null,null,null,"Wallet file contents",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
 B.afA=new A.fD(null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Ma=new A.fD(null,null,null,"Amount in BERRY",null,null,null,null,null,null,"0.25",null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Mb=new A.fD(null,null,null,"Amount in BERRY",null,null,null,null,null,null,"0.25",null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
 B.rl=new A.fD(null,null,null,"Your name (optional)",null,null,null,"How your letters are signed: the people you write to see it, the blockchain does not.",null,2,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Mb=new A.fD(null,null,null,"Recovery phrase",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Mc=new A.fD(null,null,null,"Letter (sealed)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Md=new A.fD(null,null,null,"Subject (sealed)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Me=new A.fD(null,null,null,null,null,null,null,"One URL per line. The first is used; the others cross-check it.",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
-B.Mf=new A.fD(null,null,null,"Group name",null,null,null,"Travels inside each letter, sealed; never on the chain",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Mc=new A.fD(null,null,null,"Recovery phrase",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Md=new A.fD(null,null,null,"Letter (sealed)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Me=new A.fD(null,null,null,"Subject (sealed)",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
+B.Mf=new A.fD(null,null,null,null,null,null,null,"One URL per line. The first is used; the others cross-check it.",null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
 B.Mg=new A.fD(null,null,null,"Your name on the chain",null,null,null,null,null,null,null,null,null,null,null,null,!0,!0,!1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,!0,null,null,null,null)
 B.Mi=new A.RJ(0,"nearest")
 B.afB=new A.RJ(1,"linear")
@@ -121742,8 +121742,8 @@ B.U8=s([A.beL(),A.beS(),A.beU(),A.beN(),A.beQ(),A.beW(),A.beP(),A.beV(),A.beM(),
 B.lw=new A.aA(32,32,32,32)
 B.jZ=new A.x(!0,B.cD,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.aal=new A.aQ("Nothing here yet. Pull down to check again.",null,B.jZ,B.dl,null,null,null,null,null,null)
-B.a0B=new A.bx(B.lw,B.aal,null)
-B.Ug=s([B.a0B],t.D)
+B.a0D=new A.bx(B.lw,B.aal,null)
+B.Ug=s([B.a0D],t.D)
 B.b1=new A.h1(1,"fuchsia")
 B.Uk=s([B.a8,B.b1,B.L,B.aV,B.av,B.aW],A.al("B<h1>"))
 B.EC=new A.zE(0,"topLeft")
@@ -121768,8 +121768,8 @@ B.UO=s([35,30,20,25,30,35,30,25,25],t.n)
 B.iY=s([0,1,4,5,16,17,20,21,64,65,68,69,80,81,84,85,256,257,260,261,272,273,276,277,320,321,324,325,336,337,340,341,1024,1025,1028,1029,1040,1041,1044,1045,1088,1089,1092,1093,1104,1105,1108,1109,1280,1281,1284,1285,1296,1297,1300,1301,1344,1345,1348,1349,1360,1361,1364,1365,4096,4097,4100,4101,4112,4113,4116,4117,4160,4161,4164,4165,4176,4177,4180,4181,4352,4353,4356,4357,4368,4369,4372,4373,4416,4417,4420,4421,4432,4433,4436,4437,5120,5121,5124,5125,5136,5137,5140,5141,5184,5185,5188,5189,5200,5201,5204,5205,5376,5377,5380,5381,5392,5393,5396,5397,5440,5441,5444,5445,5456,5457,5460,5461,16384,16385,16388,16389,16400,16401,16404,16405,16448,16449,16452,16453,16464,16465,16468,16469,16640,16641,16644,16645,16656,16657,16660,16661,16704,16705,16708,16709,16720,16721,16724,16725,17408,17409,17412,17413,17424,17425,17428,17429,17472,17473,17476,17477,17488,17489,17492,17493,17664,17665,17668,17669,17680,17681,17684,17685,17728,17729,17732,17733,17744,17745,17748,17749,20480,20481,20484,20485,20496,20497,20500,20501,20544,20545,20548,20549,20560,20561,20564,20565,20736,20737,20740,20741,20752,20753,20756,20757,20800,20801,20804,20805,20816,20817,20820,20821,21504,21505,21508,21509,21520,21521,21524,21525,21568,21569,21572,21573,21584,21585,21588,21589,21760,21761,21764,21765,21776,21777,21780,21781,21824,21825,21828,21829,21840,21841,21844,21845],t.t)
 B.t1=s([127,127,191,127,159,191,223,127,143,159,175,191,207,223,239,127,135,143,151,159,167,175,183,191,199,207,215,223,231,239,247,127,131,135,139,143,147,151,155,159,163,167,171,175,179,183,187,191,195,199,203,207,211,215,219,223,227,231,235,239,243,247,251,127,129,131,133,135,137,139,141,143,145,147,149,151,153,155,157,159,161,163,165,167,169,171,173,175,177,179,181,183,185,187,189,191,193,195,197,199,201,203,205,207,209,211,213,215,217,219,221,223,225,227,229,231,233,235,237,239,241,243,245,247,249,251,253,127],t.t)
 B.ab_=new A.aQ("No drafts. A letter you start and leave is kept here until you send or discard it.",null,B.jZ,B.dl,null,null,null,null,null,null)
-B.a0D=new A.bx(B.lw,B.ab_,null)
-B.UT=s([B.a0D],t.D)
+B.a0E=new A.bx(B.lw,B.ab_,null)
+B.UT=s([B.a0E],t.D)
 B.t2=s([7,6,6,5,5,5,5,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],t.t)
 B.iZ=s([28679,28679,31752,-32759,-31735,-30711,-29687,-28663,29703,29703,30727,30727,-27639,-26615,-25591,-24567],t.t)
 B.V2=s([1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225],t.t)
@@ -123157,19 +123157,19 @@ B.a0x=new A.SR(0,"nearestOverlay")
 B.a0y=new A.SR(1,"rootOverlay")
 B.qg=new A.aA(20,0,20,4)
 B.E9=new A.x(!0,null,null,null,null,null,16,B.bB,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.aaH=new A.aQ("Write to",null,B.E9,null,null,null,null,null,null,null)
-B.a0z=new A.bx(B.qg,B.aaH,null)
+B.aaG=new A.aQ("Write to",null,B.E9,null,null,null,null,null,null,null)
+B.a0z=new A.bx(B.qg,B.aaG,null)
+B.aav=new A.aQ("Write to a crew",null,B.E9,null,null,null,null,null,null,null)
+B.a0A=new A.bx(B.qg,B.aav,null)
+B.e7=new A.x(!0,B.cD,null,null,null,null,11.5,B.bB,null,1.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
+B.aaI=new A.aQ("CREWS",null,B.e7,null,null,null,null,null,null,null)
+B.a0B=new A.bx(B.qe,B.aaI,null)
 B.ab8=new A.aQ("Nobody yet.",null,null,B.dl,null,null,null,null,null,null)
-B.a0A=new A.bx(B.lw,B.ab8,null)
-B.aaT=new A.aQ("Write to a group",null,B.E9,null,null,null,null,null,null,null)
-B.a0C=new A.bx(B.qg,B.aaT,null)
+B.a0C=new A.bx(B.lw,B.ab8,null)
 B.K5=new A.aA(0,8,0,8)
 B.cW=new A.x(!0,null,null,null,null,null,null,null,null,null,null,null,1.4,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.aaY=new A.aQ("In the browser the letterbox is checked whenever this page is open. For a nudge when a letter arrives, install the phone app.",null,B.cW,null,null,null,null,null,null,null)
-B.a0E=new A.bx(B.K5,B.aaY,null)
-B.e7=new A.x(!0,B.cD,null,null,null,null,11.5,B.bB,null,1.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.aav=new A.aQ("GROUPS",null,B.e7,null,null,null,null,null,null,null)
-B.a0F=new A.bx(B.qe,B.aav,null)
+B.a0F=new A.bx(B.K5,B.aaY,null)
 B.k_=new A.x(!0,B.eq,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.aao=new A.aQ("The two seed nodes disagree about this balance. One may be behind; pull to refresh in a minute.",null,B.k_,null,null,null,null,null,null,null)
 B.a0G=new A.bx(B.qa,B.aao,null)
@@ -123991,9 +123991,8 @@ B.aaC=new A.aQ("Show",null,null,null,null,null,null,null,null,null)
 B.aaD=new A.aQ("I already have a wallet",null,null,null,null,null,null,null,null,null)
 B.a7J=new A.x(!0,B.l,null,null,null,null,28,B.bB,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.aaE=new A.aQ("Unlock your wallet",null,B.a7J,null,null,null,null,null,null,null)
-B.aaF=new A.aQ("Delete group",null,B.k_,null,null,null,null,null,null,null)
-B.aaG=new A.aQ("Export sealed wallet file",null,null,null,null,null,null,null,null,null)
-B.aaI=new A.aQ("Your twelve recovery words rebuild this wallet on any phone or PC. Show them only when nobody is looking over your shoulder.",null,B.cW,null,null,null,null,null,null,null)
+B.aaF=new A.aQ("Export sealed wallet file",null,null,null,null,null,null,null,null,null)
+B.aaH=new A.aQ("Your twelve recovery words rebuild this wallet on any phone or PC. Show them only when nobody is looking over your shoulder.",null,B.cW,null,null,null,null,null,null,null)
 B.aaJ=new A.aQ("Create wallet",null,null,null,null,null,null,null,null,null)
 B.aaK=new A.aQ("Letters",null,null,null,null,null,null,null,null,null)
 B.aaL=new A.aQ("Take a picture",null,null,null,null,null,null,null,null,null)
@@ -124004,6 +124003,7 @@ B.aaP=new A.aQ("Copy words",null,null,null,null,null,null,null,null,null)
 B.aaQ=new A.aQ("People you have written to who wrote back. Letters earn the grants below.",null,B.cw,null,null,null,null,null,null,null)
 B.aaR=new A.aQ("Recover wallet",null,null,null,null,null,null,null,null,null)
 B.aaS=new A.aQ("YOUR ADDRESS",null,B.e7,null,null,null,null,null,null,null)
+B.aaT=new A.aQ("Disband crew",null,B.k_,null,null,null,null,null,null,null)
 B.aaU=new A.aQ("It disappears from this phone. The sealed copy stays on the chain, as every letter does, and only the key that opens it could ever read it. You can show removed letters again from Settings.",null,null,null,null,null,null,null,null,null)
 B.aaV=new A.aQ("Tell a friend",null,null,null,null,null,null,null,null,null)
 B.aaW=new A.aQ("Claim my starter",null,null,null,null,null,null,null,null,null)
@@ -124019,7 +124019,7 @@ B.ab3=new A.aQ("Anyone who sees them can take the wallet.",null,null,null,null,n
 B.ab4=new A.aQ("Settings",null,null,null,null,null,null,null,null,null)
 B.HY=new A.L(0.5019607843137255,0.6627450980392157,0.7294117647058823,0.8,B.h)
 B.a79=new A.x(!0,B.HY,null,null,null,null,12,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.ab5=new A.aQ("version 0.8.0",null,B.a79,B.dl,null,null,null,null,null,null)
+B.ab5=new A.aQ("version 0.8.1",null,B.a79,B.dl,null,null,null,null,null,null)
 B.ab6=new A.aQ("Export copies the sealed wallet file to the clipboard. Paste it into a text file on a PC and it opens there with the same passphrase. Keep a copy somewhere safe; without the file and the passphrase the coins are gone.",null,B.cW,null,null,null,null,null,null,null)
 B.ab7=new A.aQ("The Harbourmaster's purse",null,null,null,null,null,null,null,null,null)
 B.ab9=new A.aQ("Create a new wallet",null,null,null,null,null,null,null,null,null)

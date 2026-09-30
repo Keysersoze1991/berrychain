@@ -126,7 +126,7 @@ class _DraftList extends StatelessWidget {
       itemBuilder: (context, i) {
         final d = drafts[i];
         final g = s.groupById(d.groupId);
-        final who = g != null ? 'To group ${g.name}' : d.to.isEmpty ? 'No address yet' : 'To ${shortAddress(d.to)}';
+        final who = g != null ? 'To the crew ${g.name}' : d.to.isEmpty ? 'No address yet' : 'To ${shortAddress(d.to)}';
         final when = DateTime.fromMillisecondsSinceEpoch(d.updated);
         return Dismissible(
           key: ValueKey(d.id),
@@ -168,7 +168,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
       final g = o.group;
       if (g != null && widget.incoming) {
         final added = await s.adoptGroup(g, widget.letter.from);
-        if (added && mounted) toast(context, 'Group "${g.name}" saved to People so you can reply to everyone');
+        if (added && mounted) toast(context, 'Crew "${g.name}" saved to People so you can reply to everyone');
       }
     }).catchError((e) {
       if (mounted) setState(() => error = '$e');
@@ -206,7 +206,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
           if (group != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('Sent to the group "${group.name}" (${group.members.length + 1} people, including you)', style: const TextStyle(color: Palette.brass, fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text('Sent to the crew "${group.name}" (${group.members.length + 1} people, including you)', style: const TextStyle(color: Palette.brass, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
           Text('Block ${l.height}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           if (o?.replyTo != null) Text('Reply to letter ${shortAddress(o!.replyTo!)}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
@@ -229,7 +229,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
               const SizedBox(height: 10),
               FilledButton.icon(
                 icon: const Icon(Icons.reply_all),
-                label: Text('Reply to the group (${group.members.length} people)'),
+                label: Text('Reply to the crew (${group.members.length} people)'),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ComposeScreen(group: s.groupById(group.id) ?? group, subject: o.subject.startsWith('Re:') ? o.subject : 'Re: ${o.subject}', replyTo: l.id))),
               ),
             ],
@@ -371,7 +371,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       sent = true;
       await s.deleteDraft(draftId);
       if (!mounted) return;
-      toast(context, g == null ? 'Sealed and sent. Readable once the block is mined.' : 'Sealed and sent to everyone in ${g.name}.');
+      toast(context, g == null ? 'Sealed and sent. Readable once the block is mined.' : 'Sealed and sent to the whole crew ${g.name}.');
       s.refresh();
       Navigator.pop(context);
     }
@@ -401,7 +401,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
           if (g != null)
             InputDecorator(
               decoration: InputDecoration(
-                labelText: 'To group',
+                labelText: 'To crew',
                 suffixIcon: IconButton(icon: const Icon(Icons.close), tooltip: 'Write to one person instead', onPressed: () => setState(() => group = null)),
               ),
               child: Wrap(
@@ -421,7 +421,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 labelText: 'To (brry1…)',
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.people_outline),
-                  tooltip: 'Choose from your people or groups',
+                  tooltip: 'Choose from your people or crews',
                   onPressed: () async {
                     final picked = await pickRecipient(context);
                     if (picked is Contact) setState(() => to.text = picked.address);
@@ -483,7 +483,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
           Text(
             g == null
                 ? 'Fee ${formatBerry(fee)} BERRY. Only the recipient can read this; the ledger shows the two addresses, the time and the size. Drafts are kept on this phone until you send or discard them.'
-                : 'One sealed copy per person, ${formatBerry(fee)} BERRY each. Each copy carries the group so they can reply to everyone. The ledger shows you writing to $copies addresses.',
+                : 'One sealed copy per person, ${formatBerry(fee)} BERRY each. Each copy carries the crew so they can reply to everyone. The ledger shows you writing to $copies addresses.',
             style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
           ),
         ],

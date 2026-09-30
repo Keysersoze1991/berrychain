@@ -94,7 +94,8 @@ shows letters the same way:
 ```
 
 Two optional fields ride in the same envelope. `photo_jpeg_b64` is one small
-JPEG. `group` is present when the letter went to several people at once:
+JPEG. `group` is present when the letter went to several people at once (the
+app calls such a set of people a crew; the field name stays `group`):
 
 ```json
 {"v": 1, "subject": "Tomorrow", "body": "Bring the charts.", "from_name": "alice",

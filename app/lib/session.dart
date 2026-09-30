@@ -545,9 +545,9 @@ class Session extends ChangeNotifier {
   Future<List<String>> sendGroupLetter(LetterGroup group, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg}) async {
     final me = wallet!.address;
     final targets = group.members.where((m) => m != me).toList();
-    if (targets.isEmpty) throw ArgumentError('the group has nobody in it but you');
+    if (targets.isEmpty) throw ArgumentError('the crew has nobody in it but you');
     for (final t in targets) {
-      if (!await canReceiveLetters(t)) throw ArgumentError('${await lookupName(t)} (${t.substring(0, 12)}…) has no receiving key yet; remove them from the group or wait until they claim a starter');
+      if (!await canReceiveLetters(t)) throw ArgumentError('${await lookupName(t)} (${t.substring(0, 12)}…) has no receiving key yet; remove them from the crew or wait until they claim a starter');
     }
     final fee = letterFee ?? minFee;
     final need = targets.length * (fee + amountSeeds);

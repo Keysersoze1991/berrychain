@@ -7,8 +7,8 @@ import '../session.dart';
 import 'common.dart';
 import 'letters.dart';
 
-/// Everyone you have written to or heard from, and the groups you write to
-/// at once. Tap to write, hold to name (or, for a group, to delete).
+/// Everyone you have written to or heard from, and the crews you write to
+/// at once. Tap to write, hold to name (or, for a crew, to disband).
 class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key});
 
@@ -18,7 +18,7 @@ class ContactsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('People'),
-        actions: [IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'New group', onPressed: () => editGroup(context))],
+        actions: [IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'New crew', onPressed: () => editGroup(context))],
       ),
       body: ListenableBuilder(
         listenable: s,
@@ -27,7 +27,7 @@ class ContactsScreen extends StatelessWidget {
           child: ListView(
             children: [
               if (s.groups.isNotEmpty) ...[
-                const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text('GROUPS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883)))),
+                const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 4), child: Text('CREWS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883)))),
                 for (final g in s.groups) GroupRow(g),
                 const Divider(height: 20),
               ],
@@ -35,7 +35,7 @@ class ContactsScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   s.groups.isEmpty
-                      ? 'Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The group button above makes a set of people you can write to at once.'
+                      ? 'Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The crew button above makes a set of people you can write to at once.'
                       : 'Everyone you have corresponded with, newest first. Tap to write; hold to name.',
                   style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
                 ),
@@ -84,13 +84,13 @@ Future<void> editGroup(BuildContext context, {LetterGroup? existing}) async {
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(
-        title: Text(existing == null ? 'New group' : 'Edit group'),
+        title: Text(existing == null ? 'New crew' : 'Edit crew'),
         content: SizedBox(
           width: 420,
           child: ListView(
             shrinkWrap: true,
             children: [
-              TextField(controller: name, autofocus: existing == null, decoration: const InputDecoration(labelText: 'Group name', helperText: 'Travels inside each letter, sealed; never on the chain')),
+              TextField(controller: name, autofocus: existing == null, decoration: const InputDecoration(labelText: 'Crew name', helperText: 'Travels inside each letter, sealed; never on the chain')),
               const SizedBox(height: 10),
               for (final c in s.contacts)
                 CheckboxListTile(
@@ -124,7 +124,7 @@ Future<void> editGroup(BuildContext context, {LetterGroup? existing}) async {
           ),
         ),
         actions: [
-          if (existing != null) TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: const Text('Delete group', style: TextStyle(color: Palette.band))),
+          if (existing != null) TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: const Text('Disband crew', style: TextStyle(color: Palette.band))),
           TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: const Text('Save')),
         ],
@@ -133,7 +133,7 @@ Future<void> editGroup(BuildContext context, {LetterGroup? existing}) async {
   );
   if (result == 'delete' && existing != null) {
     await s.deleteGroup(existing.id);
-    if (context.mounted) toast(context, 'Group removed from this phone');
+    if (context.mounted) toast(context, 'Crew disbanded on this phone');
     return;
   }
   if (result != 'save') return;
@@ -147,16 +147,16 @@ Future<void> editGroup(BuildContext context, {LetterGroup? existing}) async {
   }
   chosen.remove(s.wallet?.address);
   if (name.text.trim().isEmpty) {
-    if (context.mounted) toast(context, 'Give the group a name');
+    if (context.mounted) toast(context, 'Give the crew a name');
     return;
   }
   if (chosen.length < 2) {
-    if (context.mounted) toast(context, 'A group needs at least two other people');
+    if (context.mounted) toast(context, 'A crew needs at least two other people');
     return;
   }
   if (existing != null) await s.deleteGroup(existing.id);
   await s.saveGroup(name.text, chosen.toList());
-  if (context.mounted) toast(context, 'Group "${name.text.trim()}" saved. Send it a letter and everyone in it gets the group too.');
+  if (context.mounted) toast(context, 'Crew "${name.text.trim()}" saved. Send it a letter and everyone in it gets the crew too.');
 }
 
 class ContactRow extends StatelessWidget {
@@ -215,7 +215,7 @@ Future<Object?> pickRecipient(BuildContext context) {
         shrinkWrap: true,
         children: [
           if (s.groups.isNotEmpty) ...[
-            const Padding(padding: EdgeInsets.fromLTRB(20, 0, 20, 4), child: Text('Write to a group', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
+            const Padding(padding: EdgeInsets.fromLTRB(20, 0, 20, 4), child: Text('Write to a crew', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16))),
             for (final g in s.groups) GroupRow(g, onPick: (picked) => Navigator.pop(ctx, picked)),
             const Divider(),
           ],
