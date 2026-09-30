@@ -151,4 +151,23 @@ void main() {
     expect(parseBerry('1,000'), 100000000000);
     expect(() => parseBerry('1.123456789'), throwsFormatException);
   });
+
+  test('group letters carry the group inside the seal and open the same way', () {
+    final g = LetterGroup('abc123', 'Crew', ['brry1aaa', 'brry1bbb']);
+    final plain = composeLetter('Hello all', subject: 'Tide', senderName: 'Marlow', group: g);
+    final o = openLetter(plain);
+    expect(o.subject, 'Tide');
+    expect(o.fromName, 'Marlow');
+    expect(o.group, isNotNull);
+    expect(o.group!.id, 'abc123');
+    expect(o.group!.name, 'Crew');
+    expect(o.group!.members, ['brry1aaa', 'brry1bbb']);
+    // a letter without a group still opens, and the group costs envelope room
+    expect(openLetter(composeLetter('plain')).group, isNull);
+    expect(textBudget(group: g), lessThan(textBudget()));
+    // malformed group blocks are ignored rather than breaking the letter
+    final env = jsonDecode(utf8.decode(plain)) as Map<String, dynamic>;
+    env['group'] = {'id': 1};
+    expect(openLetter(utf8.encode(jsonEncode(env))).group, isNull);
+  });
 }

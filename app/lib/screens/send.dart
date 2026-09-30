@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/crypto.dart';
 import '../core/units.dart';
 import '../main.dart';
 import 'common.dart';
@@ -12,6 +13,25 @@ class SendScreen extends StatefulWidget {
 
 class _SendScreenState extends State<SendScreen> {
   final to = TextEditingController(), amount = TextEditingController(), memo = TextEditingController();
+  String? toName;
+  bool toValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    to.addListener(() => lookup(to.text.trim()));
+  }
+
+  Future<void> lookup(String addr) async {
+    final valid = isValidAddress(addr);
+    setState(() {
+      toValid = valid;
+      toName = null;
+    });
+    if (!valid) return;
+    final n = await SessionScope.of(context).lookupName(addr);
+    if (mounted && to.text.trim() == addr) setState(() => toName = n);
+  }
 
   Future<void> send() async {
     final int seeds;
@@ -53,6 +73,14 @@ class _SendScreenState extends State<SendScreen> {
           Text('Available: ${s.balance == null ? '–' : formatBerry(s.balance!)} BERRY', style: const TextStyle(color: Color(0xFF6F7883))),
           const SizedBox(height: 14),
           TextField(controller: to, decoration: const InputDecoration(labelText: 'To (brry1…)'), autocorrect: false, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+          if (to.text.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                !toValid ? 'Not a BerryChain address yet' : toName == null ? 'Looking up…' : toName!.isEmpty ? 'Sending to an address with no registered name' : 'Sending to $toName',
+                style: TextStyle(fontSize: 13, color: !toValid ? Palette.band : (toName?.isNotEmpty == true ? Palette.leaf : const Color(0xFF6F7883)), fontWeight: FontWeight.w600),
+              ),
+            ),
           const SizedBox(height: 12),
           TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Amount in BERRY', hintText: '0.25')),
           const SizedBox(height: 12),

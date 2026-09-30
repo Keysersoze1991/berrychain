@@ -57,6 +57,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) => s.saveSettings(s.nodeUrls, background: v),
             ),
           ),
+          ListenableBuilder(
+            listenable: s,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show letters removed from this phone'),
+              subtitle: Text(s.removedCount == 0 ? 'Nothing removed yet.' : '${s.removedCount} removed. Removing a letter hides it here; the sealed copy stays on the chain, readable only with its key.'),
+              value: s.showRemoved,
+              onChanged: (v) => s.setShowRemoved(v),
+            ),
+          ),
           const Divider(height: 32),
           const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),

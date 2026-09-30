@@ -93,6 +93,22 @@ shows letters the same way:
 {"v": 1, "subject": "Tomorrow", "body": "Bring the charts.", "reply_to": "<letter id>", "from_name": "alice"}
 ```
 
+Two optional fields ride in the same envelope. `photo_jpeg_b64` is one small
+JPEG. `group` is present when the letter went to several people at once:
+
+```json
+{"v": 1, "subject": "Tomorrow", "body": "Bring the charts.", "from_name": "alice",
+ "group": {"id": "9f3c1e2b7a4d5e60", "name": "Crew", "members": ["brry1...", "brry1..."]}}
+```
+
+A group letter is one ordinary sealed letter per member (one fee each);
+nothing on the ledger ties the copies together. The `group` block lets the
+recipients' apps recreate the same group and reply to everyone. `id` is the
+first 16 hex characters of SHA-256 over the name, a newline, and the sorted
+member addresses joined by newlines, so the same group made anywhere gets
+the same id. Clients that do not understand groups show the letter as a
+normal one.
+
 Plain text or bytes sent by another client still open; they come back as
 a body with no subject.
 

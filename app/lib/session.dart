@@ -65,6 +65,20 @@ class Contact {
   }
 }
 
+/// A letter being written, kept on this phone until it is sent or discarded.
+class Draft {
+  final String id;
+  String to, subject, body;
+  String? replyTo, groupId, photoB64;
+  int updated;
+  Draft(this.id, {this.to = '', this.subject = '', this.body = '', this.replyTo, this.groupId, this.photoB64, this.updated = 0});
+  Map<String, dynamic> toJson() => {'id': id, 'to': to, 'subject': subject, 'body': body, 'reply_to': replyTo, 'group_id': groupId, 'photo_b64': photoB64, 'updated': updated};
+  static Draft fromJson(Map<String, dynamic> j) => Draft(j['id'] as String,
+      to: (j['to'] as String?) ?? '', subject: (j['subject'] as String?) ?? '', body: (j['body'] as String?) ?? '',
+      replyTo: j['reply_to'] as String?, groupId: j['group_id'] as String?, photoB64: j['photo_b64'] as String?, updated: (j['updated'] as int?) ?? 0);
+  bool get isEmpty => to.isEmpty && subject.isEmpty && body.trim().isEmpty && photoB64 == null;
+}
+
 /// A grant the account can earn by corresponding, and where it stands.
 class EarnedGrant {
   final String tier, title;
@@ -92,11 +106,21 @@ class Session extends ChangeNotifier {
   int correspondents = 0;
   Map<String, dynamic>? registry; // this address's registry record, if any
   Map<String, dynamic>? chainParams;
-  List<LetterItem> inbox = [];
-  List<LetterItem> sent = [];
+  List<LetterItem> _inboxAll = [];
+  List<LetterItem> _sentAll = [];
   List<Contact> contacts = [];
+  List<LetterGroup> groups = [];
+  List<Draft> drafts = [];
+  final Set<String> _hidden = {};
+  bool showRemoved = false;
   final Map<String, String> _nicknames = {};
   final Map<String, String> _nameCache = {};
+
+  /// Letters, without the ones removed on this phone (unless [showRemoved]).
+  List<LetterItem> get inbox => showRemoved ? _inboxAll : _inboxAll.where((l) => !_hidden.contains(l.id)).toList();
+  List<LetterItem> get sent => showRemoved ? _sentAll : _sentAll.where((l) => !_hidden.contains(l.id)).toList();
+  bool isRemoved(String id) => _hidden.contains(id);
+  int get removedCount => _hidden.length;
   String? lastError;
   bool busy = false;
 
@@ -131,6 +155,7 @@ class Session extends ChangeNotifier {
         m.forEach((k, v) => _nicknames[k] = v as String);
       } catch (_) {}
     }
+    await _loadLocal(d);
     light = await LightClient.open(Profile.mainnet, Network.genesisHash,
         checkpointHeight: Network.checkpointHeight, checkpointHash: Network.checkpointHash, path: '${d}headers-${Network.chainId}.json');
     notifyListeners();
@@ -193,8 +218,8 @@ class Session extends ChangeNotifier {
   void lock() {
     wallet = null;
     balance = null;
-    inbox = [];
-    sent = [];
+    _inboxAll = [];
+    _sentAll = [];
     registry = null;
     correspondents = 0;
     notifyListeners();
@@ -217,8 +242,8 @@ class Session extends ChangeNotifier {
       balance = a['balance'] as int;
       registry = a['llm'] as Map<String, dynamic>?;
       correspondents = (a['correspondents'] as int?) ?? 0;
-      inbox = (await node.letters(to: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
-      sent = (await node.letters(from: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      _inboxAll = (await node.letters(to: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      _sentAll = (await node.letters(from: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       balanceOther = null;
       if (nodeUrls.length > 1) {
         try {
@@ -254,7 +279,7 @@ class Session extends ChangeNotifier {
       } catch (_) {}
     }
     await lc.sync(node);
-    for (final l in inbox.where((l) => l.amount > 0 && !l.verified)) {
+    for (final l in _inboxAll.where((l) => l.amount > 0 && !l.verified)) {
       try {
         await lc.verifyTx(node, l.id);
         l.verified = true;
@@ -276,10 +301,10 @@ class Session extends ChangeNotifier {
       c.letters++;
       if (height > c.lastHeight) c.lastHeight = height;
     }
-    for (final l in inbox) {
+    for (final l in _inboxAll) {
       note(l.from, l.height);
     }
-    for (final l in sent) {
+    for (final l in _sentAll) {
       note(l.to, l.height);
     }
     seen.putIfAbsent(Network.harbourmaster, () => Contact(Network.harbourmaster));
@@ -320,6 +345,131 @@ class Session extends ChangeNotifier {
       if (c.address == address) c.nickname = _nicknames[address] ?? '';
     }
     await writeText('${await storeDir()}contacts.json', jsonEncode(_nicknames));
+    notifyListeners();
+  }
+
+  // ------------------------------------------------ kept on this phone only
+  Future<void> _loadLocal(String d) async {
+    try {
+      final g = await readText('${d}groups.json');
+      if (g != null) groups = (jsonDecode(g) as List).map(LetterGroup.fromJson).whereType<LetterGroup>().toList();
+    } catch (_) {}
+    try {
+      final t = await readText('${d}drafts.json');
+      if (t != null) drafts = (jsonDecode(t) as List).map((j) => Draft.fromJson(Map<String, dynamic>.from(j as Map))).toList();
+    } catch (_) {}
+    try {
+      final h = await readText('${d}hidden.json');
+      if (h != null) {
+        final m = jsonDecode(h) as Map<String, dynamic>;
+        _hidden.addAll(((m['ids'] as List?) ?? []).cast<String>());
+        showRemoved = (m['show'] as bool?) ?? false;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveGroups() async => writeText('${await storeDir()}groups.json', jsonEncode(groups.map((g) => g.toJson()).toList()));
+  Future<void> _saveDrafts() async => writeText('${await storeDir()}drafts.json', jsonEncode(drafts.map((d) => d.toJson()).toList()));
+  Future<void> _saveHidden() async => writeText('${await storeDir()}hidden.json', jsonEncode({'ids': _hidden.toList(), 'show': showRemoved}));
+
+  /// The name to show for an address: your nickname, the name they registered
+  /// on the chain, or nothing. Looks the chain up once per address.
+  Future<String> lookupName(String address) async {
+    if (address == Network.harbourmaster) return 'the Harbourmaster';
+    final nick = _nicknames[address];
+    if (nick != null && nick.isNotEmpty) return nick;
+    final cached = _nameCache[address];
+    if (cached != null) return cached;
+    try {
+      final n = (((await node.account(address))['llm'] as Map?)?['name'] as String?) ?? '';
+      if (n.isNotEmpty) _nameCache[address] = n;
+      return n;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Whether an address has a receiving key, so a letter can be sealed to it.
+  Future<bool> canReceiveLetters(String address) async {
+    try {
+      return (((await node.account(address))['llm'] as Map?)?['enc_pub'] as String?) != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  LetterGroup? groupById(String? id) {
+    if (id == null) return null;
+    for (final g in groups) {
+      if (g.id == id) return g;
+    }
+    return null;
+  }
+
+  /// A group's id is derived from its name and members, so the same group made
+  /// on two phones (or received in a letter) is recognised as one.
+  static String groupIdFor(String name, List<String> members) {
+    final sorted = [...members]..sort();
+    return toHex(sha256(utf8.encode('${name.trim()}\n${sorted.join('\n')}'))).substring(0, 16);
+  }
+
+  Future<LetterGroup> saveGroup(String name, List<String> members, {String? id}) async {
+    final me = wallet?.address;
+    final clean = members.where((m) => m != me).toSet().toList();
+    final g = LetterGroup(id ?? groupIdFor(name, clean), name.trim(), clean);
+    groups.removeWhere((x) => x.id == g.id);
+    groups.insert(0, g);
+    await _saveGroups();
+    notifyListeners();
+    return g;
+  }
+
+  Future<void> deleteGroup(String id) async {
+    groups.removeWhere((g) => g.id == id);
+    await _saveGroups();
+    notifyListeners();
+  }
+
+  /// When a group letter arrives, remember the group so you can reply to all.
+  /// Returns true if it was new to this phone.
+  Future<bool> adoptGroup(LetterGroup g, String sender) async {
+    if (groupById(g.id) != null) return false;
+    final members = {...g.members, sender}..remove(wallet?.address);
+    await saveGroup(g.name, members.toList(), id: g.id);
+    return true;
+  }
+
+  Future<void> saveDraft(Draft d) async {
+    d.updated = DateTime.now().millisecondsSinceEpoch;
+    drafts.removeWhere((x) => x.id == d.id);
+    if (!d.isEmpty) drafts.insert(0, d);
+    await _saveDrafts();
+    notifyListeners();
+  }
+
+  Future<void> deleteDraft(String id) async {
+    drafts.removeWhere((x) => x.id == id);
+    await _saveDrafts();
+    notifyListeners();
+  }
+
+  /// Remove a letter from this phone's lists. The sealed copy stays on the
+  /// chain, as every letter does; only the key that opens it can ever read it.
+  Future<void> removeLetter(String id) async {
+    _hidden.add(id);
+    await _saveHidden();
+    notifyListeners();
+  }
+
+  Future<void> restoreLetter(String id) async {
+    _hidden.remove(id);
+    await _saveHidden();
+    notifyListeners();
+  }
+
+  Future<void> setShowRemoved(bool v) async {
+    showRemoved = v;
+    await _saveHidden();
     notifyListeners();
   }
 
@@ -390,7 +540,26 @@ class Session extends ChangeNotifier {
     return node.sendTx(tx);
   }
 
-  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg}) async {
+  /// One sealed copy to every member of [group]. Each copy carries the group
+  /// inside its envelope so the others can reply to everyone. Returns the ids.
+  Future<List<String>> sendGroupLetter(LetterGroup group, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg}) async {
+    final me = wallet!.address;
+    final targets = group.members.where((m) => m != me).toList();
+    if (targets.isEmpty) throw ArgumentError('the group has nobody in it but you');
+    for (final t in targets) {
+      if (!await canReceiveLetters(t)) throw ArgumentError('${await lookupName(t)} (${t.substring(0, 12)}…) has no receiving key yet; remove them from the group or wait until they claim a starter');
+    }
+    final fee = letterFee ?? minFee;
+    final need = targets.length * (fee + amountSeeds);
+    if ((balance ?? 0) < need) throw ArgumentError('${targets.length} letters need ${formatBerry(need)} BERRY and you have ${formatBerry(balance ?? 0)}');
+    final ids = <String>[];
+    for (final t in targets) {
+      ids.add(await sendLetter(t, subject, body, amountSeeds, replyTo: replyTo, photoJpeg: photoJpeg, group: group));
+    }
+    return ids;
+  }
+
+  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg, LetterGroup? group}) async {
     final w = wallet!;
     if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
     if (to == w.address) throw ArgumentError('that is your own address');
@@ -398,7 +567,7 @@ class Session extends ChangeNotifier {
     final reg = acct['llm'] as Map<String, dynamic>?;
     final encPub = reg?['enc_pub'] as String?;
     if (encPub == null) throw ArgumentError('that address has not claimed a starter yet, so it has no receiving key');
-    final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg);
+    final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group);
     if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
     final ct = await encryptPacket(key, plain);
