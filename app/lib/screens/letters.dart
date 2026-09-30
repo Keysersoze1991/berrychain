@@ -60,7 +60,11 @@ class LettersScreen extends StatelessWidget {
 /// true if the letter is no longer shown.
 Future<bool> confirmRemove(BuildContext context, LetterItem l) async {
   final s = SessionScope.of(context);
-  final mine = l.from == s.wallet!.address;
+  final w = s.wallet!;
+  final mine = l.from == w.address;
+  // A received letter can only be made unreadable everywhere if its key lives on this phone alone.
+  final pub = l.encPub;
+  final burnableKey = pub != null && pub != w.encRootPub && w.keyFor(pub) != null && !s.keyIsBackedUp(pub);
   final choice = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
@@ -85,7 +89,9 @@ Future<bool> confirmRemove(BuildContext context, LetterItem l) async {
           title: const Text('Burn'),
           subtitle: Text(mine
               ? 'Gone from this phone for good, and your key to this letter is destroyed with it: nothing on your side, not even your twelve words, can open the chain copy again. The recipient keeps theirs unless they burn it too.'
-              : 'Gone from this phone for good, not restorable from Settings. It was sealed to your wallet\'s receiving key, so your twelve words could still rebuild access to the chain copy; the coming rotating-keys update closes that.'),
+              : (burnableKey
+                  ? 'Gone from this phone for good. To make it unreadable everywhere, burn the key it was sealed to in Settings; that covers every letter sealed to that key.'
+                  : 'Gone from this phone for good, not restorable from Settings. Your twelve words could still rebuild the key it was sealed to. For letters nobody can ever recover, rotate your key with no backup in Settings.')),
           onTap: () => Navigator.pop(ctx, 'burn'),
         ),
         const SizedBox(height: 6),

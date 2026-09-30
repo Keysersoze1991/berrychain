@@ -48,6 +48,8 @@ class LetterItem {
   int get height => meta['height'] as int;
   int get amount => meta['amount'] as int;
   int get size => meta['size'] as int;
+  /// The receiving key this letter was sealed to.
+  String? get encPub => meta['enc_pub'] as String?;
 }
 
 /// Someone this wallet has written to or heard from, or a well-known address.
