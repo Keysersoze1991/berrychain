@@ -183,4 +183,5 @@ footer .hat svg { width: 22px; height: 22px; }
   td.num { white-space: normal; }
   nav { gap: 2px 12px; font-size: 13.5px; }
 }
-.tagline { font-family: Fraunces, Georgia, serif; font-style: italic; font-size: 21px; color: var(--gold); margin: 18px 0 6px; letter-spacing: .005em; }
+.tagline { font-family: Fraunces, Georgia, serif; font-style: italic; font-size: 21px; color: var(--gold); margin: 6px 0 18px; letter-spacing: .005em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tagline .skull { width: 22px; height: 22px; flex: none; }
