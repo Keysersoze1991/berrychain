@@ -17,7 +17,7 @@ class ContactsScreen extends StatelessWidget {
     final s = SessionScope.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('People'),
+        title: const Text('Contacts'),
         actions: [IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'New crew', onPressed: () => editGroup(context))],
       ),
       body: ListenableBuilder(
@@ -35,7 +35,7 @@ class ContactsScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   s.groups.isEmpty
-                      ? 'Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The crew button above makes a set of people you can write to at once.'
+                      ? 'Everyone you have corresponded with, newest first. Tap to write; hold to give them a name that stays on this phone. The crew button above makes a set of contacts you can write to at once.'
                       : 'Everyone you have corresponded with, newest first. Tap to write; hold to name.',
                   style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
                 ),

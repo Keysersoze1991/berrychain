@@ -1,9 +1,45 @@
 import 'package:flutter/material.dart';
 
+import '../background.dart';
 import '../main.dart';
 import '../session.dart';
 import 'common.dart';
 import 'welcome.dart';
+
+/// The name letters are signed with: seen by the people you write to, never by the chain.
+class NamePanel extends StatefulWidget {
+  final Session s;
+  const NamePanel(this.s, {super.key});
+  @override
+  State<NamePanel> createState() => _NamePanelState();
+}
+
+class _NamePanelState extends State<NamePanel> {
+  late final ctl = TextEditingController(text: widget.s.wallet?.label ?? '');
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: ctl,
+              decoration: const InputDecoration(labelText: 'Your name', helperText: 'How your letters are signed. The people you write to see it; the chain does not.', helperMaxLines: 2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: FilledButton.tonal(
+              onPressed: () async {
+                await widget.s.setLabel(ctl.text);
+                if (context.mounted) toast(context, 'Saved. New letters are signed this way.');
+              },
+              child: const Text('Save'),
+            ),
+          ),
+        ],
+      );
+}
 
 /// Rotate, recover and burn receiving keys, with the consequences spelled out.
 class KeysPanel extends StatelessWidget {
@@ -144,6 +180,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text('In the browser the letterbox is checked whenever this page is open. For a nudge when a letter arrives, install the phone app.', style: TextStyle(height: 1.4)),
             ),
+          if (!isBrowser)
+            TextButton.icon(
+              icon: const Icon(Icons.notifications_active_outlined, size: 18),
+              label: const Text('Show me a test notification, with sound'),
+              onPressed: () async {
+                await showTestNotification();
+                if (context.mounted) toast(context, 'Sent. If nothing appeared, check BerryChain in the phone\'s notification settings.');
+              },
+            ),
           if (!isBrowser) ListenableBuilder(
             listenable: s,
             builder: (context, _) => SwitchListTile(
@@ -169,6 +214,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Text('RECEIVING KEYS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),
           ListenableBuilder(listenable: s, builder: (context, _) => KeysPanel(s)),
+          const Divider(height: 32),
+          const Text('YOUR NAME', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          const SizedBox(height: 6),
+          ListenableBuilder(listenable: s, builder: (context, _) => NamePanel(s)),
           const Divider(height: 32),
           const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),

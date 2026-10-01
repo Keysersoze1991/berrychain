@@ -21,7 +21,7 @@ class LettersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Letters'),
@@ -30,8 +30,7 @@ class LettersScreen extends StatelessWidget {
             labelColor: Colors.white,
             unselectedLabelColor: const Color(0xFFA9BACC),
             tabs: [
-              const Tab(text: 'Inbox'),
-              const Tab(text: 'Sent'),
+              ListenableBuilder(listenable: s, builder: (_, __) => Tab(text: s.unreadCount == 0 ? 'Letters' : 'Letters (${s.unreadCount} unread)')),
               ListenableBuilder(listenable: s, builder: (_, __) => Tab(text: s.drafts.isEmpty ? 'Drafts' : 'Drafts (${s.drafts.length})')),
             ],
           ),
@@ -45,13 +44,129 @@ class LettersScreen extends StatelessWidget {
         ),
         body: ListenableBuilder(
           listenable: s,
-          builder: (context, _) => TabBarView(children: [
-            _LetterList(items: s.inbox, incoming: true),
-            _LetterList(items: s.sent, incoming: false),
-            const _DraftList(),
-          ]),
+          builder: (context, _) => const TabBarView(children: [_FolderList(), _DraftList()]),
         ),
       ),
+    );
+  }
+}
+
+String whenText(DateTime? t) {
+  if (t == null) return '';
+  final l = t.toLocal();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  final now = DateTime.now();
+  final sameDay = l.year == now.year && l.month == now.month && l.day == now.day;
+  final hm = '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  if (sameDay) return 'today $hm';
+  return '${l.day} ${months[l.month - 1]}${l.year == now.year ? '' : ' ${l.year}'} $hm';
+}
+
+/// A row per friend or crew, newest correspondence first.
+class _FolderList extends StatelessWidget {
+  const _FolderList();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SessionScope.of(context);
+    final folders = s.folders;
+    return RefreshIndicator(
+      onRefresh: s.refresh,
+      child: folders.isEmpty
+          ? ListView(children: const [Padding(padding: EdgeInsets.all(32), child: Text('Nothing here yet. Write to someone, or pull down to check again.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF6F7883))))])
+          : ListView.builder(
+              itemCount: folders.length,
+              itemBuilder: (context, i) {
+                final f = folders[i];
+                final latest = f.letters.first;
+                final isHm = f.address == Network.harbourmaster;
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: f.crew != null ? const Color(0xFFDCCFB4) : (isHm ? Palette.gold : const Color(0xFFDCCFB4)),
+                    foregroundColor: Palette.sea,
+                    child: Icon(f.crew != null ? Icons.groups_outlined : (isHm ? Icons.anchor : Icons.folder_outlined), size: 20),
+                  ),
+                  title: Text(f.title, style: TextStyle(fontWeight: f.unread > 0 ? FontWeight.w700 : FontWeight.w500)),
+                  subtitle: Text('${f.letters.length} letter${f.letters.length == 1 ? '' : 's'}${f.unread > 0 ? ' · ${f.unread} unread' : ''} · latest ${whenText(s.cachedLetterTime(latest)).isEmpty ? 'block ${latest.height}' : whenText(s.cachedLetterTime(latest))}'),
+                  trailing: f.unread > 0
+                      ? Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3), decoration: BoxDecoration(color: Palette.band, borderRadius: BorderRadius.circular(12)), child: Text('${f.unread}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)))
+                      : const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ConversationScreen(f.key))),
+                );
+              },
+            ),
+    );
+  }
+}
+
+/// Everything with one friend or crew, in order, with Write at the bottom.
+class ConversationScreen extends StatefulWidget {
+  final String folderKey;
+  const ConversationScreen(this.folderKey, {super.key});
+  @override
+  State<ConversationScreen> createState() => _ConversationScreenState();
+}
+
+class _ConversationScreenState extends State<ConversationScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadTimes());
+  }
+
+  Future<void> _loadTimes() async {
+    final s = SessionScope.of(context);
+    final f = s.folders.where((f) => f.key == widget.folderKey).firstOrNull;
+    if (f == null) return;
+    for (final l in f.letters.take(40)) {
+      if (s.cachedLetterTime(l) == null) await s.letterTime(l);
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = SessionScope.of(context);
+    return ListenableBuilder(
+      listenable: s,
+      builder: (context, _) {
+        final f = s.folders.where((f) => f.key == widget.folderKey).firstOrNull;
+        if (f == null) return Scaffold(appBar: AppBar(title: const Text('Letters')), body: const Center(child: Text('Nothing here any more.')));
+        final me = s.wallet!.address;
+        return Scaffold(
+          appBar: AppBar(title: Text(f.title)),
+          floatingActionButton: FloatingActionButton.extended(
+            backgroundColor: Palette.gold,
+            foregroundColor: Palette.sea,
+            icon: const Icon(Icons.edit),
+            label: Text(f.crew != null ? 'Write to the crew' : 'Write'),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => f.crew != null ? ComposeScreen(group: f.crew) : ComposeScreen(to: f.address))),
+          ),
+          body: RefreshIndicator(
+            onRefresh: s.refresh,
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 90),
+              itemCount: f.letters.length,
+              itemBuilder: (context, i) {
+                final l = f.letters[i];
+                final incoming = l.from != me;
+                final unread = s.isUnread(l);
+                final when = whenText(s.cachedLetterTime(l));
+                final removed = s.isRemoved(l.id);
+                return ListTile(
+                  leading: Icon(incoming ? Icons.mail_outline : Icons.send_outlined, color: removed ? const Color(0xFF9A8D94) : (unread ? Palette.band : Palette.brass)),
+                  title: Text(incoming ? (f.crew != null ? 'From ${s.contacts.where((c) => c.address == l.from).map((c) => c.label).firstOrNull ?? shortAddress(l.from)}' : 'Received') : (f.crew != null ? 'To ${s.contacts.where((c) => c.address == l.to).map((c) => c.label).firstOrNull ?? shortAddress(l.to)}' : 'Sent'),
+                      style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: removed ? const Color(0xFF9A8D94) : null)),
+                  subtitle: Text('${removed ? 'removed · ' : ''}${when.isEmpty ? 'block ${l.height}' : when}${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
+                  trailing: unread ? const Icon(Icons.circle, size: 10, color: Palette.band) : const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadLetterScreen(l, incoming: incoming))),
+                  onLongPress: () => removed ? s.restoreLetter(l.id) : confirmRemove(context, l),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -126,40 +241,6 @@ Future<bool> confirmRemove(BuildContext context, LetterItem l) async {
   return false;
 }
 
-class _LetterList extends StatelessWidget {
-  final List<LetterItem> items;
-  final bool incoming;
-  const _LetterList({required this.items, required this.incoming});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = SessionScope.of(context);
-    return RefreshIndicator(
-      onRefresh: s.refresh,
-      child: items.isEmpty
-          ? ListView(children: const [Padding(padding: EdgeInsets.all(32), child: Text('Nothing here yet. Pull down to check again.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF6F7883))))])
-          : ListView.builder(
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final l = items[i];
-                final other = incoming ? l.from : l.to;
-                final known = s.contacts.where((c) => c.address == other).toList();
-                final title = known.isNotEmpty && known.first.label != other.substring(0, 12) ? known.first.label : shortAddress(other);
-                final removed = s.isRemoved(l.id);
-                return ListTile(
-                  leading: Icon(incoming ? Icons.mail_outline : Icons.send_outlined, color: removed ? const Color(0xFF9A8D94) : Palette.brass),
-                  title: Text(title, style: TextStyle(fontFamily: title == shortAddress(other) ? 'monospace' : null, color: removed ? const Color(0xFF9A8D94) : null)),
-                  subtitle: Text('${removed ? 'removed · ' : ''}block ${l.height} · ${l.size} bytes${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadLetterScreen(l, incoming: incoming))),
-                  onLongPress: () => removed ? s.restoreLetter(l.id) : confirmRemove(context, l),
-                );
-              },
-            ),
-    );
-  }
-}
-
 class _DraftList extends StatelessWidget {
   const _DraftList();
 
@@ -206,18 +287,26 @@ class ReadLetterScreen extends StatefulWidget {
 class _ReadLetterScreenState extends State<ReadLetterScreen> {
   OpenedLetter? opened;
   String? error;
+  DateTime? when;
 
   @override
   void initState() {
     super.initState();
     final s = SessionScope.of(context);
+    s.letterTime(widget.letter).then((t) {
+      if (mounted) setState(() => when = t);
+    });
     s.readLetter(widget.letter).then((o) async {
       if (!mounted) return;
       setState(() => opened = o);
+      await s.markRead(widget.letter);
       final g = o.group;
-      if (g != null && widget.incoming) {
-        final added = await s.adoptGroup(g, widget.letter.from);
-        if (added && mounted) toast(context, 'Crew "${g.name}" saved to People so you can reply to everyone');
+      if (g != null) {
+        await s.noteCrew(widget.letter.id, g.id);
+        if (widget.incoming) {
+          final added = await s.adoptGroup(g, widget.letter.from);
+          if (added && mounted) toast(context, 'Crew "${g.name}" saved to Contacts so you can reply to everyone');
+        }
       }
     }).catchError((e) {
       if (mounted) setState(() => error = '$e');
@@ -257,7 +346,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
               padding: const EdgeInsets.only(top: 4),
               child: Text('Sent to the crew "${group.name}" (${group.members.length + 1} people, including you)', style: const TextStyle(color: Palette.brass, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
-          Text('Block ${l.height}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+          Text('${widget.incoming ? 'Received' : 'Sent'} ${when == null ? 'in block ${l.height}' : '${whenText(when)} (block ${l.height})'}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           if (o?.replyTo != null) Text('Reply to letter ${shortAddress(o!.replyTo!)}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           const Divider(height: 28),
           if (error != null) Text(error!, style: const TextStyle(color: Palette.band)),

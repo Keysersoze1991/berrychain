@@ -30,7 +30,7 @@ class ReceiveScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = SessionScope.of(context).wallet!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Receive')),
+      appBar: AppBar(title: const Text('Share BerryChain with a friend')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -46,15 +46,17 @@ class ReceiveScreen extends StatelessWidget {
           const SizedBox(height: 6),
           SelectableText(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
           const SizedBox(height: 14),
-          FilledButton.icon(icon: const Icon(Icons.copy), label: const Text('Copy address'), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+          OutlinedButton.icon(icon: const Icon(Icons.copy), label: const Text('Copy address'), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
           const SizedBox(height: 10),
-          OutlinedButton.icon(
+          FilledButton.icon(
             icon: const Icon(Icons.ios_share),
-            label: const Text('Tell a friend'),
+            label: const Text('Share BerryChain with a friend'),
             onPressed: () => shareInvite(context),
           ),
+          const SizedBox(height: 6),
+          const Text('Sends them a short note with the app link and your address, through whatever app you choose.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           const SizedBox(height: 18),
-          const Text('Give this to anyone who wants to send you BERRY or a letter. Coins arrive whether or not the app is open; the chain holds them for you.', style: TextStyle(height: 1.4)),
+          const Text('Your address is where letters and BERRY reach you. Give it to anyone, or let the share button do it. Coins arrive whether or not the app is open; the chain holds them for you.', style: TextStyle(height: 1.4)),
           const SizedBox(height: 14),
           const Text('RECEIVING KEY', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),

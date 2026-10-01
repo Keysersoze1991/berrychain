@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/units.dart';
@@ -43,8 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final w = s.wallet!;
         final bal = s.balance;
         final mismatch = bal != null && s.balanceOther != null && s.balanceOther != bal;
-        final unread = s.inbox.length;
         final grants = s.earnedGrants;
+        final total = s.inbox.length + s.sent.length;
+        final unread = s.unreadCount;
         return Scaffold(
           appBar: AppBar(
             title: Text(w.label.isEmpty ? 'BerryChain' : w.label),
@@ -58,10 +60,47 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // ---- masthead: the same top as the website
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                  decoration: BoxDecoration(color: Palette.sea, borderRadius: BorderRadius.circular(14)),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset('assets/icons/berry-gold.svg', height: 34),
+                          const SizedBox(width: 10),
+                          const Text('BerryChain', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset('assets/icons/skull.svg', height: 18),
+                          const SizedBox(width: 8),
+                          const Flexible(child: Text("Privacy is not dead in the water, it's back.", textAlign: TextAlign.center, style: TextStyle(color: Palette.gold, fontStyle: FontStyle.italic, fontSize: 14.5))),
+                          const SizedBox(width: 8),
+                          SvgPicture.asset('assets/icons/skull.svg', height: 18),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // ---- balance with the berry symbol as a currency sign
                 Tile(
                   label: 'Balance',
                   trailing: s.busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : null,
-                  child: Text(bal == null ? '–' : '${formatBerry(bal)} BERRY', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SvgPicture.asset('assets/icons/berry.svg', height: 30),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(bal == null ? '–' : formatBerry(bal), style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600))),
+                    ],
+                  ),
                 ),
                 if (mismatch)
                   const Padding(
@@ -70,11 +109,46 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 if (s.lastError != null)
                   Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastError!, style: const TextStyle(color: Palette.band))),
-                Tile(
-                  label: 'Your address',
-                  trailing: IconButton(icon: const Icon(Icons.copy, size: 20), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
-                  child: Text(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
+                if (s.lastNote != null)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastNote!, style: const TextStyle(color: Palette.leaf, fontSize: 13))),
+                const SizedBox(height: 4),
+                // ---- letters: the main thing, so it sits high
+                FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(60), backgroundColor: Palette.gold, foregroundColor: Palette.sea),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LettersScreen())),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.mail_outline, size: 26),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Letters', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700))),
+                      _Count(label: 'total', value: total),
+                      const SizedBox(width: 8),
+                      _Count(label: 'unread', value: unread, highlight: unread > 0),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      icon: SvgPicture.asset('assets/icons/cannon.svg', height: 22),
+                      label: const Text('Share BerryChain with a friend', textAlign: TextAlign.center, style: TextStyle(fontSize: 13)),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.people_outline),
+                      label: Text(s.contacts.isEmpty ? 'Contacts' : 'Contacts (${s.contacts.length})', style: const TextStyle(fontSize: 13)),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 10),
                 if (s.registry == null && bal != null)
                   Card(
                     color: const Color(0xFFFBF1DC),
@@ -97,41 +171,41 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
                     ),
                   ),
-                if (s.lastNote != null)
-                  Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastNote!, style: const TextStyle(color: Palette.leaf, fontSize: 13))),
+                // ---- bonus berries (the correspondent grants)
                 if (s.registry != null)
-                  Tile(
-                    label: 'Registered as',
-                    trailing: (s.registry!['founding'] as bool? ?? false)
-                        ? const Chip(label: Text('Founder'), backgroundColor: Color(0xFFFBF1DC), side: BorderSide(color: Palette.gold))
-                        : null,
-                    child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                  ),
-                if (s.registry != null)
-                  Tile(
-                    label: 'Correspondents',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${s.correspondents}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        const Text('People you have written to who wrote back. Letters earn the grants below.', style: TextStyle(fontSize: 13, color: Color(0xFF6F7883))),
-                        const SizedBox(height: 8),
-                        for (final g in grants)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            child: Row(
-                              children: [
-                                Icon(g.taken ? Icons.check_circle : (s.correspondents >= g.need ? Icons.stars : Icons.radio_button_unchecked),
-                                    size: 20, color: g.taken ? Palette.leaf : (s.correspondents >= g.need ? Palette.brass : const Color(0xFF9A8D94))),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text('${g.title}: ${formatBerry(g.amount)} BERRY at ${g.need}', style: const TextStyle(fontSize: 14))),
-                                if (!g.taken && s.correspondents >= g.need)
-                                  TextButton(onPressed: () => claim(g), child: const Text('Claim')),
-                              ],
+                  Card(
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12)), side: BorderSide(color: Color(0xFFDCCFB4))),
+                    child: Container(
+                      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Palette.gold, width: 3)), borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            SvgPicture.asset('assets/icons/chest.svg', height: 22),
+                            const SizedBox(width: 8),
+                            const Text('BONUS BERRIES', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+                          ]),
+                          const SizedBox(height: 6),
+                          Text('${s.correspondents}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          const Text('Write to new people and have them write back to get bonus berry grants.', style: TextStyle(fontSize: 13, color: Color(0xFF6F7883))),
+                          const SizedBox(height: 8),
+                          for (final g in grants)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Row(
+                                children: [
+                                  Icon(g.taken ? Icons.check_circle : (s.correspondents >= g.need ? Icons.stars : Icons.radio_button_unchecked),
+                                      size: 20, color: g.taken ? Palette.leaf : (s.correspondents >= g.need ? Palette.brass : const Color(0xFF9A8D94))),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text('${g.title}: ${formatBerry(g.amount)} BERRY at ${g.need} people', style: const TextStyle(fontSize: 14))),
+                                  if (!g.taken && s.correspondents >= g.need) TextButton(onPressed: () => claim(g), child: const Text('Claim')),
+                                ],
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 Card(
@@ -145,27 +219,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       'address as the payout, and he sends ${Network.prizeBerry} BERRY more. The prizes shrink as the crew grows.',
                       style: TextStyle(height: 1.35),
                     ),
-                    trailing: IconButton(icon: const Icon(Icons.ios_share), tooltip: 'Tell a friend', onPressed: () => shareInvite(context)),
+                    trailing: IconButton(icon: const Icon(Icons.ios_share), tooltip: 'Share BerryChain with a friend', onPressed: () => shareInvite(context)),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(child: FilledButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),
-                  const SizedBox(width: 10),
-                  Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.qr_code_2), label: const Text('Receive'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())))),
-                ]),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.people_outline),
-                  label: Text(s.contacts.isEmpty ? 'People' : 'People (${s.contacts.length})'),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                Tile(
+                  label: 'Your address',
+                  trailing: IconButton(icon: const Icon(Icons.copy, size: 20), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+                  child: Text(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
                 ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.mail_outline),
-                  label: Text(unread == 0 ? 'Letters' : 'Letters ($unread in your inbox)'),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LettersScreen())),
-                ),
+                if (s.registry != null)
+                  Tile(
+                    label: 'Registered as',
+                    trailing: (s.registry!['founding'] as bool? ?? false)
+                        ? const Chip(label: Text('Founder'), backgroundColor: Color(0xFFFBF1DC), side: BorderSide(color: Palette.gold))
+                        : null,
+                    child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  ),
                 const SizedBox(height: 18),
                 Text(
                   s.nodeHeight == null
@@ -191,4 +260,23 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+class _Count extends StatelessWidget {
+  final String label;
+  final int value;
+  final bool highlight;
+  const _Count({required this.label, required this.value, this.highlight = false});
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: highlight ? Palette.band : Palette.sea.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$value', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: highlight ? Colors.white : Palette.sea)),
+            Text(label, style: TextStyle(fontSize: 10, color: highlight ? Colors.white : Palette.sea)),
+          ],
+        ),
+      );
 }

@@ -81,6 +81,16 @@ class Draft {
   bool get isEmpty => to.isEmpty && subject.isEmpty && body.trim().isEmpty && photoB64 == null;
 }
 
+/// Everything exchanged with one friend or one crew.
+class LetterFolder {
+  final String key, title;
+  final LetterGroup? crew;
+  final String? address;
+  final List<LetterItem> letters = [];
+  int unread = 0;
+  LetterFolder(this.key, this.title, {this.crew, this.address});
+}
+
 /// A grant the account can earn by corresponding, and where it stands.
 class EarnedGrant {
   final String tier, title;
@@ -115,6 +125,9 @@ class Session extends ChangeNotifier {
   List<Draft> drafts = [];
   final Set<String> _hidden = {};
   final Set<String> _burned = {};
+  final Set<String> _seen = {};                 // letters opened on this phone
+  final Map<String, String> _letterCrew = {};   // letter id -> crew id, for letters known to belong to a crew
+  final Map<int, int> _blockTime = {};          // block height -> unix timestamp
   bool showRemoved = false;
   final Map<String, String> _nicknames = {};
   final Map<String, String> _nameCache = {};
@@ -125,6 +138,9 @@ class Session extends ChangeNotifier {
   List<LetterItem> get sent => _sentAll.where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
   bool isRemoved(String id) => _hidden.contains(id);
   int get removedCount => _hidden.length;
+  bool isUnread(LetterItem l) => l.from != wallet?.address && !_seen.contains(l.id);
+  int get unreadCount => inbox.where(isUnread).length;
+  String? crewOf(String letterId) => _letterCrew[letterId];
   int get burnedCount => _burned.length;
   String? lastError;
   bool busy = false;
@@ -368,6 +384,15 @@ class Session extends ChangeNotifier {
       if (t != null) drafts = (jsonDecode(t) as List).map((j) => Draft.fromJson(Map<String, dynamic>.from(j as Map))).toList();
     } catch (_) {}
     try {
+      final sn = await readText('${d}seen.json');
+      if (sn != null) {
+        final m = jsonDecode(sn) as Map<String, dynamic>;
+        _seen.addAll(((m['ids'] as List?) ?? []).cast<String>());
+        ((m['crews'] as Map?) ?? {}).forEach((k, v) => _letterCrew[k as String] = v as String);
+        ((m['times'] as Map?) ?? {}).forEach((k, v) => _blockTime[int.parse(k as String)] = v as int);
+      }
+    } catch (_) {}
+    try {
       final h = await readText('${d}hidden.json');
       if (h != null) {
         final m = jsonDecode(h) as Map<String, dynamic>;
@@ -380,6 +405,86 @@ class Session extends ChangeNotifier {
 
   Future<void> _saveGroups() async => writeText('${await storeDir()}groups.json', jsonEncode(groups.map((g) => g.toJson()).toList()));
   Future<void> _saveDrafts() async => writeText('${await storeDir()}drafts.json', jsonEncode(drafts.map((d) => d.toJson()).toList()));
+  Future<void> _saveSeen() async => writeText('${await storeDir()}seen.json',
+      jsonEncode({'ids': _seen.toList(), 'crews': _letterCrew, 'times': {for (final e in _blockTime.entries) '${e.key}': e.value}}));
+
+  Future<void> markRead(LetterItem l) async {
+    if (_seen.add(l.id)) {
+      await _saveSeen();
+      notifyListeners();
+    }
+  }
+
+  Future<void> noteCrew(String letterId, String crewId) async {
+    if (_letterCrew[letterId] != crewId) {
+      _letterCrew[letterId] = crewId;
+      await _saveSeen();
+      notifyListeners();
+    }
+  }
+
+  /// When a block was mined, from its header; cached on the phone.
+  Future<DateTime?> letterTime(LetterItem l) async {
+    final h = l.height;
+    var t = _blockTime[h];
+    if (t == null) {
+      try {
+        final hs = await node.headers(h, h);
+        if (hs.isNotEmpty) {
+          t = hs.first['timestamp'] as int;
+          _blockTime[h] = t;
+          await _saveSeen();
+        }
+      } catch (_) {}
+    }
+    return t == null ? null : DateTime.fromMillisecondsSinceEpoch(t * 1000);
+  }
+
+  DateTime? cachedLetterTime(LetterItem l) {
+    final t = _blockTime[l.height];
+    return t == null ? null : DateTime.fromMillisecondsSinceEpoch(t * 1000);
+  }
+
+  /// A folder per friend or crew: every letter with them, newest first.
+  List<LetterFolder> get folders {
+    final me = wallet?.address;
+    final map = <String, LetterFolder>{};
+    void add(LetterItem l) {
+      final crew = _letterCrew[l.id];
+      final key = crew != null ? 'crew:$crew' : (l.from == me ? l.to : l.from);
+      final f = map.putIfAbsent(key, () {
+        if (crew != null) {
+          final g = groupById(crew);
+          return LetterFolder(key, g?.name ?? 'A crew', crew: g, address: null);
+        }
+        final c = contacts.where((c) => c.address == key).toList();
+        return LetterFolder(key, c.isNotEmpty ? c.first.label : key.substring(0, 12), crew: null, address: key);
+      });
+      f.letters.add(l);
+      if (isUnread(l)) f.unread++;
+    }
+    for (final l in inbox) {
+      add(l);
+    }
+    for (final l in sent) {
+      add(l);
+    }
+    final out = map.values.toList();
+    for (final f in out) {
+      f.letters.sort((a, b) => b.height.compareTo(a.height));
+    }
+    out.sort((a, b) => b.letters.first.height.compareTo(a.letters.first.height));
+    return out;
+  }
+
+  /// The name letters are signed with. Kept in the sealed wallet file.
+  Future<void> setLabel(String name) async {
+    final w = wallet!;
+    w.label = name.trim();
+    await w.save();
+    notifyListeners();
+  }
+
   Future<void> _saveHidden() async => writeText('${await storeDir()}hidden.json', jsonEncode({'ids': _hidden.toList(), 'burned': _burned.toList(), 'show': showRemoved}));
 
   /// Burn a letter: gone from this phone for good, not restorable. For a
@@ -673,8 +778,11 @@ class Session extends ChangeNotifier {
     if ((balance ?? 0) < need) throw ArgumentError('${targets.length} letters need ${formatBerry(need)} BERRY and you have ${formatBerry(balance ?? 0)}');
     final ids = <String>[];
     for (final t in targets) {
-      ids.add(await sendLetter(t, subject, body, amountSeeds, replyTo: replyTo, photoJpeg: photoJpeg, group: group));
+      final id = await sendLetter(t, subject, body, amountSeeds, replyTo: replyTo, photoJpeg: photoJpeg, group: group);
+      _letterCrew[id] = group.id;
+      ids.add(id);
     }
+    await _saveSeen();
     return ids;
   }
 
@@ -716,6 +824,8 @@ class Session extends ChangeNotifier {
       key = await unwrapFromSender(priv, Map<String, dynamic>.from(full['wrapped_key'] as Map));
     } else if (w.packetKeys.containsKey(l.id)) {
       key = fromHex(w.packetKeys[l.id]!);
+    } else if (full['from'] == w.address) {
+      throw StateError('you wrote this letter on another phone or PC, so the key to reread it is not on this one; the recipient can still read it');
     } else {
       throw StateError('this letter is not addressed to you');
     }

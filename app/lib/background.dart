@@ -25,7 +25,7 @@ Future<void> initNotifications() async {
   await notifications.initialize(
     settings: const InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+      iOS: DarwinInitializationSettings(requestAlertPermission: true, requestBadgePermission: true, requestSoundPermission: true),
     ),
   );
 }
@@ -35,7 +35,7 @@ Future<void> enableBackgroundChecks() async {
   final android = notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   await android?.requestNotificationsPermission();
   final ios = notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-  await ios?.requestPermissions(alert: true, badge: true, sound: false);
+  await ios?.requestPermissions(alert: true, badge: true, sound: true);
   await Workmanager().registerPeriodicTask(
     _uniqueName,
     backgroundTaskName,
@@ -57,6 +57,27 @@ Future<void> markSeen({required String address, required int height, required Li
   if (kIsWeb) return;
   await writeText('${await storeDir()}watch.json', jsonEncode({'address': address, 'height': height, 'nodes': nodes, 'seen': 0}));
   await notifications.cancelAll();
+}
+
+/// Show one notification right now, so a person can see and hear what the
+/// arrival nudge looks like on this phone (and grant permission if asked).
+Future<void> showTestNotification() async {
+  if (kIsWeb) return;
+  await initNotifications();
+  final android = notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  await android?.requestNotificationsPermission();
+  final ios = notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+  await ios?.requestPermissions(alert: true, badge: true, sound: true);
+  await notifications.show(
+    id: 2,
+    title: 'This is how a letter arrives',
+    body: 'A sealed letter reached your address. Open BerryChain to read it.',
+    notificationDetails: const NotificationDetails(
+      android: AndroidNotificationDetails(_channelId, 'Letters', channelDescription: 'A quiet note when a sealed letter reaches your address',
+          importance: Importance.high, priority: Priority.high, playSound: true),
+      iOS: DarwinNotificationDetails(presentSound: true, presentAlert: true, presentBadge: false),
+    ),
+  );
 }
 
 /// The background entry point. Runs in its own isolate with no app state.
@@ -100,8 +121,8 @@ Future<bool> checkForLetters() async {
     notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(_channelId, 'Letters',
           channelDescription: 'A quiet note when a sealed letter reaches your address',
-          importance: Importance.defaultImportance, priority: Priority.defaultPriority, number: fresh, onlyAlertOnce: true),
-      iOS: DarwinNotificationDetails(badgeNumber: fresh),
+          importance: Importance.high, priority: Priority.high, number: fresh, onlyAlertOnce: true, playSound: true),
+      iOS: DarwinNotificationDetails(badgeNumber: fresh, presentSound: true, presentAlert: true, presentBadge: true),
     ),
   );
   await writeText(path, jsonEncode({...w, 'seen': fresh}));
