@@ -128,26 +128,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(children: [
-                  Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.arrow_upward), label: const Text('Send'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())))),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: OutlinedButton.icon(
-                      icon: SvgPicture.asset('assets/icons/cannon.svg', height: 22),
-                      label: const Text('Share BerryChain with a friend', textAlign: TextAlign.center, style: TextStyle(fontSize: 13)),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.people_outline),
-                      label: Text(s.contacts.isEmpty ? 'Contacts' : 'Contacts (${s.contacts.length})', style: const TextStyle(fontSize: 13)),
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
-                    ),
-                  ),
-                ]),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.people_outline),
+                  label: Text(s.contacts.isEmpty ? 'Contacts' : 'Contacts (${s.contacts.length})'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactsScreen())),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.arrow_upward),
+                  label: const Text('Send BERRY'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: SvgPicture.asset('assets/icons/cannon.svg', height: 22),
+                  label: const Text('Share BerryChain with a friend'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())),
+                ),
                 const SizedBox(height: 10),
                 if (s.registry == null && bal != null)
                   Card(
