@@ -22,14 +22,14 @@
   <div class="hero" style="padding-top:36px">
     <p class="eyebrow" style="color:var(--brass)">Privacy policy · BerryChain app and network</p>
     <h1 style="color:var(--ink)">What we know about you: almost nothing.</h1>
-    <p class="lede">This policy covers the BerryChain Android app and the seed nodes at berrychain.link. Last updated 25 September 2026.</p>
+    <p class="lede">This policy covers the BerryChain app for Android, iPhone and the browser, and the seed nodes at berrychain.link. Last updated 2 October 2026.</p>
   </div>
 
   <h2>No accounts, no sign-up, no collection</h2>
   <p>The app has no user accounts. It does not ask for your name, email, phone number or contacts, and it has no analytics, advertising or crash-reporting libraries. We do not collect, store or sell personal information, and we have no servers that hold anything about you beyond what the public ledger holds, described below.</p>
 
   <h2>Your keys stay on your phone</h2>
-  <p>The app creates a wallet on your device: a signing key, a receiving key and, for wallets made with version 0.4 or later, twelve recovery words. These are kept in a file on the phone, sealed with a passphrase you choose. They never leave the phone unless you export them yourself. We cannot recover a lost passphrase or lost words; nobody can.</p>
+  <p>The app creates a wallet (the app calls it your treasure chest) on your device: a signing key, a receiving key and, for wallets made with version 0.4 or later, twelve recovery words. These are kept in a file on the phone, sealed with a passphrase you choose. They never leave the phone unless you export them yourself. We cannot recover a lost passphrase or lost words; nobody can.</p>
 
   <h2>What the public ledger records</h2>
   <p>BerryChain is a public blockchain. When you act, the network records it permanently and anyone may read it:</p>
@@ -42,6 +42,9 @@
 
   <h2>Network requests</h2>
   <p>The app talks to the seed nodes (seed1 and seed2 at berrychain.link) or to any node you configure, over HTTPS, to read the chain and to submit your transactions. A node sees your IP address and the requests you make, as any web server does; the seed nodes keep ordinary web-server logs for a short time for operations and do not use them for anything else. The app also fetches nothing from any third party.</p>
+
+  <h2>Instant notices on iPhone (optional)</h2>
+  <p>On iPhone, Settings has a switch called <em>Tell me straight away</em>. It is off unless you turn it on. When it is on, the app hands your phone's Apple push token to a BerryChain seed node, signed by your wallet, and the seed keeps the pairing of that token and your address. The seed then sends an Apple push the moment a letter for your address is carried in a block. The push says that a letter has arrived and nothing else: not who wrote it, not what it says, not any coins attached. This is the only thing any server of ours stores about you. Turn the switch off and the seed forgets the pairing at once; Apple is told nothing about your address. Android phones use the app's own background check instead and register nothing.</p>
 
   <h2>Camera and photos</h2>
   <p>If you choose to attach a picture to a letter, the app asks the system camera or gallery for one picture, shrinks it on the phone, and seals it inside the letter. The picture is not sent anywhere else and no permission is used until you tap the button.</p>

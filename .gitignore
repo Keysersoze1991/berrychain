@@ -21,3 +21,6 @@ __pycache__/
 private/
 .claude/
 app/ios/signing/paste_*
+
+# Apple push key for the relay: lives on seed1 only
+*.p8

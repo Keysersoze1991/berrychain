@@ -16,7 +16,8 @@ the Android keystore; they are the identity of the app.
 1. **Team ID.** Account > Membership details. Ten characters, e.g. `AB12CD34EF`.
 2. **App ID.** Certificates, Identifiers & Profiles > Identifiers > `+` >
    App IDs > App. Description "BerryChain", Bundle ID explicit
-   `link.berrychain.wallet`. No capabilities needed.
+   `link.berrychain.wallet`. Capabilities: *Push Notifications* (for the
+   opt-in instant notices; see docs/PUSH.md for the APNs key).
 3. **Distribution certificate.** Certificates > `+` > *Apple Distribution*.
    It asks for a certificate signing request: upload
    `app/ios/signing/distribution.csr` from this PC (already generated; its

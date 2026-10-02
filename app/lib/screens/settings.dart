@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../background.dart';
 import '../main.dart';
+import '../push.dart';
 import '../session.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'common.dart';
 import 'welcome.dart';
 
@@ -194,9 +196,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             builder: (context, _) => SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Tell me when a letter arrives'),
-              subtitle: const Text('Checks a seed node about every fifteen minutes, even with the app closed, and shows a badge. No server of ours is involved.'),
+              subtitle: Text(pushSupported
+                  ? 'Asks a seed node for new letters when the phone allows it. iPhone decides when that is, and never while the app is swiped away, so it can be hours; see the switch below for a nudge straight away.'
+                  : 'Checks a seed node about every fifteen minutes, even with the app closed, and shows a badge. No server of ours is involved.'),
               value: s.backgroundChecks,
               onChanged: (v) => s.saveSettings(s.nodeUrls, background: v),
+            ),
+          ),
+          if (pushSupported) ListenableBuilder(
+            listenable: s,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Tell me straight away'),
+              subtitle: Text('A seed node sends an Apple push the moment a letter for you is carried in a block. To do that it keeps the pairing of this phone and your address until you switch this off; the push says a letter arrived and nothing else.'
+                  '${s.pushError == null ? '' : '\n${s.pushError}'}'),
+              value: s.instantNotices,
+              onChanged: (v) async {
+                try {
+                  await s.setInstantNotices(v);
+                  if (context.mounted) toast(context, v ? 'On. The seed will nudge this phone when a letter lands.' : 'Off. The seed has forgotten this phone.');
+                } catch (e) {
+                  if (context.mounted) toast(context, '$e'.replaceFirst(RegExp(r'^\w+Error: '), '').replaceFirst('Bad state: ', ''));
+                }
+              },
             ),
           ),
           ListenableBuilder(
@@ -219,36 +241,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 6),
           ListenableBuilder(listenable: s, builder: (context, _) => NamePanel(s)),
           const Divider(height: 32),
-          const Text('WALLET', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          Row(children: [SvgPicture.asset('assets/icons/chest.svg', height: 18), const SizedBox(width: 8), const Text('TREASURE CHEST', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883)))]),
           const SizedBox(height: 6),
           if (s.wallet?.mnemonic != null) ...[
-            const Text('Your twelve recovery words rebuild this wallet on any phone or PC. Show them only when nobody is looking over your shoulder.', style: TextStyle(height: 1.4)),
+            const Text('Your twelve recovery words rebuild this chest on any phone or PC. Show them only when nobody is looking over your shoulder.', style: TextStyle(height: 1.4)),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               icon: const Icon(Icons.key_outlined),
               label: const Text('Show recovery phrase'),
               onPressed: () async {
-                final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Show the words?'), content: const Text('Anyone who sees them can take the wallet.'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Show'))]));
+                final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Show the words?'), content: const Text('Anyone who sees them can take the chest.'), actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Show'))]));
                 if (ok == true && context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ShowPhraseScreen(s.wallet!.mnemonic!)));
               },
             ),
             const SizedBox(height: 16),
           ] else ...[
-            const Text('This wallet was made before recovery phrases existed, so it has no words. Keep the exported file safe; it is the only way to move it to another phone.', style: TextStyle(height: 1.4, color: Palette.band)),
+            const Text('This chest was made before recovery phrases existed, so it has no words. Keep the exported file safe; it is the only way to move it to another phone.', style: TextStyle(height: 1.4, color: Palette.band)),
             const SizedBox(height: 10),
           ],
-          const Text('Export copies the sealed wallet file to the clipboard. Paste it into a text file on a PC and it opens there with the same passphrase. Keep a copy somewhere safe; without the file and the passphrase the coins are gone.', style: TextStyle(height: 1.4)),
+          const Text('Export copies the sealed chest file to the clipboard. Paste it into a text file on a PC and it opens there with the same passphrase. Keep a copy somewhere safe; without the file and the passphrase the coins are gone.', style: TextStyle(height: 1.4)),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             icon: const Icon(Icons.copy),
-            label: const Text('Export sealed wallet file'),
+            label: const Text('Export sealed chest file'),
             onPressed: () async {
               final json = await s.exportWalletJson();
-              if (context.mounted) copyToClipboard(context, json, what: 'Sealed wallet copied. Paste it somewhere safe.');
+              if (context.mounted) copyToClipboard(context, json, what: 'Sealed chest copied. Paste it somewhere safe.');
             },
           ),
           const Divider(height: 32),
-          Text('BerryChain wallet $appVersion. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Pre-audit software; do not hold value you cannot afford to lose.', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
+          Text('BerryChain $appVersion. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Pre-audit software; do not hold value you cannot afford to lose.', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
           const SizedBox(height: 6),
           const Text('berrychain.link', style: TextStyle(color: Palette.brass)),
         ],

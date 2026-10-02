@@ -38,7 +38,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Every new account gets ${s.starterAmount == null ? 'a starter grant' : '${formatBerry(s.starterAmount!)} BERRY'} from the treasury, and claims it itself. The claim also publishes your name and receiving key on the chain, which is what lets people send you letters. Once per wallet.', style: const TextStyle(height: 1.4)),
+          Text('Every new account gets ${s.starterAmount == null ? 'a starter grant' : '${formatBerry(s.starterAmount!)} BERRY'} from the treasury, and claims it itself. The claim also publishes your name and receiving key on the chain, which is what lets people send you letters. Once per chest.', style: const TextStyle(height: 1.4)),
           const SizedBox(height: 10),
           Text('The starter halves every 10,000 claims, so the earlier you claim, the more you get. The name is public; the $device does some work before the chain accepts the claim: seconds on a phone, a few minutes in a browser.', style: const TextStyle(color: Color(0xFF6F7883), height: 1.4)),
           const SizedBox(height: 18),

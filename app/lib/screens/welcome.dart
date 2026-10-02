@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/mnemonic.dart';
 import '../main.dart';
 import 'common.dart';
 
-/// First launch: make a wallet, recover one from its twelve words, or bring
-/// a wallet file from a PC.
+/// First launch: make a treasure chest (the wallet), recover one from its
+/// twelve words, or bring a chest file from a PC.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
@@ -29,16 +30,17 @@ class WelcomeScreen extends StatelessWidget {
                 style: TextStyle(color: Color(0xFFA9BACC), fontSize: 15.5, height: 1.45),
               ),
               const Spacer(),
-              FilledButton(
+              FilledButton.icon(
                 style: FilledButton.styleFrom(backgroundColor: Palette.gold, foregroundColor: Palette.sea),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateWalletScreen())),
-                child: const Text('Create a new wallet'),
+                icon: SvgPicture.asset('assets/icons/chest.svg', height: 22),
+                label: const Text('Create your treasure chest'),
               ),
               const SizedBox(height: 10),
               OutlinedButton(
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Color(0x73EEF3F8))),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecoverWalletScreen())),
-                child: const Text('I already have a wallet'),
+                child: const Text('I already have a chest'),
               ),
               const SizedBox(height: 8),
               const Text('version $appVersion', textAlign: TextAlign.center, style: TextStyle(color: Color(0x80A9BACC), fontSize: 12)),
@@ -64,7 +66,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     if (p1.text.length < 8) return toast(context, 'Use a passphrase of at least 8 characters');
     if (p1.text != p2.text) return toast(context, 'The passphrases do not match');
     final s = SessionScope.of(context);
-    final phrase = await runBusy<String>(context, 'Sealing your wallet…', () => s.createWallet(name.text.trim(), p1.text));
+    final phrase = await runBusy<String>(context, 'Sealing your chest…', () => s.createWallet(name.text.trim(), p1.text));
     if (phrase != null && mounted) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ShowPhraseScreen(phrase, firstTime: true)));
     }
@@ -72,19 +74,23 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('New wallet')),
+        appBar: AppBar(title: const Text('Your treasure chest')),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text('The wallet lives in $deviceThe, sealed with a passphrase you choose now. Next you will be shown twelve words: they rebuild the wallet on any phone or PC, so they matter more than the $device does.', style: const TextStyle(height: 1.4)),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SvgPicture.asset('assets/icons/chest.svg', height: 40),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Your treasure chest is your wallet: it holds your berries, your keys and your letters. It lives in $deviceThe, sealed with a passphrase you choose now. Next you will be shown twelve words: they rebuild the chest on any phone or PC, so they matter more than the $device does.', style: const TextStyle(height: 1.4))),
+            ]),
             const SizedBox(height: 18),
-            TextField(controller: name, decoration: const InputDecoration(labelText: 'Your name (optional)', helperText: 'How your letters are signed: the people you write to see it, the blockchain does not.', helperMaxLines: 2)),
+            TextField(controller: name, decoration: const InputDecoration(labelText: 'Your name', helperText: 'This is also your user name on BerryChain: it signs your letters, and it is the name you register when you claim your starter, so people can write to you by it. You can change it later in Settings.', helperMaxLines: 4)),
             const SizedBox(height: 12),
             PassphraseField(controller: p1, label: 'Passphrase for $deviceThe'),
             const SizedBox(height: 12),
             PassphraseField(controller: p2, label: 'Passphrase again', onSubmitted: (_) => create()),
             const SizedBox(height: 20),
-            FilledButton(onPressed: create, child: const Text('Create wallet')),
+            FilledButton(onPressed: create, child: const Text('Create my chest')),
           ],
         ),
       );
@@ -104,7 +110,7 @@ class ShowPhraseScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Write these twelve words on paper, in order, and keep them somewhere other than with the $device. Anyone with the words has the wallet; without them, a lost $device means lost coins and letters.', style: const TextStyle(height: 1.4)),
+          Text('Write these twelve words on paper, in order, and keep them somewhere other than with the $device. Anyone with the words has the chest; without them, a lost $device means lost coins and letters.', style: const TextStyle(height: 1.4)),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -155,7 +161,7 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
     } on FormatException catch (e) {
       return toast(context, e.message);
     }
-    final ok = await runBusy<bool>(context, 'Rebuilding your wallet…', () async {
+    final ok = await runBusy<bool>(context, 'Rebuilding your chest…', () async {
       await s.recoverWallet(words.text, name.text.trim(), p1.text);
       return true;
     });
@@ -163,9 +169,9 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
   }
 
   Future<void> importFile() async {
-    if (filePass.text.isEmpty) return toast(context, 'Enter the wallet passphrase');
+    if (filePass.text.isEmpty) return toast(context, 'Enter the chest passphrase');
     final s = SessionScope.of(context);
-    final ok = await runBusy<bool>(context, 'Opening the wallet…', () async {
+    final ok = await runBusy<bool>(context, 'Opening the chest…', () async {
       await s.importWallet(fileJson.text.trim(), filePass.text);
       return true;
     });
@@ -174,18 +180,18 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Recover a wallet')),
+        appBar: AppBar(title: const Text('Recover a chest')),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             SegmentedButton<bool>(
-              segments: const [ButtonSegment(value: false, label: Text('Twelve words')), ButtonSegment(value: true, label: Text('Wallet file'))],
+              segments: const [ButtonSegment(value: false, label: Text('Twelve words')), ButtonSegment(value: true, label: Text('Chest file'))],
               selected: {byFile},
               onSelectionChanged: (v) => setState(() => byFile = v.first),
             ),
             const SizedBox(height: 16),
             if (!byFile) ...[
-              Text('Type the twelve words of your recovery phrase, in order. The same wallet, address and letters come back in $deviceThe.', style: const TextStyle(height: 1.4)),
+              Text('Type the twelve words of your recovery phrase, in order. The same chest, address and letters come back in $deviceThe.', style: const TextStyle(height: 1.4)),
               const SizedBox(height: 14),
               TextField(controller: words, minLines: 3, maxLines: 4, autocorrect: false, enableSuggestions: false, decoration: const InputDecoration(labelText: 'Recovery phrase')),
               const SizedBox(height: 12),
@@ -195,13 +201,13 @@ class _RecoverWalletScreenState extends State<RecoverWalletScreen> {
               const SizedBox(height: 12),
               PassphraseField(controller: p2, label: 'Passphrase again', onSubmitted: (_) => recover()),
               const SizedBox(height: 20),
-              FilledButton(onPressed: recover, child: const Text('Recover wallet')),
+              FilledButton(onPressed: recover, child: const Text('Recover chest')),
               const SizedBox(height: 12),
-              const Text('A wallet made before recovery phrases existed has no words. Use the wallet file instead: export it from Settings on the old phone, or copy keys\\savings.json from the PC.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
+              const Text('A chest made before recovery phrases existed has no words. Use the chest file instead: export it from Settings on the old phone, or copy keys\\savings.json from the PC.', style: TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
             ] else ...[
-              const Text('Paste the contents of a sealed wallet file exported from another phone or made on a PC, and enter its passphrase.', style: TextStyle(height: 1.4)),
+              const Text('Paste the contents of a sealed chest file exported from another phone or made on a PC, and enter its passphrase.', style: TextStyle(height: 1.4)),
               const SizedBox(height: 14),
-              TextField(controller: fileJson, maxLines: 6, decoration: const InputDecoration(labelText: 'Wallet file contents'), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+              TextField(controller: fileJson, maxLines: 6, decoration: const InputDecoration(labelText: 'Chest file contents'), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
               const SizedBox(height: 12),
               PassphraseField(controller: filePass, label: 'Its passphrase', onSubmitted: (_) => importFile()),
               const SizedBox(height: 20),

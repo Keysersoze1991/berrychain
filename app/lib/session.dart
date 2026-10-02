@@ -13,6 +13,7 @@ import 'core/node.dart';
 import 'core/tx.dart';
 import 'core/units.dart';
 import 'core/wallet.dart';
+import 'push.dart';
 
 /// Network constants for mainnet. The checkpoint and genesis are pinned so a
 /// lying node cannot show this phone a different chain.
@@ -107,6 +108,10 @@ class Session extends ChangeNotifier {
   bool hasWalletFile = false;
   List<String> nodeUrls = List.of(Network.seeds);
   bool backgroundChecks = true;
+  bool instantNotices = false;   // iOS: the seed's push relay sends a push the moment a letter lands
+  String? pushToken;
+  String? pushError;
+  bool _pushRegistered = false;
   late Node node;
   LightClient? light;
 
@@ -160,6 +165,7 @@ class Session extends ChangeNotifier {
         final urls = (s['nodes'] as List?)?.cast<String>();
         if (urls != null && urls.isNotEmpty) nodeUrls = urls;
         backgroundChecks = (s['background'] as bool?) ?? true;
+        instantNotices = (s['instant'] as bool?) ?? false;
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
@@ -182,12 +188,56 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _writeSettings() async =>
+      writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks, 'instant': instantNotices}));
+
+  /// Turn the iOS push relay on or off. On: ask for the Apple token, sign it,
+  /// hand it to a seed. Off: tell the seeds to forget it. Throws with a plain
+  /// message when the phone cannot give a token.
+  Future<void> setInstantNotices(bool on) async {
+    final w = wallet;
+    if (w == null) return;
+    pushError = null;
+    if (on) {
+      try {
+        await enableBackgroundChecks(); // the permission prompt, if not yet answered
+      } catch (_) {}
+      final token = await requestPushToken();
+      if (token == null) {
+        pushError = 'This phone did not give a push token. Check notifications are allowed for BerryChain, and that the phone is online.';
+        notifyListeners();
+        throw StateError(pushError!);
+      }
+      await registerPush(w, token, nodeUrls);
+      pushToken = token;
+      _pushRegistered = true;
+      instantNotices = true;
+    } else {
+      if (pushToken != null) await unregisterPush(w, pushToken!, nodeUrls);
+      instantNotices = false;
+      _pushRegistered = false;
+    }
+    await _writeSettings();
+    notifyListeners();
+  }
+
+  /// Apple may hand out a new token after a restore or an iOS update, so the
+  /// registration is repeated once per app run while the switch is on.
+  Future<void> _ensurePushRegistered(Wallet w) async {
+    if (!instantNotices || _pushRegistered || !pushSupported) return;
+    final token = await requestPushToken();
+    if (token == null) return;
+    await registerPush(w, token, nodeUrls);
+    pushToken = token;
+    _pushRegistered = true;
+  }
+
   Future<void> saveSettings(List<String> urls, {bool? background}) async {
     nodeUrls = urls.where((u) => u.trim().isNotEmpty).map((u) => u.trim()).toList();
     if (nodeUrls.isEmpty) nodeUrls = List.of(Network.seeds);
     node = Node(nodeUrls.first);
     if (background != null) backgroundChecks = background;
-    await writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks}));
+    await _writeSettings();
     try {
       if (backgroundChecks && wallet != null) {
         await enableBackgroundChecks();
@@ -281,6 +331,9 @@ class Session extends ChangeNotifier {
         try {
           await markSeen(address: w.address, height: nodeHeight!, nodes: nodeUrls);
           if (backgroundChecks) await enableBackgroundChecks();
+        } catch (_) {}
+        try {
+          await _ensurePushRegistered(w);
         } catch (_) {}
       }
     } on NodeError catch (e) {

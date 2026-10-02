@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../main.dart';
 import 'common.dart';
@@ -29,7 +30,7 @@ class _UnlockScreenState extends State<UnlockScreen> {
               children: [
                 const Text('BERRYCHAIN', style: TextStyle(color: Palette.gold2, letterSpacing: 3, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                const Text('Unlock your wallet', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600)),
+                Row(children: [SvgPicture.asset('assets/icons/chest.svg', height: 30), const SizedBox(width: 10), const Text('Unlock your chest', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w600))]),
                 const SizedBox(height: 20),
                 Theme(
                   data: Theme.of(context).copyWith(inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder(), filled: true, fillColor: Colors.white)),

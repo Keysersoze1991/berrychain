@@ -191,6 +191,7 @@ berrychain/lightclient.py header verification so clients need not trust their no
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
 docs/LETTERS.md         sealed letters: private end-to-end encrypted messages between two addresses
+docs/PUSH.md            opt-in push relay: an Apple push the moment a letter lands (berrychain/push.py on seed1)
 docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots
 berrychain/mnemonic.py   twelve-word recovery phrases (BIP-39 words and seed, HKDF to the two keys)
 berrychain/wallet.py    key files

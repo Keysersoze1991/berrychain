@@ -1,2 +1,3 @@
 cryptography>=42
 mcp>=2
+httpx[http2]>=0.27

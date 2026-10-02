@@ -1,0 +1,27 @@
+[Unit]
+Description=BerryChain push relay (opt-in letter nudges)
+After=network-online.target berrychain-node.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=berry
+Group=berry
+WorkingDirectory=/opt/berrychain
+EnvironmentFile=/etc/berrychain/push.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/berrychain/.venv/bin/python -m berrychain.push
+Restart=always
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/berrychain
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

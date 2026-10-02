@@ -60,8 +60,15 @@ fi
 
 echo "== systemd"
 install -m 644 "$APP/deploy/berrychain-node.service" /etc/systemd/system/berrychain-node.service
+install -m 644 "$APP/deploy/berrychain-push.service" /etc/systemd/system/berrychain-push.service
 systemctl daemon-reload
 systemctl enable -q berrychain-node
+# the push relay runs only where /etc/berrychain/push.env exists (see push.env.example)
+if [ -f "$ETC/push.env" ]; then
+  mkdir -p "$DATA/push"; chown berry:berry "$DATA/push"
+  systemctl enable -q berrychain-push
+  systemctl restart berrychain-push
+fi
 
 echo "== nginx"
 if [ ! -f /etc/nginx/sites-available/berrychain ]; then

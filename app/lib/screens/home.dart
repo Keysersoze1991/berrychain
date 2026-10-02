@@ -10,7 +10,6 @@ import 'common.dart';
 import 'contacts.dart';
 import 'letters.dart';
 import 'receive.dart';
-import 'send.dart';
 import 'settings.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -135,12 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  icon: const Icon(Icons.arrow_upward),
-                  label: const Text('Send BERRY'),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendScreen())),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
                   icon: SvgPicture.asset('assets/icons/cannon.svg', height: 22),
                   label: const Text('Share BerryChain with a friend'),
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceiveScreen())),
@@ -152,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.card_giftcard, color: Palette.brass),
                       title: const Text('Claim your starter'),
-                      subtitle: Text('${s.starterAmount == null ? 'Some' : formatBerry(s.starterAmount!)} BERRY from the treasury, plus a name so people can write to you. Once per wallet.'),
+                      subtitle: Text('${s.starterAmount == null ? 'Some' : formatBerry(s.starterAmount!)} BERRY from the treasury, plus a name so people can write to you. Once per chest.'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClaimScreen())),
                     ),
