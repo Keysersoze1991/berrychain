@@ -106,8 +106,12 @@ model, with the amounts in `params.py`:
 
 `harbour_prize` starts at 5 BERRY and halves every 5,000 registered
 accounts, never below 0.5. Nothing is sent when the wallet cannot cover the
-amount plus fees, and a purse failure never stops the post. State keys:
-`tipped`, `week`, `week_letters`, `last_winner`, `bonused`, `scanned`.
+amount plus fees, and a purse failure never stops the post. On top of that
+the purse has a hard daily ceiling, `max_payout_seeds_per_day` in the config
+(`HARBOUR_DAILY_CAP`, 25 BERRY): tips and prizes stop for the rest of the UTC
+day once it is reached, so a seed that is taken over can lose at most one
+day's budget before anyone notices. State keys: `tipped`, `week`,
+`week_letters`, `last_winner`, `bonused`, `scanned`, `paid_today`.
 
 The first pen pal on the network is the Harbourmaster on seed1, at the
 builder-agent address, answering up to three letters a day from each person.

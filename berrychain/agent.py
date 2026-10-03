@@ -367,6 +367,8 @@ class PenPal:
         self.tips = bool(cfg.get("tips", True))
         self.welcome_tip = int(cfg.get("welcome_tip_seeds", params.HARBOUR_WELCOME_TIP))
         self.prize_base = int(cfg.get("prize_seeds", params.HARBOUR_PRIZE))
+        # Hard ceiling on tips + prizes per UTC day: a compromised seed can lose at most this much.
+        self.daily_cap = int(cfg.get("max_payout_seeds_per_day", params.HARBOUR_DAILY_CAP))
         self.system = PENPAL_SYSTEM.format(name=self.name, persona=cfg.get("persona", "a kind, weathered harbourmaster who keeps the post"),
                                            max_chars=self.max_chars, open=UNTRUSTED_LETTER_OPEN, close=UNTRUSTED_LETTER_CLOSE,
                                            welcome=_b(self.welcome_tip), prize=_b(self.prize_base))
@@ -383,7 +385,7 @@ class PenPal:
         if os.path.exists(self.state_path):
             with open(self.state_path) as f:
                 return json.load(f)
-        return {"answered": [], "day": "", "replies_today": 0, "per_correspondent": {}, "ticks": 0,
+        return {"answered": [], "day": "", "replies_today": 0, "per_correspondent": {}, "ticks": 0, "paid_today": 0,
                 "tipped": [], "week": None, "week_letters": [], "last_winner": None, "bonused": [], "scanned": None}
 
     def _save_state(self) -> None:
@@ -399,7 +401,7 @@ class PenPal:
     def _roll_day(self) -> None:
         today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
         if self.state.get("day") != today:
-            self.state.update({"day": today, "replies_today": 0, "per_correspondent": {}})
+            self.state.update({"day": today, "replies_today": 0, "per_correspondent": {}, "paid_today": 0})
 
     def _thread_path(self, addr: str) -> str:
         return os.path.join(self.data_dir, "threads", f"{addr}.json")
@@ -475,6 +477,7 @@ class PenPal:
                 content = compose_letter(body, subject=subject, reply_to=l["id"], sender_name=self.name)
             rid = self.client.send_letter(self.wallet, addr, content, amount_seeds=tip)
             if tip:
+                self._paid(tip)
                 self.state["tipped"].append(addr)
             self.state.setdefault("week_letters", []).append({"addr": addr, "id": l["id"], "subject": env.get("subject", ""),
                                                               "excerpt": env["body"][:600], "height": l["height"]})
@@ -505,10 +508,16 @@ class PenPal:
     # ---- the harbour's purse: fixed rules, decided by code, never by the model
 
     def _can_pay(self, amount: int) -> bool:
+        """Both brakes: the purse holds it, and today's payouts plus this one stay under the daily cap."""
+        if int(self.state.get("paid_today", 0)) + amount > self.daily_cap:
+            return False
         try:
             return self.client.balance(self.wallet.address) >= amount + 2 * params.MIN_FEE
         except Exception:  # noqa: BLE001
             return False
+
+    def _paid(self, amount: int) -> None:
+        self.state["paid_today"] = int(self.state.get("paid_today", 0)) + amount
 
     def _prize(self) -> int:
         try:
@@ -520,6 +529,7 @@ class PenPal:
     def _gift_letter(self, addr: str, subject: str, body: str, amount: int, reply_to: str | None = None) -> str:
         content = compose_letter(body, subject=subject, reply_to=reply_to, sender_name=self.name)
         rid = self.client.send_letter(self.wallet, addr, content, amount_seeds=amount)
+        self._paid(amount)
         self._remember(addr, {"dir": "out", "id": rid, "subject": subject, "body": body})
         return rid
 

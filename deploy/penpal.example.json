@@ -22,5 +22,6 @@
   "tips": true,
   "welcome_tip_seeds": 20000000,
   "prize_seeds": 500000000,
+  "max_payout_seeds_per_day": 2500000000,
   "data_dir": "data/penpal"
 }

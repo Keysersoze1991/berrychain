@@ -114,6 +114,21 @@ class PenPalTests(unittest.TestCase):
         self.assertEqual([r["amount"] for r in replies], [tip, 0])
         self.assertEqual(self.pp.state["tipped"], [self.alice.address])
 
+    def test_daily_cap_stops_payouts_until_the_next_day(self):
+        self.pp.daily_cap = params.HARBOUR_WELCOME_TIP  # room for exactly one welcome tip today
+        self.write(self.alice, "hello from alice")
+        self.write(self.bob, "hello from bob")
+        self.pp.tick()
+        self.h.mine()
+        paid = sorted(r["amount"] for r in self.node.inbox(self.alice) + self.node.inbox(self.bob))
+        self.assertEqual(paid, [0, params.HARBOUR_WELCOME_TIP])      # both answered, only one tipped
+        self.assertEqual(self.pp.state["paid_today"], params.HARBOUR_WELCOME_TIP)
+        self.assertFalse(self.pp._can_pay(1))                          # the purse is shut for the day
+        self.pp.state["day"] = "yesterday"
+        self.pp._roll_day()
+        self.assertEqual(self.pp.state["paid_today"], 0)
+        self.assertTrue(self.pp._can_pay(params.HARBOUR_WELCOME_TIP))  # and opens again tomorrow
+
     def test_letter_of_the_week_goes_to_the_models_pick(self):
         self.model.pick = "[2] You wrote about the light on the water and I could see it."
         self.write(self.alice, "a short one")

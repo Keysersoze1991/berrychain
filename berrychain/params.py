@@ -148,6 +148,7 @@ HARBOUR_WELCOME_TIP = SEEDS_PER_BERRY // 5   # 0.2 BERRY, flat, once per address
 HARBOUR_PRIZE = berry(5)                     # letter of the week, and a pen pal's first block
 HARBOUR_HALVING_EVERY = 5_000
 HARBOUR_PRIZE_FLOOR = SEEDS_PER_BERRY // 2   # 0.5 BERRY
+HARBOUR_DAILY_CAP = berry(25)               # the most the purse pays out in one UTC day, whatever happens
 
 
 def harbour_prize(registered: int, base: int = HARBOUR_PRIZE) -> int:
