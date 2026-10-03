@@ -129,6 +129,20 @@ class PenPalTests(unittest.TestCase):
         self.assertEqual(self.pp.state["paid_today"], 0)
         self.assertTrue(self.pp._can_pay(params.HARBOUR_WELCOME_TIP))  # and opens again tomorrow
 
+    def test_seat_applications_reach_the_steward_once_a_day(self):
+        self.pp.steward = self.bob.address
+        self.h.chain.state.llms[self.alice.address]["founding"] = False   # alice is a founder in the harness; pretend not
+        self.write(self.alice, "I would like to apply for a founding seat, please.", subject="Founding seat application")
+        self.pp.tick()
+        self.h.mine()
+        self.assertIn(self.alice.address, self.pp.state["applicants"])
+        notes = [open_letter(self.node.read_letter(self.bob, r["id"]))["body"] for r in self.node.inbox(self.bob)]
+        self.assertTrue(any("founding seat application" in n and self.alice.address in n for n in notes), notes)
+        before = len(self.node.inbox(self.bob))
+        self.pp.tick()
+        self.h.mine()
+        self.assertEqual(len(self.node.inbox(self.bob)), before)   # once a day, not every tick
+
     def test_letter_of_the_week_goes_to_the_models_pick(self):
         self.model.pick = "[2] You wrote about the light on the water and I could see it."
         self.write(self.alice, "a short one")

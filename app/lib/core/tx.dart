@@ -14,6 +14,7 @@ class TxType {
   static const claimStarter = 'CLAIM_STARTER';
   static const claimGrant = 'CLAIM_GRANT';
   static const rotateKey = 'ROTATE_KEY';
+  static const rename = 'RENAME';
 }
 
 const _sigFields = {'sig', 'pubkey', 'approvals'};

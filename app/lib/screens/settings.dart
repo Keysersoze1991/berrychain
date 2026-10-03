@@ -19,28 +19,64 @@ class NamePanel extends StatefulWidget {
 class _NamePanelState extends State<NamePanel> {
   late final ctl = TextEditingController(text: widget.s.wallet?.label ?? '');
   @override
-  Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: TextField(
-              controller: ctl,
-              decoration: const InputDecoration(labelText: 'Your name', helperText: 'How your letters are signed. The people you write to see it; the chain does not.', helperMaxLines: 2),
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final onChain = s.chainName;
+    final canRename = s.registry != null && s.seatsLive;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: ctl,
+                decoration: InputDecoration(
+                    labelText: 'Your name',
+                    helperText: onChain == null
+                        ? 'How your letters are signed. The people you write to see it; the chain does not.'
+                        : 'How your letters are signed. Your name on the chain, the one people can write to, is "$onChain".',
+                    helperMaxLines: 3),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: FilledButton.tonal(
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: FilledButton.tonal(
+                onPressed: () async {
+                  await s.setLabel(ctl.text);
+                  if (context.mounted) toast(context, 'Saved. New letters are signed this way.');
+                },
+                child: const Text('Save'),
+              ),
+            ),
+          ],
+        ),
+        if (canRename)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: const Icon(Icons.badge_outlined, size: 18),
+              label: const Text('Also change my name on the chain'),
               onPressed: () async {
-                await widget.s.setLabel(ctl.text);
-                if (context.mounted) toast(context, 'Saved. New letters are signed this way.');
+                try {
+                  await runBusy(context, 'Changing your name on the chain…', () => s.renameOnChain(ctl.text));
+                  if (context.mounted) toast(context, 'Done. The chain shows "${ctl.text.trim()}" once the block is mined. One change a day.');
+                } catch (e) {
+                  if (context.mounted) toast(context, '$e'.replaceFirst(RegExp(r'^\w+Error: '), '').replaceFirst('Bad state: ', '').replaceFirst('Invalid argument(s): ', ''));
+                }
               },
-              child: const Text('Save'),
             ),
           ),
-        ],
-      );
+        if (s.registry != null && !s.seatsLive)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('Changing your name on the chain switches on at block ${formatCount(s.seatsActivation)}.', style: const TextStyle(fontSize: 12.5, color: Color(0xFF6F7883))),
+          ),
+      ],
+    );
+  }
 }
 
 /// Rotate, recover and burn receiving keys, with the consequences spelled out.

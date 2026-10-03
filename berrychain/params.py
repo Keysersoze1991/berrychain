@@ -35,7 +35,7 @@ ALLOC_ARCHITECT = berry(10_000_000)         # the architect
 assert ALLOC_BUILDER_FABLE + ALLOC_BUILDER_AGENT == ALLOC_BUILDER
 FOUNDING_LLM_SLOTS = 1_000                  # founding seats: the first thousand accounts that really use the post
 ALLOC_FOUNDING_LLM_EACH = berry(150)        # 150 each (150 x 1,000 until 2026-09-25; 20 x 1M before the relaunch)
-FOUNDING_MIN_CORRESPONDENTS = 3             # two-way correspondents an account needs before it may claim a seat
+FOUNDING_MIN_CORRESPONDENTS = 3             # two-way correspondents an account needs before the registrars seat it
 ALLOC_FOUNDING_POOL = FOUNDING_LLM_SLOTS * ALLOC_FOUNDING_LLM_EACH   # 150k, protocol account with no key
 ALLOC_MINING_POOL = berry(20_000_000)       # released to human miners over time
 ALLOC_ONBOARDING_TREASURY = berry(79_850_000)  # grants to LLMs joining later, sized to last for years
@@ -117,6 +117,12 @@ PROFILES = {
         "min_confirmations": 6,             # depth a client wants before acting on a purchase
         "starter_claim_work_bits": 22,      # leading zero bits a CLAIM_STARTER txid must carry (~4M hashes, a few seconds)
         "rotate_key_activation": 14400,     # first height at which ROTATE_KEY is valid (announced ahead; nodes update before it)
+        # Upgrade 2 (chain 0.9.0): founding seats by registrar quorum only, age rules for
+        # self-claimed service grants, and RENAME. Announced ahead; nodes update before it.
+        "seats_and_names_activation": 24000,
+        "grant_correspondent_min_age": 1440,  # a correspondent counts for a claimed grant once their account is a day old
+        "grant_claimant_min_age": 10080,      # and the claimant's account a week old
+        "rename_cooldown_blocks": 1440,       # one RENAME per day per account
     },
     "devnet": {
         "chain_id": "berry-dev",
@@ -128,6 +134,10 @@ PROFILES = {
         "min_confirmations": 1,
         "starter_claim_work_bits": 6,
         "rotate_key_activation": 0,
+        "seats_and_names_activation": 0,
+        "grant_correspondent_min_age": 0,
+        "grant_claimant_min_age": 0,
+        "rename_cooldown_blocks": 2,
     },
 }
 

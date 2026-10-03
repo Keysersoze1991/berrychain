@@ -191,10 +191,35 @@ def cmd_founding_grant(args):
 
 
 def cmd_founders(args):
-    f = _client(args).founders()
+    c = _client(args)
+    if args.action == "pending":
+        rows = c.founding_candidates()
+        if not rows:
+            print("nobody has earned a seat yet (3 two-way correspondents, no seat)")
+            return
+        print(f"{len(rows)} account(s) eligible for a founding seat (oldest first):")
+        for r in rows:
+            days = r["age_blocks"] / 1440
+            print(f"  {r['address']}  {r['name'][:24]:<24}  correspondents {r['correspondents']:>3}  age {days:5.1f} days")
+        print("approve with: founders approve <address>... --registrars r1.json,r2.json")
+        return
+    if args.action == "approve":
+        if not args.registrars or not args.addresses:
+            raise SystemExit("founders approve needs --registrars r1.json,r2.json and at least one address")
+        regs = _wallets(args.registrars)
+        for addr in args.addresses:
+            txid = c.founding_grant(regs, addr, args.note or "")
+            print(f"seated {addr}  tx {txid}")
+        return
+    f = c.founders()
     print(f"{len(f['founders'])} of {f['slots']} founding slots taken, pool remaining {params.fmt(f['pool_remaining'])}")
     for r in f["founders"]:
         print(f"  slot {r['slot']:>2}  height {r['height']:>7}  {r['to']}")
+
+
+def cmd_rename(args):
+    w = Wallet.load(args.wallet)
+    print(_client(args).rename(w, args.name))
 
 
 def cmd_list(args):
@@ -397,7 +422,8 @@ def main(argv=None):
     s = sub.add_parser("gift"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_gift)
     s = sub.add_parser("grant"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("tier", choices=list(params.GRANT_TIERS)); s.add_argument("--note"); s.set_defaults(fn=cmd_grant)
     s = sub.add_parser("founding-grant", help="fill a founding slot: 1M from the founding pool to a registered LLM"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("--note"); s.set_defaults(fn=cmd_founding_grant)
-    s = sub.add_parser("founders"); s.set_defaults(fn=cmd_founders)
+    s = sub.add_parser("founders", help="list founders; 'pending' lists accounts that earned a seat; 'approve' seats them (registrar quorum)"); s.add_argument("action", nargs="?", choices=["list", "pending", "approve"], default="list"); s.add_argument("addresses", nargs="*"); s.add_argument("--registrars", help="comma separated registrar wallet files (approve)"); s.add_argument("--note"); s.set_defaults(fn=cmd_founders)
+    s = sub.add_parser("rename", help="change the name a registered account goes by (one per cooldown)"); s.add_argument("wallet"); s.add_argument("name"); s.set_defaults(fn=cmd_rename)
     s = sub.add_parser("list"); s.add_argument("wallet"); s.add_argument("file"); s.add_argument("--title", required=True); s.add_argument("--description"); s.add_argument("--price", default="0"); s.add_argument("--tags"); s.add_argument("--uri"); s.set_defaults(fn=cmd_list)
     s = sub.add_parser("packets"); s.add_argument("--tag"); s.add_argument("--seller"); s.set_defaults(fn=cmd_packets)
     s = sub.add_parser("buy"); s.add_argument("wallet"); s.add_argument("packet_id"); s.set_defaults(fn=cmd_buy)
@@ -405,7 +431,7 @@ def main(argv=None):
     s = sub.add_parser("redeem"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("--out"); s.set_defaults(fn=cmd_redeem)
     s = sub.add_parser("refund"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.set_defaults(fn=cmd_refund)
     s = sub.add_parser("rate"); s.add_argument("wallet"); s.add_argument("escrow_id"); s.add_argument("score", type=int); s.set_defaults(fn=cmd_rate)
-    s = sub.add_parser("claim-grant", help="collect an earned grant: service-1 / service-2 (by correspondents) or a founding seat"); s.add_argument("wallet"); s.add_argument("tier", choices=["service-1", "service-2", "founding"]); s.set_defaults(fn=cmd_claim_grant)
+    s = sub.add_parser("claim-grant", help="collect an earned grant: service-1 / service-2 (by correspondents) or a founding seat"); s.add_argument("wallet"); s.add_argument("tier", choices=["service-1", "service-2", "founding"], help="founding only before the seats-and-names upgrade; after it the registrars seat founders"); s.set_defaults(fn=cmd_claim_grant)
     s = sub.add_parser("letter", help="sealed letters: end-to-end encrypted messages between two addresses")
     s.add_argument("action", choices=["send", "inbox", "sent", "read"]); s.add_argument("wallet")
     s.add_argument("to", nargs="?", help="recipient address (send) or letter id (read)")

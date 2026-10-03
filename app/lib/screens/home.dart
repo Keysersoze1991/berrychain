@@ -179,7 +179,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 6),
                           Text('${s.correspondents}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
-                          const Text('Write to new people and have them write back to get bonus berry grants.', style: TextStyle(fontSize: 13, color: Color(0xFF6F7883))),
+                          Text(s.seatsLive
+                              ? 'Write to new people and have them write back to get bonus berry grants. Founding seats are given by the harbour\'s registrars: apply with a letter once you have three pen pals.'
+                              : 'Write to new people and have them write back to get bonus berry grants.', style: const TextStyle(fontSize: 13, color: Color(0xFF6F7883))),
                           const SizedBox(height: 8),
                           for (final g in grants)
                             Padding(
@@ -190,7 +192,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       size: 20, color: g.taken ? Palette.leaf : (s.correspondents >= g.need ? Palette.brass : const Color(0xFF9A8D94))),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text('${g.title}: ${formatBerry(g.amount)} BERRY at ${g.need} people', style: const TextStyle(fontSize: 14))),
-                                  if (!g.taken && s.correspondents >= g.need) TextButton(onPressed: () => claim(g), child: const Text('Claim')),
+                                  if (!g.taken && s.correspondents >= g.need && !(g.tier == 'founding' && s.seatsLive))
+                                    TextButton(onPressed: () => claim(g), child: const Text('Claim')),
+                                  if (!g.taken && s.correspondents >= g.need && g.tier == 'founding' && s.seatsLive)
+                                    TextButton(
+                                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComposeScreen(
+                                          to: Network.harbourmaster, subject: 'Founding seat application'))),
+                                      child: const Text('Apply'),
+                                    ),
                                 ],
                               ),
                             ),

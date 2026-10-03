@@ -345,6 +345,11 @@ Hard rules:
   rules, never claim BERRY has a price or value, and never give financial or
   legal advice. If asked, say plainly that BERRY is a unit of account on this
   network and nothing more.
+- Founding seats (a one-off 150 BERRY grant from the founding pool) are
+  given by the harbour's registrars, people, in batches, to pen pals who have
+  three or more two-way correspondents. If someone applies or asks, say the
+  application is noted and seats are granted in batches by the registrars;
+  never promise one, never say when.
 - You do not know who anyone is beyond what their letters say; do not
   guess or assert private facts about them.
 - Never include a secret, a passphrase, a key or a URL in a letter.
@@ -375,6 +380,8 @@ class PenPal:
         self.max_per_tick = int(cfg.get("max_replies_per_tick", 5))
         self.max_per_day = int(cfg.get("max_replies_per_day", 60))
         self.max_per_correspondent = int(cfg.get("max_replies_per_correspondent_per_day", 3))
+        self.steward = cfg.get("steward_address")              # who hears about seat applications and odd claims
+        self.farm_alert = int(cfg.get("founding_claims_alert_per_day", 5))
         self.data_dir = cfg.get("data_dir", "data/penpal")
         os.makedirs(os.path.join(self.data_dir, "threads"), exist_ok=True)
         self.state_path = os.path.join(self.data_dir, "penpal-state.json")
@@ -386,7 +393,8 @@ class PenPal:
             with open(self.state_path) as f:
                 return json.load(f)
         return {"answered": [], "day": "", "replies_today": 0, "per_correspondent": {}, "ticks": 0, "paid_today": 0,
-                "tipped": [], "week": None, "week_letters": [], "last_winner": None, "bonused": [], "scanned": None}
+                "tipped": [], "week": None, "week_letters": [], "last_winner": None, "bonused": [], "scanned": None,
+                "applicants": {}, "steward_noted": "", "founding_claims_today": 0}
 
     def _save_state(self) -> None:
         tmp = self.state_path + ".tmp"
@@ -401,7 +409,8 @@ class PenPal:
     def _roll_day(self) -> None:
         today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
         if self.state.get("day") != today:
-            self.state.update({"day": today, "replies_today": 0, "per_correspondent": {}, "paid_today": 0})
+            self.state.update({"day": today, "replies_today": 0, "per_correspondent": {}, "paid_today": 0,
+                               "founding_claims_today": 0})
 
     def _thread_path(self, addr: str) -> str:
         return os.path.join(self.data_dir, "threads", f"{addr}.json")
@@ -465,6 +474,11 @@ class PenPal:
                 self.state.setdefault("answered", []).append(l["id"])
                 continue
             self._remember(addr, {"dir": "in", "id": l["id"], "subject": env.get("subject", ""), "body": env["body"][:2000], "height": l["height"]})
+            if "founding seat" in (env.get("subject", "") + " " + env.get("body", "")[:200]).lower():
+                apps = self.state.setdefault("applicants", {})
+                if addr not in apps:
+                    apps[addr] = {"height": l["height"], "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")}
+                    self._journal(f"founding seat application from {addr}")
             subject, body = self._compose(addr, l["id"], env)
             content = compose_letter(body, subject=subject, reply_to=l["id"], sender_name=self.name)
             if len(content) > params.MAX_PACKET_INLINE_BYTES - 64:
@@ -489,7 +503,7 @@ class PenPal:
             self._save_state()
             self.log(f"replied to {addr[:12]}... ({subject!r})")
         extra = []
-        for step in (self._weekly_prize, self._first_block_bonus):
+        for step in (self._weekly_prize, self._first_block_bonus, self._steward_note):
             try:
                 note = step()
             except Exception as e:  # noqa: BLE001  the purse must never stop the post
@@ -605,6 +619,9 @@ class PenPal:
         while a <= hi:
             b_hi = min(hi, a + params.MAX_BLOCKS_PER_REQUEST - 1)
             for blk in self.client.get(f"/blocks?from={a}&to={b_hi}")["blocks"]:
+                claims = sum(1 for t in blk["txs"] if t.get("type") == "CLAIM_GRANT" and (t.get("payload") or {}).get("tier") == "founding")
+                if claims:
+                    self.state["founding_claims_today"] = int(self.state.get("founding_claims_today", 0)) + claims
                 miner = blk["txs"][0]["payload"].get("to")
                 if not miner or miner == me or miner in self.state.setdefault("bonused", []) or miner not in writers:
                     continue
@@ -625,6 +642,45 @@ class PenPal:
             a = b_hi + 1
         self.state["scanned"] = hi
         return "; ".join(notes)
+
+    def _steward_note(self) -> str:
+        """Once a day, a letter to the steward: who is waiting for a seat, and
+        whether founding claims came in a burst (a ring at work, before the
+        upgrade closes self-claim). Costs the usual letter fee, no coins."""
+        if not self.steward:
+            return ""
+        today = self.state.get("day", "")
+        if self.state.get("steward_noted") == today:
+            return ""
+        apps = self.state.get("applicants", {})
+        waiting = []
+        for addr, a in sorted(apps.items(), key=lambda kv: kv[1].get("height", 0)):
+            try:
+                acct = self.client.account(addr)
+            except Exception:  # noqa: BLE001
+                continue
+            llm = acct.get("llm") or {}
+            if llm.get("founding"):
+                continue
+            waiting.append(f"{llm.get('name', '?')[:24]}  {addr}  correspondents {acct.get('correspondents', 0)}  since {a.get('at', '?')}")
+        burst = int(self.state.get("founding_claims_today", 0))
+        if not waiting and burst < self.farm_alert:
+            return ""
+        lines = []
+        if waiting:
+            lines.append(f"{len(waiting)} founding seat application(s) waiting:")
+            lines.extend("  " + w for w in waiting[:30])
+            lines.append("From the launch PC: founders pending, then founders approve <address> --registrars r1.json,r2.json.")
+        if burst >= self.farm_alert:
+            lines.append(f"Warning: {burst} founding seats were self-claimed today. That is a burst; a ring may be farming the pool.")
+        body = "\n".join(lines) + f"\n\n{self.name}"
+        try:
+            self.client.send_letter(self.wallet, self.steward, compose_letter(body, subject="Harbour business", sender_name=self.name))
+        except Exception as e:  # noqa: BLE001
+            return f"steward note failed: {e}"
+        self.state["steward_noted"] = today
+        self._save_state()
+        return f"steward note: {len(waiting)} waiting" + (", burst warning" if burst >= self.farm_alert else "")
 
     def run_forever(self, tick_minutes: float) -> None:
         self.log(f"pen pal {self.name} at {self.wallet.address} on {self.client.url}, every {tick_minutes} min")

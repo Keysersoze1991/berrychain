@@ -74,6 +74,8 @@ class FakeNode(BerryClient):
         elif head == "account":
             out = {"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg), "llm": copy.deepcopy(st.llms.get(arg)),
                    "reputation": st.reputation.get(arg), "correspondents": st.correspondents(arg), "is_registrar": arg in st.registrars}
+        elif head == "llms":
+            out = {"llms": [{"address": a, **copy.deepcopy(r), "reputation": st.reputation.get(a)} for a, r in st.llms.items()]}
         elif head == "packets":
             items = [copy.deepcopy(p) for p in st.packets.values() if p["active"]]
             if q.get("seller"):

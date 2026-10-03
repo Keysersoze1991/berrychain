@@ -23,5 +23,7 @@
   "welcome_tip_seeds": 20000000,
   "prize_seeds": 500000000,
   "max_payout_seeds_per_day": 2500000000,
+  "steward_address": "brry1... the registrar-holder's own app address: gets a daily note when seat applications wait",
+  "founding_claims_alert_per_day": 5,
   "data_dir": "data/penpal"
 }

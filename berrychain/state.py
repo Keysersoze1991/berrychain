@@ -198,13 +198,28 @@ class State:
     def is_registered_llm(self, addr: str) -> bool:
         return addr in self.llms
 
-    def correspondents(self, addr: str) -> int:
+    def correspondents(self, addr: str, height: int | None = None, min_age: int = 0) -> int:
         """Accounts that have both written to `addr` and been written to by it,
-        counting only accounts that claimed or registered themselves."""
+        counting only accounts that claimed or registered themselves. With
+        `min_age`, only accounts registered at least that many blocks before
+        `height` count: a ring of accounts made this afternoon is worth nothing."""
         m = self.mail.get(addr)
         if not m:
             return 0
-        return sum(1 for a in m["out"] if a in m["in"] and a in self.llms)
+        n = 0
+        for a in m["out"]:
+            if a not in m["in"]:
+                continue
+            rec = self.llms.get(a)
+            if rec is None:
+                continue
+            if min_age and height is not None and height - rec.get("registered_height", 0) < min_age:
+                continue
+            n += 1
+        return n
+
+    def seats_and_names_active(self, height: int) -> bool:
+        return height >= int(self.profile.get("seats_and_names_activation", 0))
 
     def letter_fee(self) -> int:
         """Minimum fee for a letter right now: MIN_FEE halved once per
@@ -464,8 +479,17 @@ class State:
         at_height, count = self.grant_claims_at
         if at_height == height and count >= params.GRANT_CLAIMS_PER_BLOCK:
             raise TxError("this block already holds the maximum number of grant claims; try the next block")
-        have = self.correspondents(sender)
+        upgraded = self.seats_and_names_active(height)
+        if upgraded:
+            claimant_age = int(self.profile.get("grant_claimant_min_age", 0))
+            if height - rec.get("registered_height", 0) < claimant_age:
+                raise TxError(f"grants can be claimed once an account is {claimant_age} blocks old")
+            have = self.correspondents(sender, height, int(self.profile.get("grant_correspondent_min_age", 0)))
+        else:
+            have = self.correspondents(sender)
         if tier == "founding":
+            if upgraded:
+                raise TxError("founding seats are granted by the registrars now: write to the Harbourmaster to apply")
             if rec["founding"]:
                 raise TxError("this account already holds a founding seat")
             if len(self.founders) >= params.FOUNDING_LLM_SLOTS:
@@ -842,6 +866,30 @@ class State:
             "wrapped_key": dict(wk),
             "amount": amount,
         }
+
+    def _apply_rename(self, tx, height):
+        """Change the name a registered account goes by. Names are labels, not
+        unique handles, so this is a plain update with a cooldown; the old
+        names stay on the record so a letter signed under one can be traced."""
+        if not self.seats_and_names_active(height):
+            raise TxError(f"RENAME is not active until height {self.profile.get('seats_and_names_activation', 0)}")
+        rec = self.llms.get(tx["from"])
+        if rec is None:
+            raise TxError("only a registered account can rename itself")
+        name = _str(tx["payload"].get("name"), params.MAX_NAME_BYTES, "name")
+        if name == rec["name"]:
+            raise TxError("that is already this account's name")
+        cooldown = int(self.profile.get("rename_cooldown_blocks", 0))
+        last = rec.get("renamed_height")
+        if last is not None and height - last < cooldown:
+            raise TxError(f"this account renamed itself at height {last}; the next rename is possible at {last + cooldown}")
+        self._require_funds(tx["from"], 0, tx["fee"])
+        self._touch(self.llms, tx["from"])
+        rec.setdefault("former_names", []).append({"name": rec["name"], "until": height})
+        if len(rec["former_names"]) > 20:
+            del rec["former_names"][0]
+        rec["name"] = name
+        rec["renamed_height"] = height
 
     def _apply_rotate_key(self, tx, height):
         """Publish a fresh receiving key for a registered account. The old key

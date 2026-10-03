@@ -661,6 +661,29 @@ class Session extends ChangeNotifier {
   // ----------------------------------------------------- receiving keys
   int get rotateActivation => (chainParams?['rotate_key_activation'] as int?) ?? 0;
   bool get rotationLive => nodeHeight != null && nodeHeight! >= rotateActivation;
+  /// Chain 0.9.0: founding seats by the registrars, age rules on claimed grants, and RENAME.
+  int get seatsActivation => (chainParams?['seats_and_names_activation'] as int?) ?? 0;
+  bool get seatsLive => nodeHeight != null && nodeHeight! >= seatsActivation;
+  String? get chainName => registry?['name'] as String?;
+
+  /// Change the name this account goes by on the chain (one per cooldown).
+  /// The local label follows, so letters are signed the same way.
+  Future<String> renameOnChain(String name) async {
+    final w = wallet!;
+    final n = name.trim();
+    if (n.isEmpty) throw ArgumentError('Pick a name');
+    if (registry == null) throw StateError('claim your starter first; only a registered account has a name on the chain');
+    if (!seatsLive) throw StateError('renaming switches on at block ${formatCount(seatsActivation)}');
+    final tx = buildTx(TxType.rename, w.address, await node.nextNonce(w.address), minFee, {'name': n}, Network.chainId);
+    await w.sign(tx);
+    await node.sendTx(tx);
+    registry!['name'] = n;
+    _nameCache.remove(w.address);
+    w.label = n;
+    await w.save();
+    notifyListeners();
+    return txid(tx);
+  }
   List<Map<String, dynamic>> get rotations => ((registry?['rotations'] as List?) ?? []).cast<Map<String, dynamic>>();
   int get lastKeyHeight => rotations.isEmpty ? ((registry?['registered_height'] as int?) ?? 0) : (rotations.last['height'] as int);
   /// Whether the key the chain says we receive on is on this phone.

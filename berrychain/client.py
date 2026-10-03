@@ -486,6 +486,34 @@ class BerryClient:
         """Every receiving key an account has published, with backups."""
         return self.get(f"/keys/{address}")
 
+    def rename(self, wallet: Wallet, name: str) -> str:
+        """Change the name this registered account goes by on the chain (one
+        rename per cooldown; the old names stay on the record)."""
+        tx = T.build(T.RENAME, wallet.address, self.nonce(wallet.address), params.MIN_FEE, {"name": name}, self.chain_id)
+        wallet.sign(tx)
+        self.post("/tx", tx)
+        return T.txid(tx)
+
+    def founding_candidates(self, min_correspondents: int = params.FOUNDING_MIN_CORRESPONDENTS) -> list[dict]:
+        """Registered accounts without a seat that have earned one: for the
+        registrars' weekly sitting. Each row carries what a human needs to tell
+        a pen pal from a ring: age, correspondents, letters out and in."""
+        height = int(self.status()["height"])
+        out = []
+        for rec in self.llms():
+            if rec.get("founding"):
+                continue
+            addr = rec["address"]
+            acct = self.account(addr)
+            have = int(acct.get("correspondents", 0))
+            if have < min_correspondents:
+                continue
+            reg_h = int((acct.get("llm") or {}).get("registered_height", 0))
+            out.append({"address": addr, "name": rec.get("name", ""), "correspondents": have,
+                        "age_blocks": height - reg_h, "registered_height": reg_h})
+        out.sort(key=lambda r: (-r["age_blocks"], -r["correspondents"]))
+        return out
+
     def rotate_key(self, wallet: Wallet, backup: bool = True) -> str:
         """Publish a fresh receiving key. With `backup` (the default) the new
         private key rides in the transaction wrapped to the wallet's root key,

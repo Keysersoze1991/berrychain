@@ -12,7 +12,7 @@ void main() {
 }
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
-const appVersion = '0.11.0';
+const appVersion = '0.11.1';
 /// What the app is running on, for copy that says where the wallet lives.
 /// A web build made for store screenshots (--dart-define=SHOTS=true) speaks as the phone app.
 const shots = bool.fromEnvironment('SHOTS');

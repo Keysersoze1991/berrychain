@@ -41,6 +41,12 @@ def claim_grant(h, w, tier, fee=params.MIN_FEE):
         n += 1
 
 
+def before_upgrade(h):
+    """Run a test against the rules as they were before the seats-and-names upgrade."""
+    h.chain.profile["seats_and_names_activation"] = 10 ** 9
+    return h
+
+
 def newcomers(h, n):
     """n fresh accounts that claimed their starter (so they count as correspondents)."""
     ws = []
@@ -113,7 +119,7 @@ class CorrespondentTests(unittest.TestCase):
         st.check_invariant()
 
     def test_founding_seat_by_correspondents_and_limits(self):
-        h = Harness(founders=False)
+        h = before_upgrade(Harness(founders=False))
         a = newcomers(h, 1)[0]
         pals = newcomers(h, 3)
         correspond(h, a, pals[:2])
@@ -141,7 +147,7 @@ class CorrespondentTests(unittest.TestCase):
         st.check_invariant()
 
     def test_per_block_cap_work_and_registration_required(self):
-        h = Harness(founders=False)
+        h = before_upgrade(Harness(founders=False))
         people = newcomers(h, params.GRANT_CLAIMS_PER_BLOCK + 4)
         # everyone corresponds with three others
         for i, p in enumerate(people):
@@ -174,7 +180,7 @@ class CorrespondentTests(unittest.TestCase):
             claim_grant(h, stranger, "service-1")
 
     def test_client_claims_a_grant(self):
-        h = Harness(founders=False)
+        h = before_upgrade(Harness(founders=False))
         a = newcomers(h, 1)[0]
         correspond(h, a, newcomers(h, 3))
         with tempfile.TemporaryDirectory() as d:
@@ -184,6 +190,95 @@ class CorrespondentTests(unittest.TestCase):
             self.assertEqual(r["amount"], B(150))
             h.mine()
             self.assertTrue(h.chain.state.llms[a.address]["founding"])
+
+
+class SeatsAndNamesUpgradeTests(unittest.TestCase):
+    """Chain 0.9.0: founding seats by registrar quorum, age rules for claimed grants, RENAME."""
+
+    def test_a_ring_of_fresh_accounts_cannot_claim_founding_seats_after_the_upgrade(self):
+        h = Harness(founders=False)
+        ring = newcomers(h, 4)
+        for a in ring:
+            correspond(h, a, [b for b in ring if b is not a])
+        self.assertEqual([h.chain.state.correspondents(w.address) for w in ring], [3, 3, 3, 3])
+        for a in ring:
+            with self.assertRaises(TxError) as e:
+                claim_grant(h, a, "founding")
+            self.assertIn("granted by the registrars", str(e.exception))
+        self.assertEqual(h.chain.state.balance(POOL), params.ALLOC_FOUNDING_POOL)
+
+    def test_registrars_still_seat_founders_and_the_pool_pays(self):
+        h = Harness(founders=False)
+        a = newcomers(h, 1)[0]
+        before = h.chain.state.balance(a.address)
+        h.multisig([h.architect], T.FOUNDING_GRANT, {"to": a.address, "note": "a real pen pal"})
+        h.mine()
+        st = h.chain.state
+        self.assertTrue(st.llms[a.address]["founding"])
+        self.assertEqual(st.balance(a.address) - before, params.ALLOC_FOUNDING_LLM_EACH)
+        with self.assertRaises(TxError):   # once only
+            h.multisig([h.architect], T.FOUNDING_GRANT, {"to": a.address})
+
+    def test_service_grants_need_aged_correspondents_and_an_aged_claimant(self):
+        h = Harness(founders=False)
+        h.chain.profile["grant_correspondent_min_age"] = 3
+        h.chain.profile["grant_claimant_min_age"] = 4
+        a = newcomers(h, 1)[0]
+        pals = newcomers(h, 10)
+        correspond(h, a, pals)                       # ten two-way correspondents, all brand new
+        with self.assertRaises(TxError) as e:
+            claim_grant(h, a, "service-1")
+        self.assertIn("blocks old", str(e.exception))   # the claimant itself is too young
+        self.assertEqual(h.chain.state.correspondents(a.address, h.chain.height + 1, 3), 0)   # pals too young to count
+        self.assertEqual(h.chain.state.correspondents(a.address), 10)                          # though they are real
+        h.mine(2)                                        # now everyone is old enough
+        self.assertEqual(h.chain.state.correspondents(a.address, h.chain.height + 1, 3), 10)
+        claim_grant(h, a, "service-1"); h.mine()
+        self.assertTrue(any(g["tier"] == "service-1" for g in h.chain.state.llms[a.address]["grants"]))
+
+    def test_rename_changes_the_name_keeps_history_and_respects_the_cooldown(self):
+        h = Harness(founders=False)
+        a = newcomers(h, 1)[0]
+        st = h.chain.state
+        h.send(a, T.RENAME, {"name": "Marlow of the Sound"}); h.mine()
+        rec = st.llms[a.address]
+        self.assertEqual(rec["name"], "Marlow of the Sound")
+        self.assertEqual(rec["former_names"][0]["name"], "newcomer")
+        with self.assertRaises(TxError) as e:          # cooldown (2 blocks on devnet)
+            h.send(a, T.RENAME, {"name": "Marlow again"})
+        self.assertIn("next rename is possible", str(e.exception))
+        h.mine(2)
+        h.send(a, T.RENAME, {"name": "Marlow again"}); h.mine()
+        self.assertEqual(st.llms[a.address]["name"], "Marlow again")
+        with self.assertRaises(TxError):                 # same name is a no-op, refused
+            h.send(a, T.RENAME, {"name": "Marlow again"})
+        stranger = Wallet.create("stranger")
+        h.send(h.agent, T.TRANSFER, {"to": stranger.address, "amount": params.MIN_FEE * 3}); h.mine()
+        with self.assertRaises(TxError):                 # unregistered accounts have no name to change
+            h.send(stranger, T.RENAME, {"name": "nobody"})
+
+    def test_rename_waits_for_activation(self):
+        h = Harness(founders=False)
+        h.chain.profile["seats_and_names_activation"] = 10 ** 9
+        a = newcomers(h, 1)[0]
+        with self.assertRaises(TxError) as e:
+            h.send(a, T.RENAME, {"name": "too early"})
+        self.assertIn("not active until", str(e.exception))
+
+    def test_client_lists_who_has_earned_a_seat(self):
+        h = Harness(founders=False)
+        a = newcomers(h, 1)[0]
+        correspond(h, a, newcomers(h, 3))
+        with tempfile.TemporaryDirectory() as d:
+            node = FakeNode(h.chain, headers_path=os.path.join(d, "h.json"))
+            rows = node.founding_candidates()
+            self.assertEqual([r["address"] for r in rows], [a.address])
+            self.assertEqual(rows[0]["correspondents"], 3)
+            self.assertGreater(rows[0]["age_blocks"], 0)
+            txid = node.rename(a, "Pip")
+            h.mine()
+            self.assertEqual(h.chain.state.llms[a.address]["name"], "Pip")
+            self.assertTrue(txid)
 
 
 if __name__ == "__main__":

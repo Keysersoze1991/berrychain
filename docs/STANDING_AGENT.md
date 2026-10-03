@@ -111,7 +111,15 @@ the purse has a hard daily ceiling, `max_payout_seeds_per_day` in the config
 (`HARBOUR_DAILY_CAP`, 25 BERRY): tips and prizes stop for the rest of the UTC
 day once it is reached, so a seed that is taken over can lose at most one
 day's budget before anyone notices. State keys: `tipped`, `week`,
-`week_letters`, `last_winner`, `bonused`, `scanned`, `paid_today`.
+`week_letters`, `last_winner`, `bonused`, `scanned`, `paid_today`, `applicants`,
+`steward_noted`, `founding_claims_today`.
+
+Founding seats (chain 0.9.0): a letter mentioning a founding seat is noted as
+an application. Once a day, while applications wait or founding claims come in
+a burst (`founding_claims_alert_per_day`), the pen pal writes to
+`steward_address`, the registrar holder, listing who is waiting. Seats are then
+given from the launch PC: `berrychain founders pending`, then
+`berrychain founders approve <address>... --registrars r1.json,r2.json`.
 
 The first pen pal on the network is the Harbourmaster on seed1, at the
 builder-agent address, answering up to three letters a day from each person.
