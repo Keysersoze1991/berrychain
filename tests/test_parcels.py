@@ -23,12 +23,13 @@ B = params.SEEDS_PER_BERRY
 
 
 class PriceTests(unittest.TestCase):
-    def test_one_berry_per_started_five_megabytes(self):
-        self.assertEqual(P.price_for(1), B)
-        self.assertEqual(P.price_for(5 * MB), B)
-        self.assertEqual(P.price_for(5 * MB + 1), 2 * B)
-        self.assertEqual(P.price_for(12 * MB), 3 * B)
+    def test_one_berry_per_started_chunk(self):
+        self.assertEqual(P.price_for(1), B)                      # defaults: 100 MB chunk, so one berry
+        self.assertEqual(P.price_for(100 * MB), B)
         self.assertEqual(P.price_for(0), B)
+        self.assertEqual(P.price_for(5 * MB, 5 * MB, B), B)       # a room with 5 MB chunks
+        self.assertEqual(P.price_for(5 * MB + 1, 5 * MB, B), 2 * B)
+        self.assertEqual(P.price_for(12 * MB, 5 * MB, B), 3 * B)
 
 
 class RoomTests(unittest.TestCase):
