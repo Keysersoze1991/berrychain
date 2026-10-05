@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           SvgPicture.asset('assets/icons/skull.svg', height: 18),
                           const SizedBox(width: 8),
-                          const Flexible(child: Text("Privacy is not dead in the water, it's back.", textAlign: TextAlign.center, style: TextStyle(color: Palette.gold, fontStyle: FontStyle.italic, fontSize: 14.5))),
+                          const Flexible(child: Text("Privacy is not dead in the water, it's back!", textAlign: TextAlign.center, style: TextStyle(color: Palette.gold, fontStyle: FontStyle.italic, fontSize: 14.5))),
                           const SizedBox(width: 8),
                           SvgPicture.asset('assets/icons/skull.svg', height: 18),
                         ],
