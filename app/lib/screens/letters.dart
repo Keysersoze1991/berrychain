@@ -721,7 +721,7 @@ class _ParcelCardState extends State<_ParcelCard> {
             ]),
             const SizedBox(height: 6),
             Text(bytes == null
-                ? 'A parcel, sealed on the sender\'s $device and kept by a parcel room for a while. Fetch it to open it here.'
+                ? 'A parcel, sealed on the sender\'s phone or PC and kept by a parcel room for a while. Fetch it to open it here.'
                 : 'Fetched and checked: the bytes match the letter.', style: const TextStyle(fontSize: 13, height: 1.4)),
             if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error!, style: const TextStyle(color: Palette.band, fontSize: 13))),
             const SizedBox(height: 8),
