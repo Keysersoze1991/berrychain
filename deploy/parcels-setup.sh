@@ -31,7 +31,7 @@ if ! grep -q "location /parcels/" "$SITE"; then
   awk '
     /^[[:space:]]*location \/ \{/ && !done {
       print "    location /parcels/ {";
-      print "        if ($request_method !~ ^(GET|POST|DELETE)$) { return 405; }";
+      print "        if ($request_method !~ ^(GET|POST|DELETE|OPTIONS)$) { return 405; }";
       print "        client_max_body_size 101m;";
       print "        client_body_timeout 120s;";
       print "        proxy_pass http://127.0.0.1:8804;";

@@ -157,6 +157,13 @@ class EndToEndTests(unittest.TestCase):
         with self.assertRaises(ClientError):
             self.node.fetch_parcel(env["parcel"])
 
+    def test_browser_preflight_is_answered(self):
+        req = urllib.request.Request(self.base + "/parcels/" + "ab" * 32, method="OPTIONS")
+        with urllib.request.urlopen(req) as r:
+            self.assertEqual(r.status, 204)
+            self.assertEqual(r.headers["Access-Control-Allow-Origin"], "*")
+            self.assertIn("DELETE", r.headers["Access-Control-Allow-Methods"])
+
     def test_status_route(self):
         with urllib.request.urlopen(self.base + "/parcels/status") as r:
             st = json.load(r)

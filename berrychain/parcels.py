@@ -257,14 +257,28 @@ def make_handler(room: Room, watcher: Watcher, address: str):
         def log_message(self, fmt, *args):
             pass
 
+        def _cors(self) -> None:
+            # the browser app talks to the room from another origin; blobs carry nothing a cross-site reader could use
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "600")
+
         def _json(self, obj: Any, status: int = 200) -> None:
             raw = json.dumps(obj).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(raw)))
             self.send_header("Cache-Control", "no-store")
+            self._cors()
             self.end_headers()
             self.wfile.write(raw)
+
+        def do_OPTIONS(self):
+            self.send_response(204)
+            self._cors()
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
         def _parts(self) -> list[str]:
             return [p for p in self.path.split("?")[0].split("/") if p]
@@ -281,6 +295,7 @@ def make_handler(room: Room, watcher: Watcher, address: str):
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Cache-Control", "private, max-age=0")
+                self._cors()
                 self.end_headers()
                 self.wfile.write(data)
                 return

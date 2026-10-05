@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import 'parcels.dart';
 import 'dart:typed_data';
 
 /// The plaintext of a letter: the same small JSON envelope every BerryChain
@@ -28,19 +30,20 @@ class LetterGroup {
   }
 }
 
-Uint8List composeLetter(String body, {String subject = '', String? replyTo, String senderName = '', Uint8List? photoJpeg, LetterGroup? group}) {
+Uint8List composeLetter(String body, {String subject = '', String? replyTo, String senderName = '', Uint8List? photoJpeg, LetterGroup? group, ParcelRef? parcel}) {
   final env = <String, dynamic>{'v': 1, 'subject': subject, 'body': body};
   if (replyTo != null && replyTo.isNotEmpty) env['reply_to'] = replyTo;
   if (senderName.isNotEmpty) env['from_name'] = senderName;
   if (photoJpeg != null && photoJpeg.isNotEmpty) env['photo_jpeg_b64'] = base64Encode(photoJpeg);
   if (group != null) env['group'] = group.toJson();
+  if (parcel != null) env['parcel'] = parcel.toJson();
   return Uint8List.fromList(utf8.encode(jsonEncode(env)));
 }
 
 /// Bytes still free for text once [photoJpeg] is attached, so the writer can
 /// see the budget before sealing. Negative means the photo alone is too big.
-int textBudget({Uint8List? photoJpeg, LetterGroup? group}) {
-  final base = composeLetter('', photoJpeg: photoJpeg, group: group).length;
+int textBudget({Uint8List? photoJpeg, LetterGroup? group, ParcelRef? parcel}) {
+  final base = composeLetter('', photoJpeg: photoJpeg, group: group, parcel: parcel).length;
   return envelopeLimit - _sealOverhead - base;
 }
 
@@ -51,8 +54,9 @@ class OpenedLetter {
   final String? replyTo;
   final Uint8List? photoJpeg;
   final LetterGroup? group;
+  final ParcelRef? parcel;
   final bool isHex;
-  OpenedLetter(this.subject, this.body, this.fromName, this.replyTo, {this.photoJpeg, this.group, this.isHex = false});
+  OpenedLetter(this.subject, this.body, this.fromName, this.replyTo, {this.photoJpeg, this.group, this.parcel, this.isHex = false});
 }
 
 OpenedLetter openLetter(List<int> plaintext) {
@@ -68,7 +72,7 @@ OpenedLetter openLetter(List<int> plaintext) {
           } catch (_) {}
         }
         return OpenedLetter((env['subject'] as String?) ?? '', env['body'] as String,
-            (env['from_name'] as String?) ?? '', env['reply_to'] as String?, photoJpeg: photo, group: LetterGroup.fromJson(env['group']));
+            (env['from_name'] as String?) ?? '', env['reply_to'] as String?, photoJpeg: photo, group: LetterGroup.fromJson(env['group']), parcel: ParcelRef.fromJson(env['parcel']));
       }
     } catch (_) {}
     return OpenedLetter('', text, '', null);

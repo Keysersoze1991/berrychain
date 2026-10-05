@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/letters.dart';
+import '../core/parcels.dart';
 import '../core/photo.dart';
+import '../core/save.dart';
+import 'package:file_picker/file_picker.dart';
 import '../core/crypto.dart';
 import '../core/units.dart';
 import '../main.dart';
@@ -355,6 +358,10 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
             ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(o!.photoJpeg!, fit: BoxFit.contain)),
             const SizedBox(height: 16),
           ],
+          if (o?.parcel != null) ...[
+            _ParcelCard(o!.parcel!),
+            const SizedBox(height: 16),
+          ],
           if (o != null) SelectableText(o.body, style: TextStyle(fontSize: 16, height: 1.5, fontFamily: o.isHex ? 'monospace' : null)),
           if (o != null && widget.incoming) ...[
             const SizedBox(height: 24),
@@ -394,6 +401,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
   String? replyTo;
   LetterGroup? group;
   Uint8List? photo;
+  Uint8List? parcelBytes;
+  String? parcelName;
+  ParcelTerms? terms;
   String? toName;
   bool toValid = false, sent = false;
   Timer? _autosave;
@@ -473,8 +483,30 @@ class _ComposeScreenState extends State<ComposeScreen> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<void> pickParcel() async {
+    final s = SessionScope.of(context);
+    try {
+      terms ??= await s.parcelTermsNow();
+    } catch (e) {
+      if (!mounted) return;
+      return toast(context, 'The parcel room is not answering: ${'$e'.replaceFirst(RegExp(r'^\w+Error: '), '')}');
+    }
+    final picked = await FilePicker.pickFiles();
+    final f = picked.firstOrNull;
+    if (f == null) return;
+    final n = (await f.length()) ?? 0;
+    if (!mounted) return;
+    if (n + 64 > terms!.maxBytes) return toast(context, 'That file is ${formatBytes(n)}; a parcel can be at most ${formatBytes(terms!.maxBytes)}');
+    final bytes = await f.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      parcelBytes = bytes;
+      parcelName = f.name;
+    });
+  }
+
   Future<void> send() async {
-    if (body.text.trim().isEmpty && photo == null) return toast(context, 'Write something first');
+    if (body.text.trim().isEmpty && photo == null && parcelBytes == null) return toast(context, 'Write something first');
     int seeds = 0;
     if (amount.text.trim().isNotEmpty) {
       try {
@@ -502,9 +534,14 @@ class _ComposeScreenState extends State<ComposeScreen> {
       if (ok != true || !mounted) return;
     }
     final result = await runBusy(context, g == null ? 'Sealing and sending…' : 'Sealing ${g.members.length} copies and sending…', () async {
-      if (g != null) return s.sendGroupLetter(g, subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo);
-      return s.sendLetter(to.text.trim(), subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo);
-    });
+      ParcelRef? ref;
+      if (parcelBytes != null) {
+        ref = await s.sendParcel(parcelBytes!, parcelName ?? 'parcel', progress: (m) => s.claimProgress.value = m);
+        s.claimProgress.value = '';
+      }
+      if (g != null) return s.sendGroupLetter(g, subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo, parcel: ref);
+      return s.sendLetter(to.text.trim(), subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo, parcel: ref);
+    }, progress: s.claimProgress);
     if (result != null && mounted) {
       sent = true;
       await s.deleteDraft(draftId);
@@ -530,6 +567,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.photo_camera_outlined), tooltip: 'Take a picture', onPressed: photo == null ? () => takePhoto(ImageSource.camera) : null),
           IconButton(icon: const Icon(Icons.photo_library_outlined), tooltip: 'Picture from gallery', onPressed: photo == null ? () => takePhoto(ImageSource.gallery) : null),
+          IconButton(icon: const Icon(Icons.attach_file), tooltip: 'Attach a file (a parcel)', onPressed: parcelBytes == null ? pickParcel : null),
           IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Discard draft', onPressed: discard),
         ],
       ),
@@ -593,6 +631,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
           Text(left < 0 ? 'Too long by ${-left} characters' : '$left characters left in this envelope${photo != null ? ' with the picture' : ''}',
               style: TextStyle(fontSize: 12.5, color: left < 0 ? Palette.band : const Color(0xFF6F7883))),
           const SizedBox(height: 12),
+          if (parcelBytes != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.inventory_2_outlined, color: Palette.brass),
+                title: Text(parcelName ?? 'parcel'),
+                subtitle: Text('${formatBytes(parcelBytes!.length)} · ${terms == null ? 'price unknown' : '${formatBerry(terms!.priceFor(parcelBytes!.length + 64))} BERRY'} to the parcel room, kept ${terms?.ttlDays ?? 30} days'),
+                trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { parcelBytes = null; parcelName = null; })),
+              ),
+            ),
           if (photo != null)
             Stack(
               alignment: Alignment.topRight,
@@ -625,6 +672,71 @@ class _ComposeScreenState extends State<ComposeScreen> {
             style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// A parcel named in a letter: fetch it from the room, check it, hand it over.
+class _ParcelCard extends StatefulWidget {
+  final ParcelRef ref;
+  const _ParcelCard(this.ref);
+  @override
+  State<_ParcelCard> createState() => _ParcelCardState();
+}
+
+class _ParcelCardState extends State<_ParcelCard> {
+  Uint8List? bytes;
+  String? error;
+  bool busy = false;
+
+  Future<void> fetch() async {
+    final s = SessionScope.of(context);
+    setState(() { busy = true; error = null; });
+    try {
+      bytes = await s.fetchParcelBytes(widget.ref);
+    } catch (e) {
+      error = '$e'.replaceFirst(RegExp(r'^\w+Error: '), '');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.ref;
+    return Card(
+      color: const Color(0xFFFBF1DC),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.inventory_2_outlined, color: Palette.brass),
+              const SizedBox(width: 8),
+              Expanded(child: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600))),
+              Text(formatBytes(r.size), style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+            ]),
+            const SizedBox(height: 6),
+            Text(bytes == null
+                ? 'A parcel, sealed on the sender\'s $device and kept by a parcel room for a while. Fetch it to open it here.'
+                : 'Fetched and checked: the bytes match the letter.', style: const TextStyle(fontSize: 13, height: 1.4)),
+            if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error!, style: const TextStyle(color: Palette.band, fontSize: 13))),
+            const SizedBox(height: 8),
+            Row(children: [
+              if (bytes == null)
+                FilledButton.tonal(onPressed: busy ? null : fetch, child: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Fetch')),
+              if (bytes != null)
+                FilledButton.icon(
+                  icon: const Icon(Icons.save_alt),
+                  label: Text(isBrowser ? 'Download' : 'Save or share'),
+                  onPressed: () => saveBytes(r.name, bytes!),
+                ),
+            ]),
+          ],
+        ),
       ),
     );
   }

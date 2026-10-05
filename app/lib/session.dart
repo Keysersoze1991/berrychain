@@ -8,6 +8,7 @@ import 'core/store.dart';
 
 import 'core/crypto.dart';
 import 'core/letters.dart';
+import 'core/parcels.dart';
 import 'core/light.dart';
 import 'core/node.dart';
 import 'core/tx.dart';
@@ -548,6 +549,10 @@ class Session extends ChangeNotifier {
   Future<void> burnLetter(LetterItem l) async {
     final w = wallet!;
     if (l.from == w.address && w.packetKeys.containsKey(l.id)) {
+      try {
+        final o = await readLetter(l);               // a parcel we paid for goes with the letter
+        if (o.parcel != null) await deleteParcel(o.parcel!, w.address, w.signPriv, w.signPub);
+      } catch (_) {}
       w.packetKeys.remove(l.id);
       await w.save();
     }
@@ -832,6 +837,32 @@ class Session extends ChangeNotifier {
     return g.amount;
   }
 
+  /// The parcel room this app uses: the first node.
+  String get parcelRoom => roomFor(nodeUrls.first);
+
+  Future<ParcelTerms> parcelTermsNow() => parcelTerms(parcelRoom);
+
+  /// Seal a file, pay the room, upload it. Returns the reference to put in
+  /// the letter. The payment is an ordinary transfer with the parcel's hash
+  /// in the memo; the room marks the parcel paid when it sees the block.
+  Future<ParcelRef> sendParcel(Uint8List data, String name, {void Function(String)? progress}) async {
+    if (wallet == null) throw StateError('unlock your chest first');
+    final t = await parcelTermsNow();
+    progress?.call('Sealing ${formatBytes(data.length)}…');
+    final (key, ct, hash) = await sealParcel(data);
+    if (ct.length > t.maxBytes) throw ArgumentError('that file is ${formatBytes(data.length)}; this parcel room takes at most ${formatBytes(t.maxBytes)}');
+    final price = t.priceFor(ct.length);
+    final fee = letterFee ?? minFee;
+    if ((balance ?? 0) < price + minFee + fee) throw ArgumentError('the parcel costs ${formatBerry(price)} BERRY plus fees and you have ${formatBerry(balance ?? 0)}');
+    progress?.call('Paying ${formatBerry(price)} BERRY to the parcel room…');
+    await send(t.address, price, '$parcelMemoPrefix$hash');
+    progress?.call('Uploading ${formatBytes(ct.length)}…');
+    await uploadParcel(t.room, hash, ct);
+    return ParcelRef(hash: hash, key: toHex(key), size: ct.length, name: name, room: t.room);
+  }
+
+  Future<Uint8List> fetchParcelBytes(ParcelRef ref) => fetchParcel(ref);
+
   Future<String> send(String to, int amountSeeds, String memo) async {
     final w = wallet!;
     if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
@@ -842,7 +873,7 @@ class Session extends ChangeNotifier {
 
   /// One sealed copy to every member of [group]. Each copy carries the group
   /// inside its envelope so the others can reply to everyone. Returns the ids.
-  Future<List<String>> sendGroupLetter(LetterGroup group, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg}) async {
+  Future<List<String>> sendGroupLetter(LetterGroup group, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg, ParcelRef? parcel}) async {
     final me = wallet!.address;
     final targets = group.members.where((m) => m != me).toList();
     if (targets.isEmpty) throw ArgumentError('the crew has nobody in it but you');
@@ -854,7 +885,7 @@ class Session extends ChangeNotifier {
     if ((balance ?? 0) < need) throw ArgumentError('${targets.length} letters need ${formatBerry(need)} BERRY and you have ${formatBerry(balance ?? 0)}');
     final ids = <String>[];
     for (final t in targets) {
-      final id = await sendLetter(t, subject, body, amountSeeds, replyTo: replyTo, photoJpeg: photoJpeg, group: group);
+      final id = await sendLetter(t, subject, body, amountSeeds, replyTo: replyTo, photoJpeg: photoJpeg, group: group, parcel: parcel);
       _letterCrew[id] = group.id;
       ids.add(id);
     }
@@ -862,7 +893,7 @@ class Session extends ChangeNotifier {
     return ids;
   }
 
-  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg, LetterGroup? group}) async {
+  Future<String> sendLetter(String to, String subject, String body, int amountSeeds, {String? replyTo, Uint8List? photoJpeg, LetterGroup? group, ParcelRef? parcel}) async {
     final w = wallet!;
     if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
     if (to == w.address) throw ArgumentError('that is your own address');
@@ -870,7 +901,7 @@ class Session extends ChangeNotifier {
     final reg = acct['llm'] as Map<String, dynamic>?;
     final encPub = reg?['enc_pub'] as String?;
     if (encPub == null) throw ArgumentError('that address has not claimed a starter yet, so it has no receiving key');
-    final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group);
+    final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group, parcel: parcel);
     if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
     final ct = await encryptPacket(key, plain);

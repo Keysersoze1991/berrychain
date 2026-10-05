@@ -7,6 +7,7 @@ import 'package:berrychain_app/core/crypto.dart';
 import 'package:berrychain_app/core/letters.dart';
 import 'package:berrychain_app/core/light.dart';
 import 'package:berrychain_app/core/mnemonic.dart';
+import 'package:berrychain_app/core/parcels.dart';
 import 'package:berrychain_app/core/tx.dart';
 import 'package:berrychain_app/core/units.dart';
 import 'package:berrychain_app/core/wallet.dart';
@@ -144,6 +145,16 @@ void main() {
     expect(textBudget(photoJpeg: jpeg) < textBudget(), isTrue);
     expect(fitsEnvelope(composeLetter('x' * 40000)), isFalse);
     expect(openLetter([0xff, 0x00]).isHex, isTrue);
+    final ref = ParcelRef(hash: 'ab' * 32, key: 'cd' * 32, size: 1200000, name: 'holiday.zip', room: 'https://seed1.berrychain.link');
+    final withParcel = openLetter(composeLetter('photos', parcel: ref));
+    expect([withParcel.parcel!.hash, withParcel.parcel!.key, withParcel.parcel!.size, withParcel.parcel!.name, withParcel.parcel!.room],
+        [ref.hash, ref.key, ref.size, ref.name, ref.room]);
+    expect(openLetter(composeLetter('no parcel')).parcel, isNull);
+    final terms = ParcelTerms('https://x', 'brry1room', 100 * 1024 * 1024, 100 * 1024 * 1024, 100000000, 30);
+    expect(terms.priceFor(1), 100000000);
+    expect(terms.priceFor(100 * 1024 * 1024), 100000000);
+    expect(terms.priceFor(0), 100000000);
+    expect(formatBytes(1200000), '1.1 MB');
     expect(formatBerry(500000000), '5');
     expect(formatBerry(499990000), '4.9999');
     expect(formatBerry(123456789012), '1,234.56789012');
