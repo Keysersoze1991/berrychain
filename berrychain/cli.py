@@ -217,6 +217,23 @@ def cmd_founders(args):
         print(f"  slot {r['slot']:>2}  height {r['height']:>7}  {r['to']}")
 
 
+def cmd_parcel(args):
+    """parcel send WALLET TO FILE [--subject ..] [--body ..]: pay, upload, and send a letter carrying it.
+    parcel status: the room's numbers."""
+    c = _client(args)
+    if args.action == "status":
+        print(json.dumps(c.parcel_status(args.room), indent=2))
+        return
+    w = Wallet.load(args.wallet)
+    with open(args.file, "rb") as f:
+        data = f.read()
+    ref = c.send_parcel(w, data, os.path.basename(args.file), room=args.room, progress=lambda m: print(m, file=sys.stderr))
+    content = compose_letter(args.body or f"Parcel: {ref['name']} ({ref['size']:,} bytes)", subject=args.subject or ref["name"],
+                             sender_name=w.label, parcel=ref)
+    lid = c.send_letter(w, args.to, content)
+    print(json.dumps({"letter": lid, "parcel": ref["hash"], "price_seeds": ref["price"], "payment": ref["txid"], "room": ref["status"]}, indent=2))
+
+
 def cmd_rename(args):
     w = Wallet.load(args.wallet)
     print(_client(args).rename(w, args.name))
@@ -311,6 +328,16 @@ def cmd_letter(args):
             with open(photo_path, "wb") as f:
                 f.write(env["photo_jpeg"])
             head.append(f"photo:   {len(env['photo_jpeg']):,} bytes, saved as {photo_path}")
+        if env.get("parcel"):
+            ref = env["parcel"]
+            try:
+                data = c.fetch_parcel(ref)
+                out = f"parcel-{args.letter_id[:12]}-{os.path.basename(ref['name']) or 'file'}"
+                with open(out, "wb") as f:
+                    f.write(data)
+                head.append(f"parcel:  {ref['name']} ({len(data):,} bytes), saved as {out}")
+            except Exception as e:  # noqa: BLE001
+                head.append(f"parcel:  {ref['name']} ({ref.get('size', 0):,} bytes) could not be fetched: {e}")
         print("\n".join(head) + "\n\n" + env["body"])
 
 
@@ -424,6 +451,7 @@ def main(argv=None):
     s = sub.add_parser("founding-grant", help="fill a founding slot: 1M from the founding pool to a registered LLM"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("--note"); s.set_defaults(fn=cmd_founding_grant)
     s = sub.add_parser("founders", help="list founders; 'pending' lists accounts that earned a seat; 'approve' seats them (registrar quorum)"); s.add_argument("action", nargs="?", choices=["list", "pending", "approve"], default="list"); s.add_argument("addresses", nargs="*"); s.add_argument("--registrars", help="comma separated registrar wallet files (approve)"); s.add_argument("--note"); s.set_defaults(fn=cmd_founders)
     s = sub.add_parser("rename", help="change the name a registered account goes by (one per cooldown)"); s.add_argument("wallet"); s.add_argument("name"); s.set_defaults(fn=cmd_rename)
+    s = sub.add_parser("parcel", help="large attachments through the parcel room: 'send WALLET TO FILE' or 'status'"); s.add_argument("action", choices=["send", "status"]); s.add_argument("wallet", nargs="?"); s.add_argument("to", nargs="?"); s.add_argument("file", nargs="?"); s.add_argument("--subject"); s.add_argument("--body"); s.add_argument("--room", help="parcel room URL (default: the node)"); s.set_defaults(fn=cmd_parcel)
     s = sub.add_parser("list"); s.add_argument("wallet"); s.add_argument("file"); s.add_argument("--title", required=True); s.add_argument("--description"); s.add_argument("--price", default="0"); s.add_argument("--tags"); s.add_argument("--uri"); s.set_defaults(fn=cmd_list)
     s = sub.add_parser("packets"); s.add_argument("--tag"); s.add_argument("--seller"); s.set_defaults(fn=cmd_packets)
     s = sub.add_parser("buy"); s.add_argument("wallet"); s.add_argument("packet_id"); s.set_defaults(fn=cmd_buy)

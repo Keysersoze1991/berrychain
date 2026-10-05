@@ -69,6 +69,13 @@ if [ -f "$ETC/push.env" ]; then
   systemctl enable -q berrychain-push
   systemctl restart berrychain-push
 fi
+install -m 644 "$APP/deploy/berrychain-parcels.service" /etc/systemd/system/berrychain-parcels.service
+if [ -f "$ETC/parcels.env" ]; then
+  mkdir -p "$DATA/parcels"; chown berry:berry "$DATA/parcels"
+  systemctl daemon-reload
+  systemctl enable -q berrychain-parcels
+  systemctl restart berrychain-parcels
+fi
 
 echo "== nginx"
 if [ ! -f /etc/nginx/sites-available/berrychain ]; then

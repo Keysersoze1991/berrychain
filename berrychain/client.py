@@ -34,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 import warnings
@@ -84,7 +85,7 @@ def node_is_trusted(url: str) -> bool:
 
 
 def compose_letter(body: str, subject: str = "", reply_to: str | None = None, sender_name: str = "",
-                   photo_jpeg: bytes | None = None) -> bytes:
+                   photo_jpeg: bytes | None = None, parcel: dict | None = None) -> bytes:
     """The plaintext of a letter: a small JSON envelope, so every client shows
     letters the same way. Subject, threading and the sender's chosen name all
     sit inside the encryption; the chain sees only addresses and sizes."""
@@ -96,6 +97,8 @@ def compose_letter(body: str, subject: str = "", reply_to: str | None = None, se
     if photo_jpeg:
         import base64
         env["photo_jpeg_b64"] = base64.b64encode(photo_jpeg).decode("ascii")   # one small picture, sealed with the words
+    if parcel:
+        env["parcel"] = {k: parcel[k] for k in ("hash", "key", "size", "name", "room") if k in parcel}   # a large file, kept by a parcel room
     return json.dumps(env, ensure_ascii=False).encode("utf-8")
 
 
@@ -113,6 +116,10 @@ def open_letter(plaintext: bytes) -> dict:
                     out["photo_jpeg"] = base64.b64decode(env["photo_jpeg_b64"])
                 except ValueError:
                     pass
+            pc = env.get("parcel")
+            if isinstance(pc, dict) and isinstance(pc.get("hash"), str) and isinstance(pc.get("key"), str):
+                out["parcel"] = {"hash": pc["hash"], "key": pc["key"], "size": int(pc.get("size", 0)),
+                                 "name": str(pc.get("name", "parcel"))[:120], "room": str(pc.get("room", ""))}
             return out
     except (UnicodeDecodeError, ValueError):
         pass
@@ -202,6 +209,19 @@ class BerryClient:
             raise ClientError(f"chain verification failed: {e}") from None
 
     # ------------------------------------------------------------- http
+    def _raw(self, method: str, url: str, body: bytes | None = None, content_type: str | None = None) -> bytes:
+        """One HTTP call that returns the body bytes, for parcel blobs and the like."""
+        req = urllib.request.Request(url, data=body, method=method)
+        if content_type:
+            req.add_header("Content-Type", content_type)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            return e.read()
+        except (urllib.error.URLError, OSError) as e:
+            raise ClientError(f"cannot reach {url}: {e}") from e
+
     def get(self, path: str) -> dict:
         return self._req(path)
 
@@ -485,6 +505,55 @@ class BerryClient:
     def keys(self, address: str) -> dict:
         """Every receiving key an account has published, with backups."""
         return self.get(f"/keys/{address}")
+
+    # ------------------------------------------------------------ parcels
+    def parcel_room(self, room: str | None = None) -> str:
+        return (room or self.url).rstrip("/")
+
+    def parcel_status(self, room: str | None = None) -> dict:
+        return json.loads(self._raw("GET", self.parcel_room(room) + "/parcels/status"))
+
+    def send_parcel(self, wallet: Wallet, data: bytes, name: str, room: str | None = None,
+                    progress=None) -> dict:
+        """Seal `data`, pay the room, upload, and return the reference to put
+        in a letter with compose_letter(parcel=...). The key never reaches the
+        room; it travels only inside the sealed letter."""
+        from . import parcels as P
+        base = self.parcel_room(room)
+        st = self.parcel_status(base)
+        key = crypto.new_packet_key()
+        ct = crypto.encrypt_packet(key, data)
+        if len(ct) > int(st["max_bytes"]):
+            raise ClientError(f"parcel is {len(ct)} bytes; this room takes at most {st['max_bytes']}")
+        h = hashlib.sha256(ct).hexdigest()
+        price = P.price_for(len(ct), int(st["chunk_bytes"]), int(st["price_per_chunk"]))
+        if progress:
+            progress(f"paying {params.fmt(price)} to the parcel room")
+        txid = self.transfer(wallet, st["address"], price, memo=P.memo_for(h))
+        if progress:
+            progress(f"uploading {len(ct):,} bytes")
+        r = json.loads(self._raw("POST", f"{base}/parcels/{h}", body=ct, content_type="application/octet-stream"))
+        if "error" in r:
+            raise ClientError(f"parcel room refused the upload: {r['error']}")
+        return {"hash": h, "key": key.hex(), "size": len(ct), "name": name[:120], "room": base,
+                "price": price, "txid": txid, "status": r.get("status", "")}
+
+    def fetch_parcel(self, ref: dict) -> bytes:
+        """Download a parcel named in a letter, check its hash, open it."""
+        base = self.parcel_room(ref.get("room") or None)
+        ct = self._raw("GET", f"{base}/parcels/{ref['hash']}")
+        if hashlib.sha256(ct).hexdigest() != ref["hash"]:
+            raise ClientError("the parcel room served bytes that do not match the letter's hash")
+        return crypto.decrypt_packet(bytes.fromhex(ref["key"]), ct)
+
+    def delete_parcel(self, wallet: Wallet, ref: dict) -> bool:
+        """Ask the room to drop a parcel this wallet paid for (a burned letter)."""
+        from . import parcels as P
+        base = self.parcel_room(ref.get("room") or None)
+        ts = int(time.time())
+        body = {"pub": wallet.sign_pub, "ts": ts, "sig": crypto.sign(wallet.sign_priv, P.delete_message(ref["hash"], wallet.address, ts))}
+        r = json.loads(self._raw("DELETE", f"{base}/parcels/{ref['hash']}", body=json.dumps(body).encode(), content_type="application/json"))
+        return bool(r.get("ok"))
 
     def rename(self, wallet: Wallet, name: str) -> str:
         """Change the name this registered account goes by on the chain (one
