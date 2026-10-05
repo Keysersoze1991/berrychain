@@ -27,8 +27,8 @@ no content, no recipient.
 
 ## Price
 
-`PARCEL_PRICE_SEEDS` per started `PARCEL_CHUNK_BYTES`: 1 BERRY per 5 MB,
-so a 12 MB parcel costs 3 BERRY. Paid to `PARCEL_ADDRESS`, chosen by the
+`PARCEL_PRICE_SEEDS` per started `PARCEL_CHUNK_BYTES`: 1 BERRY per 100 MB,
+with a 100 MB cap, so in practice a parcel costs one berry. Paid to `PARCEL_ADDRESS`, chosen by the
 operator; on seed1 it is the network-operations wallet, so parcels pay for
 the disk they occupy. Not a consensus rule: the operator can change it any
 time and the app reads the current terms from `/parcels/status`.
@@ -43,7 +43,7 @@ curl -s https://seed1.berrychain.link/parcels/status
 
 `/parcels/status` answers `{parcels, paid, pending, bytes, served, max_bytes,
 chunk_bytes, price_per_chunk, ttl_days, address, height}`. Disk use is
-bounded: with a 25 MB cap and 30-day expiry, 40 GB holds about 1,500
+bounded: with a 100 MB cap and 30-day expiry, 40 GB holds about 400
 parcels in flight. Watch `bytes` and add disk or a second room when it
 climbs.
 
