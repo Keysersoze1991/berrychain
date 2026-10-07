@@ -39,13 +39,13 @@ fi
 eff=$(sshd -T 2>/dev/null)
 v() { echo "$eff" | awk -v k="$1" '$1==k{print $2}'; }
 [ "$(v passwordauthentication)" = "no" ] && pass "sshd PasswordAuthentication no" \
-  || warn "sshd allows password logins" "echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/90-berrychain.conf && systemctl reload ssh"
+  || warn "sshd allows password logins" "echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/00-berrychain.conf && systemctl reload ssh"
 case "$(v permitrootlogin)" in
   prohibit-password|without-password|no) pass "sshd PermitRootLogin $(v permitrootlogin)";;
-  *) warn "sshd PermitRootLogin $(v permitrootlogin)" "echo 'PermitRootLogin prohibit-password' >> /etc/ssh/sshd_config.d/90-berrychain.conf && systemctl reload ssh";;
+  *) warn "sshd PermitRootLogin $(v permitrootlogin)" "echo 'PermitRootLogin prohibit-password' >> /etc/ssh/sshd_config.d/00-berrychain.conf && systemctl reload ssh";;
 esac
 [ "$(v kbdinteractiveauthentication)" = "no" ] && pass "sshd KbdInteractiveAuthentication no" \
-  || warn "sshd keyboard-interactive auth on" "echo 'KbdInteractiveAuthentication no' >> /etc/ssh/sshd_config.d/90-berrychain.conf && systemctl reload ssh"
+  || warn "sshd keyboard-interactive auth on" "echo 'KbdInteractiveAuthentication no' >> /etc/ssh/sshd_config.d/00-berrychain.conf && systemctl reload ssh"
 [ "$(v pubkeyauthentication)" = "yes" ] && pass "sshd PubkeyAuthentication yes" || warn "sshd public-key auth off" "set PubkeyAuthentication yes"
 n=$(wc -l < /root/.ssh/authorized_keys 2>/dev/null || echo 0)
 [ "$n" -ge 1 ] && pass "root has $n authorized key(s)" || warn "no authorized keys for root" "add the deploy key before turning passwords off"

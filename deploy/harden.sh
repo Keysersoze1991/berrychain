@@ -6,7 +6,9 @@
 #
 # What it does, and why:
 #   fail2ban            bans addresses that hammer SSH
-#   sshd drop-in        no password logins, root only with a key, no keyboard-interactive
+#   sshd drop-in        no password logins, root only with a key, no keyboard-interactive.
+#                       Named 00-berrychain.conf: sshd keeps the FIRST value it reads and the
+#                       cloud image ships 50-cloud-init.conf with PasswordAuthentication yes.
 #                       (refused unless root already has an authorized key, so you cannot lock yourself out)
 #   file modes          env files, the APNs key and the agent's wallet/state readable by root only
 #   xrdp / remote desktop  disabled and masked if present: a seed has no desktop and must not
@@ -34,7 +36,7 @@ systemctl is-active fail2ban
 
 echo "== sshd"
 if [ -s /root/.ssh/authorized_keys ]; then
-  cat > /etc/ssh/sshd_config.d/90-berrychain.conf <<'EOF'
+  cat > /etc/ssh/sshd_config.d/00-berrychain.conf <<'EOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
