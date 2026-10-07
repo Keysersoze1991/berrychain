@@ -70,6 +70,8 @@
 	<string>Only when you attach a picture to a letter. The picture is shrunk on the phone and sealed inside the letter; it goes nowhere else.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Only when you choose a picture from your library to attach to a letter.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Unlock your chest quickly with Face ID instead of typing the passphrase. Optional; turn it on in Settings.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIBackgroundModes</key>

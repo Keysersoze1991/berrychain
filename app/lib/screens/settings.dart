@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../background.dart';
+import '../biometric.dart';
+import '../core/secure.dart';
 import '../main.dart';
 import '../push.dart';
 import '../session.dart';
@@ -85,6 +88,8 @@ class KeysPanel extends StatelessWidget {
   const KeysPanel(this.s, {super.key});
 
   Future<void> rotate(BuildContext context, bool backup) async {
+    if (!backup && !await confirmPassphrase(context, s.confirmPassphrase, why: 'A key with no backup cannot be recovered by anyone. Your passphrase, not quick unlock, confirms this step.')) return;
+    if (!context.mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -277,6 +282,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 6),
           ListenableBuilder(listenable: s, builder: (context, _) => NamePanel(s)),
           const Divider(height: 32),
+          if (!kIsWeb) ...[
+            const Text('UNLOCKING', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+            const SizedBox(height: 6),
+            QuickUnlockPanel(s),
+            const Divider(height: 32),
+          ],
           Row(children: [SvgPicture.asset('assets/icons/chest.svg', height: 18), const SizedBox(width: 8), const Text('TREASURE CHEST', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883)))]),
           const SizedBox(height: 6),
           if (s.wallet?.mnemonic != null) ...[
@@ -296,13 +307,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 10),
           ],
           const Text('Export copies the sealed chest file to the clipboard. Paste it into a text file on a PC and it opens there with the same passphrase. Keep a copy somewhere safe; without the file and the passphrase the coins are gone.', style: TextStyle(height: 1.4)),
+          const SizedBox(height: 6),
+          const Text('The file is sealed, but anything that reads the clipboard in the next minute gets a copy of it, and whoever has the file only needs your passphrase. Paste it straight into its destination.', style: TextStyle(fontSize: 12.5, color: Color(0xFF6F7883), height: 1.4)),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             icon: const Icon(Icons.copy),
             label: const Text('Export sealed chest file'),
             onPressed: () async {
+              if (!await confirmPassphrase(context, s.confirmPassphrase, why: 'Your passphrase, not quick unlock, confirms an export.')) return;
               final json = await s.exportWalletJson();
-              if (context.mounted) copyToClipboard(context, json, what: 'Sealed chest copied. Paste it somewhere safe.');
+              final expires = await copySensitive(json);
+              if (context.mounted) toast(context, kIsWeb ? 'Sealed chest copied. Paste it somewhere safe.' : expires ? 'Sealed chest copied. The clipboard forgets it after a minute.' : 'Sealed chest copied. It leaves the clipboard after a minute.');
             },
           ),
           const Divider(height: 32),
@@ -312,5 +327,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+}
+
+/// Opt-in quick unlock with Face ID, Touch ID or a fingerprint. Turning it
+/// on asks for the passphrase (so a borrowed, already-open phone cannot
+/// enrol itself) and then the biometric check. The passphrase stays the
+/// master and is still asked for on export and no-backup rotations.
+class QuickUnlockPanel extends StatefulWidget {
+  final Session s;
+  const QuickUnlockPanel(this.s, {super.key});
+  @override
+  State<QuickUnlockPanel> createState() => _QuickUnlockPanelState();
+}
+
+class _QuickUnlockPanelState extends State<QuickUnlockPanel> {
+  final bio = BiometricUnlock();
+  bool? available;
+  bool enabled = false;
+  String label = 'Face ID';
+
+  @override
+  void initState() {
+    super.initState();
+    () async {
+      final a = await bio.available();
+      final e = await bio.enabled();
+      final l = await bio.label();
+      if (mounted) setState(() { available = a; enabled = e; label = l; });
+    }();
+  }
+
+  Future<void> toggle(bool on) async {
+    if (!on) {
+      await bio.disable();
+      if (mounted) setState(() => enabled = false);
+      return;
+    }
+    final ok = await confirmPassphrase(context, widget.s.confirmPassphrase, why: 'Enter the passphrase once more. From then on $label opens the chest; the passphrase is still asked for when you export it or rotate a key with no backup.');
+    if (!ok || !mounted) return;
+    final p = widget.s.wallet?.passphrase;
+    if (p == null || p.isEmpty) return;
+    final done = await bio.enable(p);
+    if (!mounted) return;
+    setState(() => enabled = done);
+    if (!done) toast(context, '$label did not confirm. Quick unlock stays off.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (available == null) return const SizedBox(height: 24);
+    if (available == false) {
+      return Text(enabled
+          ? 'Quick unlock is on, but this phone has no $label enrolled right now, so the passphrase is asked for.'
+          : 'This phone has no face or fingerprint unlock set up, so the passphrase is the only way in. Set one up in the phone’s own settings and the switch appears here.',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF6F7883), height: 1.4));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text('Unlock with $label'),
+        subtitle: Text(enabled
+            ? 'The chest opens with $label. The passphrase is still needed to export it or rotate a key with no backup, and whenever $label fails.'
+            : 'Open the chest with $label instead of typing the passphrase. The passphrase stays the master key and is asked for again on the steps that can lose coins or letters.'),
+        value: enabled,
+        onChanged: toggle,
+      ),
+      Text('The passphrase is kept in the phone’s keychain, which only this app can read and only after the phone itself is unlocked. Anyone who can pass $label on this phone can open the chest, so keep it to your own face or finger.', style: TextStyle(fontSize: 12.5, color: Color(0xFF6F7883), height: 1.4)),
+    ]);
   }
 }

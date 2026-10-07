@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/mnemonic.dart';
+import '../core/secure.dart';
 import '../main.dart';
 import 'common.dart';
 
@@ -97,16 +99,65 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
 }
 
 /// The twelve words, shown once at creation and again from Settings.
-class ShowPhraseScreen extends StatelessWidget {
+/// Screenshots and screen recording are blocked while it is open; the copy
+/// button puts the words on the clipboard as a sensitive entry that clears
+/// itself after a minute.
+class ShowPhraseScreen extends StatefulWidget {
   final String phrase;
   final bool firstTime;
   const ShowPhraseScreen(this.phrase, {super.key, this.firstTime = false});
+  @override
+  State<ShowPhraseScreen> createState() => _ShowPhraseScreenState();
+}
+
+class _ShowPhraseScreenState extends State<ShowPhraseScreen> {
+  @override
+  void initState() {
+    super.initState();
+    protectScreen(true);
+    // iOS cannot stop a screenshot, only report it: close the words and say
+    // why, so the person knows that picture is a copy of the chest.
+    onScreenshot = () {
+      if (!mounted) return;
+      final nav = Navigator.of(context);
+      if (widget.firstTime) {
+        nav.popUntil((r) => r.isFirst);
+      } else {
+        nav.pop();
+      }
+      showDialog<void>(
+        context: nav.context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('That screenshot is your chest'),
+          content: const Text('A picture of the twelve words opens the chest for anyone who sees it, and photos get backed up, synced and shared. Delete it from your photos now, or treat the words as exposed and move the coins to a new chest.', style: TextStyle(height: 1.4)),
+          actions: [FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Understood'))],
+        ),
+      );
+    };
+  }
+
+  @override
+  void dispose() {
+    onScreenshot = null;
+    protectScreen(false);
+    super.dispose();
+  }
+
+  Future<void> copyWords() async {
+    final expires = await copySensitive(widget.phrase);
+    if (!mounted) return;
+    toast(context, kIsWeb
+        ? 'Copied. Paste it somewhere safe now, then copy something else so the words leave the clipboard.'
+        : expires
+            ? 'Copied. The clipboard forgets the words after a minute.'
+            : 'Copied. The words leave the clipboard after a minute.');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final words = phrase.split(' ');
+    final words = widget.phrase.split(' ');
     return Scaffold(
-      appBar: AppBar(title: const Text('Your recovery phrase'), automaticallyImplyLeading: !firstTime),
+      appBar: AppBar(title: const Text('Your recovery phrase'), automaticallyImplyLeading: !widget.firstTime),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -131,9 +182,14 @@ class ShowPhraseScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          OutlinedButton.icon(icon: const Icon(Icons.copy), label: const Text('Copy words'), onPressed: () => copyToClipboard(context, phrase, what: 'Copied. Paste somewhere safe, then clear the clipboard.')),
+          OutlinedButton.icon(icon: const Icon(Icons.copy), label: const Text('Copy words'), onPressed: copyWords),
+          const SizedBox(height: 8),
+          Text(kIsWeb
+              ? 'Paper beats the clipboard. Anything that reads your clipboard, a browser extension included, can read the words while they are on it.'
+              : 'Paper beats the clipboard. Any app that reads the clipboard in the next minute can read the words, so paste them only into something sealed, or write them down instead. Screenshots are blocked on this screen.',
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF6F7883), height: 1.4)),
           const SizedBox(height: 16),
-          if (firstTime) FilledButton(onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), child: const Text('I have written them down')),
+          if (widget.firstTime) FilledButton(onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst), child: const Text('I have written them down')),
         ],
       ),
     );

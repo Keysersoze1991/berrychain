@@ -290,6 +290,11 @@ class Session extends ChangeNotifier {
 
   Future<String> exportWalletJson() async => jsonEncode(await wallet!.toJson());
 
+  /// True when [passphrase] opens the chest that is open now. Used before
+  /// export and before a rotation with no backup, so quick unlock never
+  /// stands in for the passphrase on the two steps that can lose coins or letters.
+  bool confirmPassphrase(String passphrase) => wallet != null && passphrase.isNotEmpty && wallet!.passphrase == passphrase;
+
   void lock() {
     wallet = null;
     balance = null;

@@ -15,6 +15,42 @@ Future<void> copyToClipboard(BuildContext context, String text, {String what = '
   if (context.mounted) toast(context, what);
 }
 
+/// Asks for the passphrase and returns true only when [check] accepts it.
+/// Used in front of the steps that can lose coins or letters (export, a
+/// rotation with no backup), so quick unlock never stands in for it there.
+Future<bool> confirmPassphrase(BuildContext context, bool Function(String) check, {String why = 'Enter your passphrase to continue.'}) async {
+  final ctl = TextEditingController();
+  var wrong = false;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: const Text('Your passphrase'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(why, style: const TextStyle(height: 1.4)),
+          const SizedBox(height: 12),
+          PassphraseField(controller: ctl, onSubmitted: (_) => Navigator.pop(ctx, check(ctl.text))),
+          if (wrong) const Padding(padding: EdgeInsets.only(top: 8), child: Text('That is not the passphrase of this chest.', style: TextStyle(color: Color(0xFFB3261E), fontSize: 13))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (check(ctl.text)) {
+                Navigator.pop(ctx, true);
+              } else {
+                setState(() => wrong = true);
+              }
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    ),
+  );
+  return ok == true;
+}
+
 /// A gold-topped card, like the site's tiles.
 class Tile extends StatelessWidget {
   final String label;
