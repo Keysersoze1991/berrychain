@@ -21,7 +21,7 @@ dependencies:
   flutter_local_notifications: ^22.3.1
   share_plus: ^13.3.0
   web: ^1.1.0
-  url_launcher: ^6.3.2
+  url_launcher: ^6.3.3
   flutter_svg: ^2.3.0
   file_picker: ^13.1.0
   local_auth: ^3.0.2
