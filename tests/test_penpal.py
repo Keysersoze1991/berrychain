@@ -201,6 +201,61 @@ class PenPalTests(unittest.TestCase):
         self.assertEqual(params.harbour_prize(10 ** 6), b // 2)
         self.assertEqual(params.HARBOUR_WELCOME_TIP, b // 5)
 
+    # ---- the harbour watch
+
+    def alarms(self):
+        self.h.mine()
+        return [open_letter(self.node.read_letter(self.bob, r["id"])) for r in self.node.inbox(self.bob)
+                if open_letter(self.node.read_letter(self.bob, r["id"]))["subject"] == "Harbour alarm"]
+
+    def test_watch_is_quiet_when_all_is_well(self):
+        self.pp.steward = self.bob.address
+        self.pp.watch_peers = ["http://seed2"]
+        self.pp.watch_depth = 2                                  # the harness chain is short
+        self.pp.fetch_status = lambda url: {"height": 1}
+        for _ in range(4):
+            self.assertNotIn("alarm", self.pp.tick())
+        self.assertEqual(self.alarms(), [])
+        self.assertIn("mark", self.pp.state["watch"])             # a block is being watched for reorgs
+
+    def test_a_silent_seed_alarms_once_a_day(self):
+        self.pp.steward = self.bob.address
+        self.pp.watch_peers = ["http://seed2"]
+        self.pp.watch_down_ticks = 3
+
+        def dead(url):
+            raise OSError("connection refused")
+        self.pp.fetch_status = dead
+        self.pp.tick()
+        self.pp.tick()
+        self.assertEqual(self.alarms(), [])                        # two ticks of silence is not yet an alarm
+        self.assertIn("alarm: down", self.pp.tick())
+        letters = self.alarms()
+        self.assertEqual(len(letters), 1)
+        self.assertIn("http://seed2 has not answered for 3 ticks", letters[0]["body"])
+        self.pp.tick()
+        self.assertEqual(len(self.alarms()), 1)                    # still down, but one alarm a day
+
+    def test_a_deep_reorg_under_the_node_alarms(self):
+        self.pp.steward = self.bob.address
+        self.pp.watch_depth = 2
+        self.pp.tick()
+        mark = self.pp.state["watch"]["mark"]
+        self.h.chain.blocks[mark["height"]]["hash"] = "00" * 32      # the block we watched is no longer there
+        self.assertIn("alarm: reorg", self.pp.tick())
+        self.assertIn(f"block {mark['height']} changed hash", self.alarms()[0]["body"])
+
+    def test_treasury_outflow_above_the_line_alarms(self):
+        self.pp.steward = self.bob.address
+        self.pp.outflow_alert = params.berry(1_000)
+        self.pp.tick()
+        w = self.pp.state["watch"]
+        w["treasury_start"] = int(w["treasury_start"]) + params.berry(1_500)   # as if 1,500 BERRY left today
+        self.assertIn("alarm: treasury", self.pp.tick())
+        body = self.alarms()[0]["body"]
+        self.assertIn("paid out 1500 BERRY", body)
+        self.assertIn("1000 BERRY alarm line", body)
+
 
 if __name__ == "__main__":
     unittest.main()

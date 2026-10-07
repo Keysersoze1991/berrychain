@@ -1,7 +1,82 @@
-# Hardening pass, 2026-09-22
+# Hardening passes
 
-A self-review of the state rules and the sync path before publishing. Each
-item lists what was wrong, what changed, and how it is tested.
+Self-reviews of the chain, the seeds and the app. Each item lists what was
+wrong, what changed, and how it is tested. The 2026-10-07 pass (node 0.9.1,
+app 0.12.1) is first; the original 2026-09-22 pass follows.
+
+## Pass 2, 2026-10-07: node 0.9.1 and app 0.12.1
+
+**Deep reorgs (rolling finality).** Fork choice was pure heaviest-chain: a
+peer with more work could rewrite any amount of history, and a node that was
+offline for a day would adopt whatever it was shown. Now a node refuses to
+undo more than `MAX_REORG_DEPTH` (100) of its own blocks, whatever work the
+other fork claims; sync does not even download the bodies of such a fork
+and `/status` reports `max_reorg_depth` and `refused_reorgs`. Nodes with
+nothing settled (fresh, or behind on the same chain) still take the heaviest
+valid chain. A network split deeper than 100 blocks therefore needs people:
+the seeds' operator picks the branch and the minority restarts from it. This
+is a node rule, not consensus; blocks are unchanged.
+Tests: `tests/test_finality.py`.
+
+**Nobody was watching the seeds.** The Harbourmaster now runs a harbour
+watch inside its 5-minute tick and letters the steward (subject "Harbour
+alarm", once a day per condition) when another seed stops answering for
+`watch_down_ticks` ticks, when the block `watch_reorg_depth` below the tip
+changes hash between ticks (a reorg under the node), or when the treasury
+pays out more than `treasury_outflow_alert_seeds` in a UTC day. Fixed rules;
+the model is never consulted. Config keys in `agent.json`: `watch_peers`,
+`watch_down_ticks` (3), `watch_reorg_depth` (20),
+`treasury_outflow_alert_seeds` (1,000 BERRY).
+Tests: `tests/test_penpal.py` (quiet, down, reorg, treasury).
+
+**Seed configuration drift.** `deploy/hardening-check.sh` is a read-only
+audit (unattended-upgrades, fail2ban, sshd, firewall, public listeners,
+services, secret file modes, NTP, node health) and `deploy/harden.sh`
+applies the fixes. First run on 2026-10-07 found on both seeds: password
+SSH logins still allowed, `PermitRootLogin yes`, no fail2ban, a pending
+reboot, secret files at mode 640; and on seed1 something listening on
+3389 and 3350 (a remote-desktop stack the VPS image ships with). `harden.sh`
+turns password logins off only when root already has an authorized key.
+
+**Supply chain.** `requirements.txt` is pinned to the exact versions on the
+seeds; the GitHub Actions in the three workflows are pinned by commit SHA
+with the tag in a comment; `.github/dependabot.yml` proposes bumps weekly
+for pip, pub and the actions.
+
+**Website.** Every static page carries a Content-Security-Policy meta tag
+(`default-src 'self'`, scripts from the site only, connections only to the
+two seeds, no objects, no form targets) and a strict referrer policy. The
+home page's live-figures script moved from an inline block to `live.js` so
+inline scripts can be refused. The Flutter app under `write/` is excluded;
+it needs wasm and blob URLs and ships its own build. GitHub Pages cannot set
+headers, so `frame-ancestors` is not covered; the pages carry nothing worth
+framing.
+
+**Recovery words on the screen and the clipboard (app).** The words screen
+now blocks screenshots and screen recording while open (Android
+`FLAG_SECURE`, iOS content hiding). "Copy words" stays, by the architect's
+decision that one convenience must survive, but the clip is marked
+sensitive (kept out of Android 13's clipboard preview and sync), is local to
+the device and expires after a minute on iOS, and is cleared after a minute
+on Android if it still holds the words. The screen says so. The sealed-chest
+export uses the same copy path and carries a warning line.
+
+**Quick unlock (app).** Face ID, Touch ID or a fingerprint can open the
+chest after an opt-in in Settings. Enabling it asks for the passphrase first,
+so an already-open phone in someone else's hands cannot enrol itself. The
+passphrase is kept in the iOS keychain (`unlocked_this_device`, not synced)
+or Android's keystore-backed storage and returned only after the platform's
+biometric check; a failed or cancelled check falls back to the passphrase. The
+passphrase, never the biometric, is required to export the chest and to
+rotate a key with no backup; if the stored passphrase stops opening the
+chest, quick unlock turns itself off. Not offered in the browser.
+Limit: the biometric is an app-level gate in front of keychain storage, not
+a hardware-bound key; someone who can pass the phone's own biometric can open
+the chest. The settings text says so.
+
+## Pass 1, 2026-09-22
+
+A self-review of the state rules and the sync path before publishing.
 
 ## Fixed
 

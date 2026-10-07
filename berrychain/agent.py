@@ -382,6 +382,16 @@ class PenPal:
         self.max_per_correspondent = int(cfg.get("max_replies_per_correspondent_per_day", 3))
         self.steward = cfg.get("steward_address")              # who hears about seat applications and odd claims
         self.farm_alert = int(cfg.get("founding_claims_alert_per_day", 5))
+        # The harbour watch: other seeds to keep an eye on, how many ticks of silence
+        # count as down, how deep a reorg must be to alarm, and the treasury's daily alarm line.
+        peers = cfg.get("watch_peers", [])
+        if isinstance(peers, str):
+            peers = [p for p in peers.split(",") if p.strip()]
+        self.watch_peers = [u.strip().rstrip("/") for u in peers]
+        self.watch_down_ticks = int(cfg.get("watch_down_ticks", 3))
+        self.watch_depth = int(cfg.get("watch_reorg_depth", 20))
+        self.outflow_alert = int(cfg.get("treasury_outflow_alert_seeds", params.berry(1_000)))
+        self.fetch_status = fetch_status
         self.data_dir = cfg.get("data_dir", "data/penpal")
         os.makedirs(os.path.join(self.data_dir, "threads"), exist_ok=True)
         self.state_path = os.path.join(self.data_dir, "penpal-state.json")
@@ -503,7 +513,7 @@ class PenPal:
             self._save_state()
             self.log(f"replied to {addr[:12]}... ({subject!r})")
         extra = []
-        for step in (self._weekly_prize, self._first_block_bonus, self._steward_note):
+        for step in (self._weekly_prize, self._first_block_bonus, self._steward_note, self._watch):
             try:
                 note = step()
             except Exception as e:  # noqa: BLE001  the purse must never stop the post
@@ -682,6 +692,67 @@ class PenPal:
         self._save_state()
         return f"steward note: {len(waiting)} waiting" + (", burst warning" if burst >= self.farm_alert else "")
 
+    def _watch(self) -> str:
+        """The harbour watch: three alarms for the steward, each raised at most
+        once a UTC day, decided by fixed rules (the model is never asked).
+          seed down   another seed has not answered /status for watch_down_ticks ticks
+          reorg       the block watch_reorg_depth below our tip changed hash between
+                      ticks, so our own node reorganised deeper than that
+          treasury    the treasury paid out more than treasury_outflow_alert_seeds
+                      since the start of the UTC day
+        Costs a letter fee per alarm letter, no coins."""
+        if not self.steward:
+            return ""
+        today = self.state.get("day", "")
+        w = self.state.setdefault("watch", {})
+        w.setdefault("down", {})
+        w.setdefault("alarmed", {})
+        alarms: list[tuple[str, str]] = []
+        for url in self.watch_peers:
+            try:
+                self.fetch_status(url)
+                w["down"][url] = 0
+            except Exception as e:  # noqa: BLE001  any failure to answer counts
+                n = w["down"].get(url, 0) + 1
+                w["down"][url] = n
+                if n >= self.watch_down_ticks:
+                    alarms.append((f"down:{url}", f"{url} has not answered for {n} ticks ({type(e).__name__})."))
+        st = self.client.status()
+        height = int(st.get("height", 0))
+        mark = w.get("mark")
+        if mark and int(mark["height"]) <= height:
+            blk = self.client.get(f"/block/{int(mark['height'])}")
+            if blk.get("hash") != mark["hash"]:
+                alarms.append(("reorg", f"block {mark['height']} changed hash under our node: a reorganisation "
+                                        f"deeper than {self.watch_depth} blocks. Check both seeds and the miners."))
+        if height >= self.watch_depth:
+            mh = height - self.watch_depth
+            w["mark"] = {"height": mh, "hash": self.client.get(f"/block/{mh}")["hash"]}
+        treasury = int(self.client.balance(params.TREASURY_ADDRESS))
+        if w.get("treasury_day") != today or w.get("treasury_start") is None:
+            w["treasury_day"], w["treasury_start"] = today, treasury
+        outflow = int(w["treasury_start"]) - treasury
+        if outflow > self.outflow_alert:
+            alarms.append(("treasury", f"the treasury has paid out {_b(outflow)} BERRY since the start of the day, "
+                                       f"above the {_b(self.outflow_alert)} BERRY alarm line. Look at /grants."))
+        fresh = [(k, m) for k, m in alarms if w["alarmed"].get(k) != today]
+        if not fresh:
+            self._save_state()
+            return ""
+        body = "Alarm from the harbour watch:\n" + "\n".join("  " + m for _, m in fresh) + \
+               f"\n\nHeight {height} at {dt.datetime.now(dt.timezone.utc).strftime('%H:%M')} UTC. " \
+               f"Each alarm is raised once a day.\n\n{self.name}"
+        try:
+            self.client.send_letter(self.wallet, self.steward, compose_letter(body, subject="Harbour alarm", sender_name=self.name))
+        except Exception as e:  # noqa: BLE001
+            return f"alarm letter failed: {e}"
+        for k, _ in fresh:
+            w["alarmed"][k] = today
+        self._save_state()
+        kinds = sorted({k.split(":")[0] for k, _ in fresh})
+        self._journal("harbour alarm: " + "; ".join(m for _, m in fresh))
+        return "alarm: " + ", ".join(kinds)
+
     def run_forever(self, tick_minutes: float) -> None:
         self.log(f"pen pal {self.name} at {self.wallet.address} on {self.client.url}, every {tick_minutes} min")
         while True:
@@ -695,6 +766,13 @@ class PenPal:
 
 def _b(seeds: int) -> str:
     return f"{int(seeds) / params.SEEDS_PER_BERRY:.8f}".rstrip("0").rstrip(".") or "0"
+
+
+def fetch_status(url: str, timeout: float = 10.0) -> dict:
+    """GET <url>/status; raises on any failure. Used by the harbour watch for the other seeds."""
+    import urllib.request
+    with urllib.request.urlopen(url.rstrip("/") + "/status", timeout=timeout) as r:
+        return json.loads(r.read(1 << 20).decode())
 
 
 def _packet_view(p: dict) -> dict:

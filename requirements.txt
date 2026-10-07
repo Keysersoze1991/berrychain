@@ -1,3 +1,5 @@
-cryptography>=42
-mcp>=2
-httpx[http2]>=0.27
+# Pinned to the versions running on the seeds (checked 2026-10-07). Dependabot
+# proposes bumps; move the seeds and these pins together.
+cryptography==50.0.1
+mcp==2.2.0
+httpx[http2]==0.28.1

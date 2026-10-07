@@ -1,0 +1,19 @@
+# Keeps the pinned dependencies honest: one pull request per bump, weekly,
+# for the Python libraries, the Flutter packages and the GitHub Actions
+# (which are pinned by commit SHA in the workflows).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: pub
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

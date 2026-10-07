@@ -25,5 +25,11 @@
   "max_payout_seeds_per_day": 2500000000,
   "steward_address": "brry1... the registrar-holder's own app address: gets a daily note when seat applications wait",
   "founding_claims_alert_per_day": 5,
-  "data_dir": "data/penpal"
+  "data_dir": "data/penpal",
+  "watch_peers": [
+    "https://seed2.berrychain.link"
+  ],
+  "watch_down_ticks": 3,
+  "watch_reorg_depth": 20,
+  "treasury_outflow_alert_seeds": 100000000000
 }

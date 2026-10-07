@@ -26,6 +26,10 @@ class BlockError(Exception):
     pass
 
 
+class ReorgTooDeep(BlockError):
+    """A heavier chain was offered that would undo more than MAX_REORG_DEPTH blocks."""
+
+
 def header_of(block: dict) -> dict:
     return {k: block[k] for k in HEADER_FIELDS}
 
@@ -43,6 +47,7 @@ class Chain:
         self.mempool: dict[str, dict] = {}
         self._mempool_state: State | None = None
         self.tx_index: dict[str, tuple[int, int]] = {}
+        self.refused_reorgs = 0          # heavier forks turned away by the reorg limit
         self.lock = threading.RLock()
         self._apply_genesis_block()
 
@@ -318,12 +323,31 @@ class Chain:
         return blk
 
     # --------------------------------------------------------- fork choice
+    def fork_point(self, headers: list[dict]) -> int:
+        """Height of the last block we share with a candidate chain."""
+        n = min(len(headers), len(self.blocks))
+        common = 0
+        for i in range(n):
+            if headers[i]["hash"] != self.blocks[i]["hash"]:
+                break
+            common = i
+        return common
+
+    def reorg_allowed(self, headers: list[dict], max_depth: int = params.MAX_REORG_DEPTH) -> bool:
+        """Rolling finality: a reorg may undo at most `max_depth` of our blocks."""
+        return self.height - self.fork_point(headers) <= max_depth
+
     def replace_with(self, blocks: list[dict], now: int | None = None) -> bool:
-        """Adopt `blocks` (a full chain from genesis) if it carries more work.
+        """Adopt `blocks` (a full chain from genesis) if it carries more work
+        and does not undo more than MAX_REORG_DEPTH of our own blocks.
         Headers are verified before any transaction is replayed."""
         with self.lock:
             if self.check_headers(blocks, now) <= self.cumulative_work():
                 return False
+            if not self.reorg_allowed(blocks):
+                self.refused_reorgs += 1
+                raise ReorgTooDeep(f"candidate chain forks {self.height - self.fork_point(blocks)} blocks back, "
+                                   f"limit is {params.MAX_REORG_DEPTH}")
             candidate = Chain(self.genesis)
             for b in blocks[1:]:
                 candidate.add_block(b, now)

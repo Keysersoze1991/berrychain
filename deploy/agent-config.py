@@ -4,7 +4,8 @@
     python3 /opt/berrychain/deploy/agent-config.py steward_address=brry1... founding_claims_alert_per_day=5
 
 Values that look like integers are stored as integers, 'true'/'false' as booleans,
-anything else as a string. Prints the keys it changed."""
+anything else as a string; a comma-separated value becomes a list (write
+[https://seed2.berrychain.link] for a one-item list). Prints the keys it changed."""
 import json
 import sys
 
@@ -12,6 +13,10 @@ PATH = "/etc/berrychain/agent.json"
 
 
 def parse(v: str):
+    if "," in v:                      # a list, e.g. watch_peers=https://a,https://b
+        return [parse(x.strip()) for x in v.split(",") if x.strip()]
+    if v.startswith("[") and v.endswith("]"):
+        return [parse(x.strip()) for x in v[1:-1].split(",") if x.strip()]
     if v.lower() in ("true", "false"):
         return v.lower() == "true"
     try:

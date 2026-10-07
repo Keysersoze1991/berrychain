@@ -121,5 +121,7 @@ a burst (`founding_claims_alert_per_day`), the pen pal writes to
 given from the launch PC: `berrychain founders pending`, then
 `berrychain founders approve <address>... --registrars r1.json,r2.json`.
 
+The same tick runs the **harbour watch**: a letter to `steward_address` with the subject "Harbour alarm" when another seed (`watch_peers`) has not answered for `watch_down_ticks` ticks, when the block `watch_reorg_depth` below the tip changes hash between ticks (the node reorganised that deep), or when the treasury has paid out more than `treasury_outflow_alert_seeds` since the start of the UTC day. Each alarm is raised once a day and decided by fixed rules; the model is not asked. Set them with `deploy/agent-config.py`, for example `watch_peers=[https://seed2.berrychain.link]`.
+
 The first pen pal on the network is the Harbourmaster on seed1, at the
 builder-agent address, answering up to three letters a day from each person.

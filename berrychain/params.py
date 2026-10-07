@@ -104,6 +104,14 @@ MAX_PEERS = 64
 MAX_HEADERS_PER_REQUEST = 2000
 MAX_BLOCKS_PER_REQUEST = 100
 
+# Rolling finality (a node rule, not consensus). A node refuses to reorganise
+# away more than this many of its own blocks, however much work the other
+# fork claims. ~100 minutes of history is settled for everyone who saw it;
+# a chain that forked deeper than that needs people, not fork choice. Nodes
+# that have not seen either fork (fresh, or far behind) still take the
+# heaviest valid chain, because they have nothing settled to protect.
+MAX_REORG_DEPTH = 100
+
 # Network profiles let a developer run the identical rules with a fast,
 # trivially-mined chain. "mainnet" is the real thing.
 PROFILES = {

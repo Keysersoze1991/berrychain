@@ -27,7 +27,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import params
+from . import __version__, params
 from .chain import BlockError, Chain, header_of
 from .state import TxError
 from .tx import txid as _txid
@@ -52,6 +52,7 @@ class Node:
         self.admin_token = admin_token
         self._stop = threading.Event()
         self._sync_lock = threading.Lock()
+        self._refused_tips: set[str] = set()
         self.started = time.time()
         if data_dir:
             os.makedirs(data_dir, exist_ok=True)
@@ -177,6 +178,16 @@ class Node:
             h, step = max(0, h - step), step * 2
         if common is None:
             return False                                       # different genesis
+        if self.chain.height - common > params.MAX_REORG_DEPTH:
+            # Rolling finality: whatever work the peer claims, we do not undo
+            # more than MAX_REORG_DEPTH of our own blocks. Logged once per peer tip.
+            self.chain.refused_reorgs += 1
+            tip = st.get("tip_hash", "")
+            if tip not in self._refused_tips:
+                self._refused_tips.add(tip)
+                print(f"sync: {peer} offers a chain that forks {self.chain.height - common} blocks back "
+                      f"(limit {params.MAX_REORG_DEPTH}); refusing the reorg", flush=True)
+            return False
 
         # 2. fetch and verify headers beyond the common block
         headers = [header_of(b) for b in self.chain.blocks[:common + 1]]
@@ -265,6 +276,9 @@ class Node:
             "starter_amount": c.state.grant_amount("starter", c.height + 1),
             "peers": self.peers,
             "uptime": int(time.time() - self.started),
+            "version": __version__,
+            "max_reorg_depth": params.MAX_REORG_DEPTH,
+            "refused_reorgs": c.refused_reorgs,
             "supply": c.supply(),
         }
 
@@ -281,7 +295,7 @@ def key_history(rec: dict) -> dict:
 
 def make_handler(node: Node):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "BerryChain/0.2"
+        server_version = f"BerryChain/{__version__}"
 
         def log_message(self, fmt, *args):  # quiet
             pass
