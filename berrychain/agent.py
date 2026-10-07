@@ -176,10 +176,7 @@ class Agent:
         return {"last_seen_height": 0, "ticks": 0}
 
     def _save_state(self) -> None:
-        tmp = self.state_path + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(self.state, f, indent=2)
-        os.replace(tmp, self.state_path)
+        _write_private_json(self.state_path, self.state, indent=2)
 
     def _tail(self, path: str, n: int) -> str:
         if not os.path.exists(path):
@@ -407,10 +404,7 @@ class PenPal:
                 "applicants": {}, "steward_noted": "", "founding_claims_today": 0}
 
     def _save_state(self) -> None:
-        tmp = self.state_path + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(self.state, f, indent=1)
-        os.replace(tmp, self.state_path)
+        _write_private_json(self.state_path, self.state, indent=1)
 
     def _journal(self, text: str) -> None:
         with open(self.journal_path, "a", encoding="utf-8") as f:
@@ -762,6 +756,20 @@ class PenPal:
                 self.log(f"tick failed: {type(e).__name__}: {e}")
                 traceback.print_exc()
             time.sleep(max(30.0, tick_minutes * 60))
+
+
+def _write_private_json(path: str, obj, indent: int = 1) -> None:
+    """Atomic write, readable by the owner only: the state holds addresses and
+    letter excerpts, and a 644 file would undo the seed's chmod on every tick."""
+    tmp = path + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(obj, f, indent=indent)
+    try:
+        os.chmod(tmp, 0o600)          # the file may have pre-existed with a wider mode
+    except OSError:
+        pass
+    os.replace(tmp, path)
 
 
 def _b(seeds: int) -> str:
