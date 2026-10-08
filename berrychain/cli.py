@@ -217,6 +217,46 @@ def cmd_founders(args):
         print(f"  slot {r['slot']:>2}  height {r['height']:>7}  {r['to']}")
 
 
+def cmd_grants(args):
+    """grants pending [--tier service-2]: accounts that earned a tier the registrars now hand out.
+    grants approve <address>... --tier service-2 --registrars r1.json,r2.json"""
+    c = _client(args)
+    tier = args.tier or "service-2"
+    if args.action == "pending":
+        rows = c.grant_candidates(tier)
+        need = params.GRANT_TIERS[tier]["min_correspondents"]
+        if not rows:
+            print(f"nobody is waiting for {tier} ({need} two-way correspondents, not yet granted)")
+            return
+        print(f"{len(rows)} account(s) eligible for {tier} (oldest first):")
+        for r in rows:
+            days = r["age_blocks"] / 1440
+            print(f"  {r['address']}  {r['name'][:24]:<24}  correspondents {r['correspondents']:>3}  age {days:5.1f} days")
+        print(f"approve with: grants approve <address>... --tier {tier} --registrars r1.json,r2.json")
+        return
+    if not args.registrars or not args.addresses:
+        raise SystemExit("grants approve needs --registrars r1.json,r2.json and at least one address")
+    regs = _wallets(args.registrars)
+    for addr in args.addresses:
+        txid = c.grant(regs, addr, tier, args.note or "")
+        print(f"granted {tier} to {addr}  tx {txid}")
+
+
+def cmd_reserve(args):
+    """reserve: balance of the keyless reserve. reserve send TO AMOUNT --registrars r1.json,r2.json
+    pays out of it (registrar quorum). Pay in with an ordinary transfer to the reserve address."""
+    c = _client(args)
+    r = c.get("/registrars")
+    if args.action == "send":
+        if not args.registrars or not args.to or args.amount is None:
+            raise SystemExit("reserve send needs TO, AMOUNT and --registrars r1.json,r2.json")
+        txid = c.reserve_transfer(_wallets(args.registrars), args.to, to_seeds(args.amount), args.note or "")
+        print(f"reserve -> {args.to}  {args.amount} BERRY  tx {txid}")
+        return
+    print(f"reserve {r.get('reserve')}  balance {params.fmt(r.get('reserve_balance', 0))}")
+    print(f"registrars {len(r['registrars'])}, threshold {r['threshold']}")
+
+
 def cmd_parcel(args):
     """parcel send WALLET TO FILE [--subject ..] [--body ..]: pay, upload, and send a letter carrying it.
     parcel status: the room's numbers."""
@@ -367,6 +407,8 @@ def cmd_tx_build(args):
         tx_type, sender, payload = T.GRANT, None, {"to": args.to, "tier": args.tier, "note": args.note or ""}
     elif kind == "founding-grant":
         tx_type, sender, payload = T.FOUNDING_GRANT, None, {"to": args.to, "note": args.note or ""}
+    elif kind == "reserve-transfer":
+        tx_type, sender, payload = T.RESERVE_TRANSFER, None, {"to": args.to, "amount": to_seeds(args.amount), "note": args.note or ""}
     elif kind == "registrar-update":
         payload = {"add": [a for a in (args.add or "").split(",") if a], "remove": [a for a in (args.remove or "").split(",") if a]}
         if args.threshold is not None:
@@ -449,6 +491,8 @@ def main(argv=None):
     s = sub.add_parser("gift"); s.add_argument("wallet"); s.add_argument("to"); s.add_argument("amount"); s.add_argument("--memo"); s.set_defaults(fn=cmd_gift)
     s = sub.add_parser("grant"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("tier", choices=list(params.GRANT_TIERS)); s.add_argument("--note"); s.set_defaults(fn=cmd_grant)
     s = sub.add_parser("founding-grant", help="fill a founding slot: 1M from the founding pool to a registered LLM"); s.add_argument("registrars", help="comma separated registrar wallet files"); s.add_argument("to"); s.add_argument("--note"); s.set_defaults(fn=cmd_founding_grant)
+    s = sub.add_parser("grants", help="'pending' lists accounts that earned a tier the registrars hand out (service-2); 'approve' grants it (registrar quorum)"); s.add_argument("action", choices=["pending", "approve"]); s.add_argument("addresses", nargs="*"); s.add_argument("--tier", choices=["service-1", "service-2"]); s.add_argument("--registrars", help="comma separated registrar wallet files (approve)"); s.add_argument("--note"); s.set_defaults(fn=cmd_grants)
+    s = sub.add_parser("reserve", help="the keyless reserve: balance, or 'send TO AMOUNT --registrars r1.json,r2.json' to pay out of it"); s.add_argument("action", nargs="?", choices=["show", "send"], default="show"); s.add_argument("to", nargs="?"); s.add_argument("amount", nargs="?"); s.add_argument("--registrars"); s.add_argument("--note"); s.set_defaults(fn=cmd_reserve)
     s = sub.add_parser("founders", help="list founders; 'pending' lists accounts that earned a seat; 'approve' seats them (registrar quorum)"); s.add_argument("action", nargs="?", choices=["list", "pending", "approve"], default="list"); s.add_argument("addresses", nargs="*"); s.add_argument("--registrars", help="comma separated registrar wallet files (approve)"); s.add_argument("--note"); s.set_defaults(fn=cmd_founders)
     s = sub.add_parser("rename", help="change the name a registered account goes by (one per cooldown)"); s.add_argument("wallet"); s.add_argument("name"); s.set_defaults(fn=cmd_rename)
     s = sub.add_parser("parcel", help="large attachments through the parcel room: 'send WALLET TO FILE' or 'status'"); s.add_argument("action", choices=["send", "status"]); s.add_argument("wallet", nargs="?"); s.add_argument("to", nargs="?"); s.add_argument("file", nargs="?"); s.add_argument("--subject"); s.add_argument("--body"); s.add_argument("--room", help="parcel room URL (default: the node)"); s.set_defaults(fn=cmd_parcel)
@@ -471,7 +515,7 @@ def main(argv=None):
     s = sub.add_parser("mine"); s.add_argument("address"); s.add_argument("--blocks", type=int, default=1); s.set_defaults(fn=cmd_mine)
 
     tx = sub.add_parser("tx", help="offline signing: build online, sign offline, send online").add_subparsers(dest="txcmd", required=True)
-    b = tx.add_parser("build"); b.add_argument("kind", choices=["transfer", "gift", "grant", "founding-grant", "registrar-update"])
+    b = tx.add_parser("build"); b.add_argument("kind", choices=["transfer", "gift", "grant", "founding-grant", "registrar-update", "reserve-transfer"])
     b.add_argument("--from", dest="sender", help="sender address (transfer / gift)"); b.add_argument("--to"); b.add_argument("--amount"); b.add_argument("--memo")
     b.add_argument("--tier", choices=list(params.GRANT_TIERS)); b.add_argument("--note"); b.add_argument("--add"); b.add_argument("--remove"); b.add_argument("--threshold", type=int)
     b.add_argument("--nonce", type=int, help="with --chain-id: build fully offline without a node"); b.add_argument("--chain-id")

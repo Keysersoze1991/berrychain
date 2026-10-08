@@ -81,6 +81,7 @@ class State:
         self.letters: dict[str, dict] = {}
         self.starter_claims_at = [0, 0]      # [height, claims accepted in that block]
         self.grant_claims_at = [0, 0]        # same, for service and founding claims
+        self.service_claims: list[int] = []  # heights of recent self-claimed service grants (rolling window, chain 0.10.0)
         self.mail: dict[str, dict] = {}      # addr -> {"out": {addr: True}, "in": {addr: True}}: who wrote to whom
         self.reputation: dict[str, dict] = {}
         self.registrars: list[str] = []
@@ -225,6 +226,11 @@ class State:
         """Minimum fee for a letter right now: MIN_FEE halved once per
         LETTER_FEE_HALVING_EVERY registered accounts, never below one seed."""
         return max(1, params.MIN_FEE >> (len(self.llms) // params.LETTER_FEE_HALVING_EVERY))
+
+    def sealed_post_active(self, height: int) -> bool:
+        """Upgrade 3 (chain 0.10.0): seal v2 letters, service-2 by registrars,
+        rolling cap on service-1 self-claims, the reserve."""
+        return height >= int(self.profile.get("sealed_post_activation", 0))
 
     def grant_amount(self, tier: str, height: int) -> int:
         """What a grant of `tier` pays if issued at `height`: the base amount
@@ -510,9 +516,19 @@ class State:
         elif tier in ("service-1", "service-2"):
             if any(g["tier"] == tier for g in rec["grants"]):
                 raise TxError(f"this account already received the {tier} grant")
+            sealed = self.sealed_post_active(height)
+            if sealed and tier == "service-2":
+                raise TxError("service-2 grants are made by the registrars now: write to the Harbourmaster to apply")
             need = params.GRANT_TIERS[tier]["min_correspondents"]
             if have < need:
                 raise TxError(f"{tier} needs {need} two-way correspondents, has {have}")
+            if sealed:
+                window = int(self.profile.get("service_claim_window_blocks", 1440))
+                cap = int(self.profile.get("service_claims_per_window", 20))
+                recent = [h for h in self.service_claims if height - h < window]
+                if len(recent) >= cap:
+                    raise TxError(f"the network has handed out {cap} service grants in the last {window} blocks; claim again later")
+                self._set_attr("service_claims", recent + [height])
             amount = self.grant_amount(tier, height)
             self._require_funds(sender, 0, tx["fee"])
             self._require_funds(params.TREASURY_ADDRESS, amount, 0)
@@ -611,6 +627,23 @@ class State:
         rec["grants"].append({"tier": "founding", "amount": amount, "height": height})
         self._append(self.founders, {"to": to, "slot": len(self.founders) + 1, "amount": amount,
                                      "height": height, "txid": T.txid(tx)})
+
+    def _apply_reserve_transfer(self, tx, height):
+        """Registrar quorum pays out of the reserve (chain 0.10.0). Anyone can
+        pay into RESERVE_ADDRESS with an ordinary TRANSFER; nothing but this
+        transaction can take it out, so no single key moves the holdings."""
+        if not self.sealed_post_active(height):
+            raise TxError("the reserve switches on at the sealed-post upgrade")
+        p = tx["payload"]
+        to, amount = p.get("to"), p.get("amount")
+        if not is_valid_address(to) or to in params.PROTOCOL_ADDRESSES:
+            raise TxError("invalid recipient")
+        if not _is_uint(amount) or amount == 0:
+            raise TxError("amount must be a positive integer of seeds")
+        _str(p.get("note", ""), params.MAX_MEMO_BYTES, "note", True)
+        self._require_funds(params.RESERVE_ADDRESS, amount, tx["fee"])
+        self._debit(params.RESERVE_ADDRESS, amount, "reserve")
+        self._credit(to, amount)
 
     def _apply_registrar_update(self, tx, height):
         p = tx["payload"]
@@ -836,6 +869,11 @@ class State:
             raise TxError(f"letter too large (max {params.MAX_PACKET_INLINE_BYTES} bytes of ciphertext)")
         if hashlib.sha256(raw).hexdigest() != ct_hash:
             raise TxError("ciphertext_hash does not match ciphertext")
+        seal = p.get("seal", 1)
+        if seal not in (1, 2):
+            raise TxError("seal must be 1 or 2")
+        if seal == 1 and self.sealed_post_active(height):
+            raise TxError("letters must be sealed with seal version 2 now (sender and recipient bound in): update the app")
         wk = p.get("wrapped_key")
         if not isinstance(wk, dict) or set(wk) != {"epk", "nonce", "ct"}:
             raise TxError("wrapped_key must be {epk, nonce, ct} hex strings")
@@ -865,6 +903,7 @@ class State:
             "ciphertext_hash": ct_hash,
             "wrapped_key": dict(wk),
             "amount": amount,
+            "seal": seal,
         }
 
     def _apply_rename(self, tx, height):

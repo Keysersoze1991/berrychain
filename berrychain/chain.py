@@ -145,6 +145,7 @@ class Chain:
             "circulating": sum(st.balances.values()) + st.escrow_locked - protocol_held,
             "treasury_unallocated": st.balance(params.TREASURY_ADDRESS),
             "founding_pool_remaining": st.balance(params.FOUNDING_POOL_ADDRESS),
+            "reserve": st.balance(params.RESERVE_ADDRESS),
             "mining_pool_remaining": st.mining_pool_remaining,
             "mined_so_far": st.minted,
             "escrow_locked": st.escrow_locked,

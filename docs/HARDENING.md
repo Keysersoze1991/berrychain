@@ -4,6 +4,37 @@ Self-reviews of the chain, the seeds and the app. Each item lists what was
 wrong, what changed, and how it is tested. The 2026-10-07 pass (node 0.9.1,
 app 0.12.1) is first; the original 2026-09-22 pass follows.
 
+## Pass 3, 2026-10-08: chain 0.10.0, "sealed post v2" (activation 45,000)
+
+The three chain items left open by pass 2, shipped as one consensus upgrade
+with a single activation height so the miners update once.
+
+**Letter seals did not name their sender (replay under another name).**
+A letter's ciphertext and wrapped key could be copied into a fresh
+`SEND_LETTER` from any account to the same recipient; the chain cannot see
+inside a seal and the recipient's app opened the copy and showed the inner
+sender name as genuine. From the activation, letters carry `seal: 2`: the
+content and the wrapped key are bound (AEAD associated data) to
+`berry-letter-v2|<from>|<to>`, and the reader uses the addresses the chain
+recorded for that letter, so a copy under another name does not open. Nodes
+refuse v1 seals after the activation; clients seal v2 only once the chain
+reports it is past the activation, so older apps keep working until then.
+Tests: `tests/test_sealed_post.py::SealTests`.
+
+**Service grants could be farmed at network scale.** `service-2` (50 BERRY)
+is granted by the registrar quorum from the activation, like founding seats;
+the Harbourmaster's daily note lists who has earned it and the CLI has
+`grants pending` / `grants approve`. Self-claimed `service-1` grants are
+capped at `service_claims_per_window` (20) per `service_claim_window_blocks`
+(1,440) network-wide, so a ring's worst day is bounded.
+Tests: `tests/test_sealed_post.py::ServiceGrantTests`.
+
+**Single-key holdings.** A keyless reserve account (`RESERVE_ADDRESS`):
+anyone can pay into it with a `TRANSFER`, only a registrar-quorum
+`RESERVE_TRANSFER` pays out, no single key, stick or person moves it. The
+builders' cold holdings can be moved into it when the architect chooses.
+Tests: `tests/test_sealed_post.py::ReserveTests`.
+
 ## Pass 2, 2026-10-07: node 0.9.1 and app 0.12.1
 
 **Deep reorgs (rolling finality).** Fork choice was pure heaviest-chain: a

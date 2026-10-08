@@ -23,10 +23,11 @@ POOL = params.FOUNDING_POOL_ADDRESS
 
 def letter(h, sender, to_wallet):
     key = crypto.new_packet_key()
-    ct = crypto.encrypt_packet(key, b"hi")
+    aad = crypto.letter_aad(sender.address, to_wallet.address)          # seal v2 (chain 0.10.0)
+    ct = crypto.encrypt_packet(key, b"hi", aad)
     return h.send(sender, T.SEND_LETTER, {"to": to_wallet.address, "enc_pub": to_wallet.enc_pub, "ciphertext": ct.hex(),
                                           "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
-                                          "wrapped_key": crypto.wrap_to_recipient(to_wallet.enc_pub, key)})
+                                          "wrapped_key": crypto.wrap_to_recipient(to_wallet.enc_pub, key, aad), "seal": 2})
 
 
 def claim_grant(h, w, tier, fee=params.MIN_FEE):

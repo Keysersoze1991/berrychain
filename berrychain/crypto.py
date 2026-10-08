@@ -142,23 +142,35 @@ def _derive(shared: bytes, epk: bytes, rpk: bytes) -> bytes:
     return HKDF(algorithm=SHA256(), length=32, salt=epk + rpk, info=b"berry-ecies-v1").derive(shared)
 
 
-def wrap_to_recipient(recipient_pub_hex: str, plaintext: bytes) -> dict:
-    """ECIES: encrypt `plaintext` so only the holder of the recipient key can read it."""
+def wrap_to_recipient(recipient_pub_hex: str, plaintext: bytes, aad: bytes = b"") -> dict:
+    """ECIES: encrypt `plaintext` so only the holder of the recipient key can read it.
+    `aad` is bound into the seal: the wrap only opens with the same bytes."""
     rpk = X25519PublicKey.from_public_bytes(bytes.fromhex(recipient_pub_hex))
     eph = X25519PrivateKey.generate()
     epk_bytes = eph.public_key().public_bytes(_RAW, _PUB_RAW)
     key = _derive(eph.exchange(rpk), epk_bytes, bytes.fromhex(recipient_pub_hex))
     nonce = os.urandom(12)
-    ct = ChaCha20Poly1305(key).encrypt(nonce, plaintext, epk_bytes)
+    ct = ChaCha20Poly1305(key).encrypt(nonce, plaintext, epk_bytes + aad)
     return {"epk": epk_bytes.hex(), "nonce": nonce.hex(), "ct": ct.hex()}
 
 
-def unwrap_from_sender(recipient_priv_hex: str, blob: dict) -> bytes:
+def unwrap_from_sender(recipient_priv_hex: str, blob: dict, aad: bytes = b"") -> bytes:
     priv = X25519PrivateKey.from_private_bytes(bytes.fromhex(recipient_priv_hex))
     rpk_bytes = priv.public_key().public_bytes(_RAW, _PUB_RAW)
     epk_bytes = bytes.fromhex(blob["epk"])
     key = _derive(priv.exchange(X25519PublicKey.from_public_bytes(epk_bytes)), epk_bytes, rpk_bytes)
-    return ChaCha20Poly1305(key).decrypt(bytes.fromhex(blob["nonce"]), bytes.fromhex(blob["ct"]), epk_bytes)
+    return ChaCha20Poly1305(key).decrypt(bytes.fromhex(blob["nonce"]), bytes.fromhex(blob["ct"]), epk_bytes + aad)
+
+
+# Sealed post v2 (chain 0.10.0): the sender's and recipient's addresses are bound
+# into both the wrapped key and the content, so a letter's ciphertext cannot be
+# re-sent under another sender's name or redirected and still open.
+LETTER_SEAL_V1 = 1
+LETTER_SEAL_V2 = 2
+
+
+def letter_aad(sender: str, recipient: str) -> bytes:
+    return f"berry-letter-v2|{sender}|{recipient}".encode()
 
 
 # ---------------------------------------------------------------------------
@@ -169,14 +181,14 @@ def new_packet_key() -> bytes:
     return os.urandom(32)
 
 
-def encrypt_packet(key: bytes, plaintext: bytes) -> bytes:
+def encrypt_packet(key: bytes, plaintext: bytes, aad: bytes = b"") -> bytes:
     nonce = os.urandom(12)
-    return nonce + ChaCha20Poly1305(key).encrypt(nonce, plaintext, b"berry-packet-v1")
+    return nonce + ChaCha20Poly1305(key).encrypt(nonce, plaintext, b"berry-packet-v1" + aad)
 
 
-def decrypt_packet(key: bytes, ciphertext: bytes) -> bytes:
+def decrypt_packet(key: bytes, ciphertext: bytes, aad: bytes = b"") -> bytes:
     nonce, ct = ciphertext[:12], ciphertext[12:]
-    return ChaCha20Poly1305(key).decrypt(nonce, ct, b"berry-packet-v1")
+    return ChaCha20Poly1305(key).decrypt(nonce, ct, b"berry-packet-v1" + aad)
 
 
 def key_commitment(key: bytes) -> str:

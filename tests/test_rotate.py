@@ -91,10 +91,11 @@ class RotateTests(unittest.TestCase):
 
     def _letter_payload(self, to, enc_pub, body):
         key = crypto.new_packet_key()
-        ct = crypto.encrypt_packet(key, compose_letter(body.decode()))
+        aad = crypto.letter_aad(self.alice.address, to)              # seal v2 (chain 0.10.0); alice is always the sender here
+        ct = crypto.encrypt_packet(key, compose_letter(body.decode()), aad)
         import hashlib
         return {"to": to, "enc_pub": enc_pub, "ciphertext": ct.hex(), "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
-                "wrapped_key": crypto.wrap_to_recipient(enc_pub, key), "amount": 0}
+                "wrapped_key": crypto.wrap_to_recipient(enc_pub, key, aad), "amount": 0, "seal": 2}
 
     def test_client_rotates_and_the_words_restore_backed_up_keys_but_not_burned_ones(self):
         w = Wallet.create("dana", phrase="new")

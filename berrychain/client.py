@@ -35,6 +35,8 @@ import hashlib
 import json
 import os
 import time
+
+from cryptography.exceptions import InvalidTag
 import urllib.error
 import urllib.request
 import warnings
@@ -563,25 +565,44 @@ class BerryClient:
         self.post("/tx", tx)
         return T.txid(tx)
 
-    def founding_candidates(self, min_correspondents: int = params.FOUNDING_MIN_CORRESPONDENTS) -> list[dict]:
-        """Registered accounts without a seat that have earned one: for the
-        registrars' weekly sitting. Each row carries what a human needs to tell
-        a pen pal from a ring: age, correspondents, letters out and in."""
+    def sealed_post_active(self, status: dict | None = None) -> bool:
+        """Whether the node's chain has reached the sealed-post upgrade (chain 0.10.0)."""
+        st = status or self.status()
+        try:
+            activation = int(self.get("/params").get("sealed_post_activation", 0))
+        except Exception:  # noqa: BLE001  an older node has no such key: treat as not yet
+            return False
+        return int(st.get("height", 0)) >= activation
+
+    def grant_candidates(self, tier: str) -> list[dict]:
+        """Registered accounts that have earned `tier` ("founding" or a service
+        tier) and not received it: for the registrars' sitting. Each row carries
+        what a human needs to tell a pen pal from a ring: age and correspondents."""
+        need = params.FOUNDING_MIN_CORRESPONDENTS if tier == "founding" else params.GRANT_TIERS[tier]["min_correspondents"]
         height = int(self.status()["height"])
         out = []
         for rec in self.llms():
-            if rec.get("founding"):
+            if tier == "founding" and rec.get("founding"):
+                continue
+            if tier != "founding" and any(g.get("tier") == tier for g in rec.get("grants", [])):
                 continue
             addr = rec["address"]
             acct = self.account(addr)
             have = int(acct.get("correspondents", 0))
-            if have < min_correspondents:
+            if have < need:
                 continue
             reg_h = int((acct.get("llm") or {}).get("registered_height", 0))
             out.append({"address": addr, "name": rec.get("name", ""), "correspondents": have,
                         "age_blocks": height - reg_h, "registered_height": reg_h})
         out.sort(key=lambda r: (-r["age_blocks"], -r["correspondents"]))
         return out
+
+    def founding_candidates(self, min_correspondents: int = params.FOUNDING_MIN_CORRESPONDENTS) -> list[dict]:
+        return self.grant_candidates("founding")
+
+    def reserve_transfer(self, registrars: list[Wallet], to: str, amount_seeds: int, note: str = "") -> str:
+        """Pay out of the reserve, approved by registrar wallets (chain 0.10.0)."""
+        return self._multisig(registrars, T.RESERVE_TRANSFER, {"to": to, "amount": int(amount_seeds), "note": note})
 
     def rotate_key(self, wallet: Wallet, backup: bool = True) -> str:
         """Publish a fresh receiving key. With `backup` (the default) the new
@@ -642,7 +663,12 @@ class BerryClient:
             if enc_pub is None:
                 raise ClientError(f"{to} has not registered an encryption key; pass enc_pub= from them directly")
         key = crypto.new_packet_key()
-        ct = crypto.encrypt_packet(key, content)
+        st = self.status()
+        # Seal v2 (sender and recipient bound in) from the sealed-post upgrade on;
+        # before it, v1, so pen pals on older apps can still open our letters.
+        seal = crypto.LETTER_SEAL_V2 if self.sealed_post_active(st) else crypto.LETTER_SEAL_V1
+        aad = crypto.letter_aad(wallet.address, to) if seal == 2 else b""
+        ct = crypto.encrypt_packet(key, content, aad)
         if len(ct) > params.MAX_PACKET_INLINE_BYTES:
             raise ClientError(f"letter is {len(ct)} bytes; the limit is {params.MAX_PACKET_INLINE_BYTES}")
         payload = {
@@ -650,10 +676,11 @@ class BerryClient:
             "enc_pub": enc_pub,
             "ciphertext": ct.hex(),
             "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
-            "wrapped_key": crypto.wrap_to_recipient(enc_pub, key),
+            "wrapped_key": crypto.wrap_to_recipient(enc_pub, key, aad),
             "amount": int(amount_seeds),
+            "seal": seal,
         }
-        fee = int(self.status().get("letter_fee", params.MIN_FEE))     # halves as the chain gains accounts
+        fee = int(st.get("letter_fee", params.MIN_FEE))     # halves as the chain gains accounts
         tx = T.build(T.SEND_LETTER, wallet.address, self.nonce(wallet.address), fee, payload, self.chain_id)
         wallet.sign(tx)
         lid = T.txid(tx)
@@ -667,20 +694,27 @@ class BerryClient:
         """Open a letter: as its recipient (unwrap with the wallet's key) or as
         its sender (the key kept at send time). Anyone else gets an error."""
         l = self.letter(letter_id)
-        if l["to"] == wallet.address:
-            priv = wallet.key_for(l.get("enc_pub") or wallet.enc_pub)
-            if priv is None:
-                raise ClientError("this letter was sealed to a receiving key this wallet no longer holds "
-                                  "(rotated without a backup, burned, or not yet recovered: try recover-keys)")
-            key = crypto.unwrap_from_sender(priv, l["wrapped_key"])
-        elif letter_id in wallet.packet_keys:
-            key = bytes.fromhex(wallet.packet_keys[letter_id])
-        else:
-            raise ClientError("this letter is not addressed to you")
-        ct = bytes.fromhex(l.get("ciphertext") or "")
-        if not ct or hashlib.sha256(ct).hexdigest() != l["ciphertext_hash"]:
-            raise ClientError("ciphertext missing or does not match the letter on the chain")
-        return crypto.decrypt_packet(key, ct)
+        # Seal v2 binds the addresses the chain recorded for this letter: a
+        # ciphertext copied into another sender's letter will not open.
+        aad = crypto.letter_aad(l["from"], l["to"]) if int(l.get("seal", 1)) == 2 else b""
+        try:
+            if l["to"] == wallet.address:
+                priv = wallet.key_for(l.get("enc_pub") or wallet.enc_pub)
+                if priv is None:
+                    raise ClientError("this letter was sealed to a receiving key this wallet no longer holds "
+                                      "(rotated without a backup, burned, or not yet recovered: try recover-keys)")
+                key = crypto.unwrap_from_sender(priv, l["wrapped_key"], aad)
+            elif letter_id in wallet.packet_keys:
+                key = bytes.fromhex(wallet.packet_keys[letter_id])
+            else:
+                raise ClientError("this letter is not addressed to you")
+            ct = bytes.fromhex(l.get("ciphertext") or "")
+            if not ct or hashlib.sha256(ct).hexdigest() != l["ciphertext_hash"]:
+                raise ClientError("ciphertext missing or does not match the letter on the chain")
+            return crypto.decrypt_packet(key, ct, aad)
+        except InvalidTag:
+            raise ClientError("this letter does not open: its seal does not match the sender and recipient on the chain "
+                              "(a copied or re-sent letter)") from None
 
     def inbox(self, wallet: Wallet, since: int | None = None) -> list[dict]:
         return self.letters(to=wallet.address, since=since)

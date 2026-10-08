@@ -20,11 +20,15 @@ from test_chain import B, Harness  # noqa: E402
 from test_client import FakeNode  # noqa: E402
 
 
-def seal(to_enc_pub: str, content: bytes, **extra) -> tuple[dict, bytes]:
+def seal(to_enc_pub: str, content: bytes, frm: str | None = None, **extra) -> tuple[dict, bytes]:
+    """Seal v2 (chain 0.10.0) when the sender is given: sender and recipient bound in."""
     key = crypto.new_packet_key()
-    ct = crypto.encrypt_packet(key, content)
+    aad = crypto.letter_aad(frm, extra["to"]) if frm else b""
+    ct = crypto.encrypt_packet(key, content, aad)
     payload = {"ciphertext": ct.hex(), "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
-               "wrapped_key": crypto.wrap_to_recipient(to_enc_pub, key), **extra}
+               "wrapped_key": crypto.wrap_to_recipient(to_enc_pub, key, aad), **extra}
+    if frm:
+        payload["seal"] = 2
     return payload, key
 
 
@@ -32,14 +36,15 @@ class LetterRulesTests(unittest.TestCase):
     def test_registered_recipient_reads_and_nobody_else_can(self):
         h = Harness(founders=3)
         alice, bob, eve = h.founders
-        payload, _ = seal(bob.enc_pub, b"meet at the lighthouse", to=bob.address)
+        payload, _ = seal(bob.enc_pub, b"meet at the lighthouse", frm=alice.address, to=bob.address)
         lid = h.send(alice, T.SEND_LETTER, payload)
         h.mine()
         l = h.chain.state.letters[lid]
         self.assertEqual((l["from"], l["to"], l["amount"], l["enc_pub"]), (alice.address, bob.address, 0, bob.enc_pub))
         self.assertNotIn("ciphertext", l)                                  # bulk bytes stay in the block
-        key = crypto.unwrap_from_sender(bob.enc_priv, l["wrapped_key"])
-        self.assertEqual(crypto.decrypt_packet(key, bytes.fromhex(h.chain.get_ciphertext(lid))), b"meet at the lighthouse")
+        aad = crypto.letter_aad(alice.address, bob.address)                 # seal v2
+        key = crypto.unwrap_from_sender(bob.enc_priv, l["wrapped_key"], aad)
+        self.assertEqual(crypto.decrypt_packet(key, bytes.fromhex(h.chain.get_ciphertext(lid)), aad), b"meet at the lighthouse")
         with self.assertRaises(Exception):
             crypto.unwrap_from_sender(eve.enc_priv, l["wrapped_key"])
         with self.assertRaises(Exception):
@@ -50,7 +55,7 @@ class LetterRulesTests(unittest.TestCase):
     def test_amount_rides_with_the_letter(self):
         h = Harness(founders=2)
         alice, bob = h.founders
-        payload, _ = seal(bob.enc_pub, b"for the ferry", to=bob.address, amount=B(2))
+        payload, _ = seal(bob.enc_pub, b"for the ferry", frm=alice.address, to=bob.address, amount=B(2))
         h.send(alice, T.SEND_LETTER, payload)
         h.mine()
         self.assertEqual(h.chain.state.balance(bob.address), B(1_002))
@@ -61,26 +66,27 @@ class LetterRulesTests(unittest.TestCase):
         h = Harness(founders=1)
         alice = h.founders[0]
         carol = Wallet.create("carol")                                     # never registered
-        payload, _ = seal(carol.enc_pub, b"hi", to=carol.address)
+        payload, _ = seal(carol.enc_pub, b"hi", frm=alice.address, to=carol.address)
         with self.assertRaises(TxError):
             h.send(alice, T.SEND_LETTER, payload)
         payload["enc_pub"] = carol.enc_pub
         lid = h.send(alice, T.SEND_LETTER, payload)
         h.mine()
-        key = crypto.unwrap_from_sender(carol.enc_priv, h.chain.state.letters[lid]["wrapped_key"])
-        self.assertEqual(crypto.decrypt_packet(key, bytes.fromhex(h.chain.get_ciphertext(lid))), b"hi")
+        aad = crypto.letter_aad(alice.address, carol.address)
+        key = crypto.unwrap_from_sender(carol.enc_priv, h.chain.state.letters[lid]["wrapped_key"], aad)
+        self.assertEqual(crypto.decrypt_packet(key, bytes.fromhex(h.chain.get_ciphertext(lid)), aad), b"hi")
 
     def test_registered_key_wins_over_a_supplied_one(self):
         h = Harness(founders=3)
         alice, bob, eve = h.founders
-        payload, _ = seal(eve.enc_pub, b"redirected", to=bob.address, enc_pub=eve.enc_pub)
+        payload, _ = seal(eve.enc_pub, b"redirected", frm=alice.address, to=bob.address, enc_pub=eve.enc_pub)
         with self.assertRaises(TxError):                                   # a lie about bob's key is refused
             h.send(alice, T.SEND_LETTER, payload)
 
     def test_malformed_letters_are_refused(self):
         h = Harness(founders=2)
         alice, bob = h.founders
-        good, _ = seal(bob.enc_pub, b"x", to=bob.address)
+        good, _ = seal(bob.enc_pub, b"x", frm=alice.address, to=bob.address)
         bad = [
             dict(good, ciphertext_hash="00" * 32),
             dict(good, ciphertext=""),
@@ -120,7 +126,7 @@ class LetterFeeTests(unittest.TestCase):
         with mock.patch.object(params, "LETTER_FEE_HALVING_EVERY", 2):     # a few accounts -> letters already cheaper
             cheap = params.MIN_FEE >> (len(h.chain.state.llms) // 2)
             self.assertLess(cheap, params.MIN_FEE)
-            payload, _ = seal(bob.enc_pub, b"x", to=bob.address)
+            payload, _ = seal(bob.enc_pub, b"x", frm=alice.address, to=bob.address)
             with self.assertRaises(TxError):
                 h.send(alice, T.SEND_LETTER, payload, fee=cheap - 1)
             h.send(alice, T.SEND_LETTER, payload, fee=cheap)

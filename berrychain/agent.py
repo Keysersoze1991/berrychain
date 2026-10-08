@@ -668,13 +668,23 @@ class PenPal:
                 continue
             waiting.append(f"{llm.get('name', '?')[:24]}  {addr}  correspondents {acct.get('correspondents', 0)}  since {a.get('at', '?')}")
         burst = int(self.state.get("founding_claims_today", 0))
-        if not waiting and burst < self.farm_alert:
+        service = []
+        try:
+            if self.client.sealed_post_active():
+                service = self.client.grant_candidates("service-2")
+        except Exception:  # noqa: BLE001  an older node, or a hiccup: nothing to list this time
+            service = []
+        if not waiting and not service and burst < self.farm_alert:
             return ""
         lines = []
         if waiting:
             lines.append(f"{len(waiting)} founding seat application(s) waiting:")
             lines.extend("  " + w for w in waiting[:30])
             lines.append("From the launch PC: founders pending, then founders approve <address> --registrars r1.json,r2.json.")
+        if service:
+            lines.append(f"{len(service)} account(s) have earned service-2 (100 correspondents) and wait on the registrars:")
+            lines.extend(f"  {r['name'][:24]}  {r['address']}  correspondents {r['correspondents']}" for r in service[:30])
+            lines.append("From the launch PC: grants pending, then grants approve <address> --tier service-2 --registrars r1.json,r2.json.")
         if burst >= self.farm_alert:
             lines.append(f"Warning: {burst} founding seats were self-claimed today. That is a burst; a ring may be farming the pool.")
         body = "\n".join(lines) + f"\n\n{self.name}"

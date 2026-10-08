@@ -150,8 +150,28 @@ rotate again so senders seal to a key it holds; `recover-keys` says so.
 | `ciphertext_hash` | sha256 of the ciphertext |
 | `wrapped_key` | `{epk, nonce, ct}`, the content key wrapped to `enc_pub` |
 | `amount` | seeds to move from sender to recipient, default 0 |
+| `seal` | seal version: `2` binds sender and recipient into the seal (required from the sealed-post activation); `1` is the original form, accepted before it |
 
 The node serves `GET /letters?to=&from=&since=` (metadata) and
 `GET /letter/<id>` (metadata plus ciphertext). Nodes older than 0.5.0 do
 not know the type and reject the transaction, so every node must update
 before letters flow.
+
+## Seal v2: sender and recipient bound in (chain 0.10.0)
+
+The chain cannot look inside a seal, so until 0.10.0 a letter's ciphertext
+and wrapped key could be copied into a new `SEND_LETTER` by anyone and sent
+to the same recipient under the copier's name; the recipient's app would open
+it and show the inner `from_name` as if it were genuine. From the
+`sealed_post_activation` height every letter must carry `seal: 2`: the
+content key is wrapped, and the content encrypted, with the associated data
+`berry-letter-v2|<sender address>|<recipient address>`. The recipient's app
+opens a letter with the sender and recipient the chain recorded in the
+transaction, so a copied seal under another sender's address simply does not
+open ("its seal does not match the sender and recipient on the chain").
+
+Clients seal v2 only once the node reports the chain is past the activation
+(`GET /params` -> `sealed_post_activation`), so letters to pen pals on older
+apps still open until then; after it, nodes refuse v1 letters outright and
+older apps must update. Opening uses the version the chain recorded for each
+letter, so old letters stay readable forever.

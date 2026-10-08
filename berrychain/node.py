@@ -376,6 +376,10 @@ def make_handler(node: Node):
                                    "grant_correspondent_min_age": c.profile.get("grant_correspondent_min_age", 0),
                                    "grant_claimant_min_age": c.profile.get("grant_claimant_min_age", 0),
                                    "rename_cooldown_blocks": c.profile.get("rename_cooldown_blocks", 0),
+                                   "sealed_post_activation": c.profile.get("sealed_post_activation", 0),
+                                   "service_claims_per_window": c.profile.get("service_claims_per_window", 0),
+                                   "service_claim_window_blocks": c.profile.get("service_claim_window_blocks", 0),
+                                   "reserve": params.RESERVE_ADDRESS,
                                    "key_grace_blocks": params.KEY_GRACE_BLOCKS,
                                    "starter_claims_per_block": params.STARTER_CLAIMS_PER_BLOCK,
                                    "grant_claims_per_block": params.GRANT_CLAIMS_PER_BLOCK,
@@ -471,7 +475,8 @@ def make_handler(node: Node):
             if head == "registrars":
                 return self._send({"registrars": st.registrars, "threshold": st.registrar_threshold,
                                    "treasury": params.TREASURY_ADDRESS, "treasury_balance": st.balance(params.TREASURY_ADDRESS),
-                                   "founding_pool": params.FOUNDING_POOL_ADDRESS, "founding_pool_balance": st.balance(params.FOUNDING_POOL_ADDRESS)})
+                                   "founding_pool": params.FOUNDING_POOL_ADDRESS, "founding_pool_balance": st.balance(params.FOUNDING_POOL_ADDRESS),
+                                   "reserve": params.RESERVE_ADDRESS, "reserve_balance": st.balance(params.RESERVE_ADDRESS)})
             if head == "grants":
                 nxt = c.height + 1
                 return self._send({"grants": st.grants, "tiers": params.GRANT_TIERS,

@@ -131,6 +131,13 @@ PROFILES = {
         "grant_correspondent_min_age": 1440,  # a correspondent counts for a claimed grant once their account is a day old
         "grant_claimant_min_age": 10080,      # and the claimant's account a week old
         "rename_cooldown_blocks": 1440,       # one RENAME per day per account
+        # Upgrade 3 (chain 0.10.0, "sealed post v2"): letters bind sender and recipient into
+        # the seal (seal version 2 required), service-2 grants only by registrar quorum,
+        # a rolling cap on self-claimed service-1 grants, and the multisig reserve.
+        # Announced ahead; seeds and miners install before it, the app ships seal v2 first.
+        "sealed_post_activation": 45000,
+        "service_claims_per_window": 20,      # self-claimed service-1 grants accepted per window
+        "service_claim_window_blocks": 1440,  # ~1 day
     },
     "devnet": {
         "chain_id": "berry-dev",
@@ -146,6 +153,9 @@ PROFILES = {
         "grant_correspondent_min_age": 0,
         "grant_claimant_min_age": 0,
         "rename_cooldown_blocks": 2,
+        "sealed_post_activation": 0,
+        "service_claims_per_window": 3,
+        "service_claim_window_blocks": 5,
     },
 }
 
@@ -200,5 +210,9 @@ assert MAX_PACKET_INLINE_BYTES * 2 + 8 * 1024 < MAX_TX_BYTES, "inline packets mu
 #   founding pool -> FOUNDING_GRANT (exactly FOUNDING_LLM_SLOTS grants of 1M)
 TREASURY_ADDRESS = "brry1" + "00" * 20 + "7472656173"        # checksum-free sentinel ("treas")
 FOUNDING_POOL_ADDRESS = "brry1" + "00" * 20 + "666f756e64"   # checksum-free sentinel ("found")
-PROTOCOL_ADDRESSES = frozenset({TREASURY_ADDRESS, FOUNDING_POOL_ADDRESS})
+# The reserve: a keyless protocol account that anyone can pay into and only the
+# registrar quorum (RESERVE_TRANSFER) can pay out of. Meant for the builders'
+# long-term holdings, so no single key, stick or person can move them.
+RESERVE_ADDRESS = "brry1" + "00" * 20 + "7265736572"         # checksum-free sentinel ("reser")
+PROTOCOL_ADDRESSES = frozenset({TREASURY_ADDRESS, FOUNDING_POOL_ADDRESS, RESERVE_ADDRESS})
 COINBASE_SENDER = "coinbase"
