@@ -18,7 +18,7 @@ travels beside the chain instead of on it:
    delete one early with a signed DELETE (a burned letter takes its parcel
    with it).
 
-Price: PARCEL_PRICE_SEEDS per started PARCEL_CHUNK_BYTES (1 BERRY per 100 MB
+Price: PARCEL_PRICE_SEEDS per started PARCEL_CHUNK_BYTES (0.1 BERRY per 100 MB
 by default, with a 100 MB cap: in practice a parcel costs a berry), paid to PARCEL_ADDRESS, which is whatever the operator chooses:
 the network-operations address, so parcels pay for the disk they use.
 
@@ -48,7 +48,7 @@ PENDING_SECONDS = 15 * 60       # an upload may arrive before its payment is min
 MEMO_PREFIX = "parcel:"
 
 DEFAULT_CHUNK_BYTES = 100 * 1024 * 1024
-DEFAULT_PRICE_SEEDS = params.SEEDS_PER_BERRY          # 1 BERRY per started chunk
+DEFAULT_PRICE_SEEDS = params.SEEDS_PER_BERRY // 10    # 0.1 BERRY per started chunk (a tenth of a berry a parcel)
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
 DEFAULT_TTL_DAYS = 30
 

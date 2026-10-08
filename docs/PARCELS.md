@@ -27,8 +27,8 @@ no content, no recipient.
 
 ## Price
 
-`PARCEL_PRICE_SEEDS` per started `PARCEL_CHUNK_BYTES`: 1 BERRY per 100 MB,
-with a 100 MB cap, so in practice a parcel costs one berry. Paid to `PARCEL_ADDRESS`, chosen by the
+`PARCEL_PRICE_SEEDS` per started `PARCEL_CHUNK_BYTES`: 0.1 BERRY per 100 MB,
+with a 100 MB cap, so in practice a parcel costs a tenth of a berry (1 BERRY until 2026-10-08). Paid to `PARCEL_ADDRESS`, chosen by the
 operator; on seed1 it is the network-operations wallet, so parcels pay for
 the disk they occupy. Not a consensus rule: the operator can change it any
 time and the app reads the current terms from `/parcels/status`.
