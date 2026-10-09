@@ -725,14 +725,18 @@ class _ParcelCardState extends State<_ParcelCard> {
                 : 'Fetched and checked: the bytes match the letter.', style: const TextStyle(fontSize: 13, height: 1.4)),
             if (error != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text(error!, style: const TextStyle(color: Palette.band, fontSize: 13))),
             const SizedBox(height: 8),
+            // The theme gives filled buttons a full-width minimum size; inside a Row
+            // they must be allowed that width or Android lays them out with none.
             Row(children: [
               if (bytes == null)
-                FilledButton.tonal(onPressed: busy ? null : fetch, child: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Fetch')),
+                Expanded(child: FilledButton.tonal(onPressed: busy ? null : fetch, child: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Fetch'))),
               if (bytes != null)
-                FilledButton.icon(
-                  icon: const Icon(Icons.save_alt),
-                  label: Text(isBrowser ? 'Download' : 'Save or share'),
-                  onPressed: () => saveBytes(r.name, bytes!),
+                Expanded(
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.save_alt),
+                    label: Text(isBrowser ? 'Download' : 'Save or share'),
+                    onPressed: () => saveBytes(r.name, bytes!),
+                  ),
                 ),
             ]),
           ],
