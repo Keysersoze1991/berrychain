@@ -7,7 +7,7 @@ swiped away). This small service fixes that for people who choose it:
 * The app registers its push token together with the address it wants
   watched, signed by that address's key (POST /push/register). The relay
   keeps only that pairing, plus the height it started watching from.
-* A watcher follows the local node block by block. Whenever a SEND_LETTER
+* A watcher follows the local node block by block and its mempool. Whenever a SEND_LETTER
   reaches a registered address it sends an Apple push that says a letter
   has arrived, and nothing else: no sender, no content, no amount.
 * Unregistering (POST /push/unregister, also signed) forgets the pairing at
@@ -188,17 +188,32 @@ class Apns:
 # the watcher
 # ---------------------------------------------------------------------------
 
-def letters_in_block(block: dict) -> dict[str, int]:
-    """address -> number of letters delivered to it in this block (self-letters excluded)."""
-    out: dict[str, int] = {}
-    for tx in block.get("txs", []):
-        if tx.get("type") != "SEND_LETTER":
+def letter_id(tx: dict) -> str:
+    """The txid when the transaction is complete; a content hash otherwise (tests, odd peers)."""
+    try:
+        from .tx import txid
+        return txid(tx)
+    except Exception:  # noqa: BLE001
+        import hashlib
+        return hashlib.sha256(json.dumps(tx, sort_keys=True).encode()).hexdigest()
+
+
+def letters_in(txs: list) -> dict[str, list[str]]:
+    """address -> ids of letters addressed to it in these transactions (self-letters excluded)."""
+    out: dict[str, list[str]] = {}
+    for tx in txs or []:
+        if not isinstance(tx, dict) or tx.get("type") != "SEND_LETTER":
             continue
         to = (tx.get("payload") or {}).get("to")
         if not to or tx.get("from") == to:
             continue
-        out[to] = out.get(to, 0) + 1
+        out.setdefault(to, []).append(letter_id(tx))
     return out
+
+
+def letters_in_block(block: dict) -> dict[str, int]:
+    """address -> number of letters delivered to it in this block (self-letters excluded)."""
+    return {a: len(ids) for a, ids in letters_in(block.get("txs", [])).items()}
 
 
 def wording(n: int) -> tuple[str, str]:
@@ -214,24 +229,49 @@ class Relay:
         self.height = start_height   # last block handled
         self.sent = 0
         self.dropped = 0
+        self.notified: dict[str, int] = {}   # letter id -> tip height when its push went out
         self.stop = threading.Event()
 
+    REMEMBER_BLOCKS = 300                  # how long a notified id is kept, so a mined letter is not pushed twice
+
+    def _fresh(self, by_address: dict[str, list[str]], watched, tip: int) -> dict[str, int]:
+        """Letters per watched address not pushed before; records them as pushed."""
+        out: dict[str, int] = {}
+        for address, ids in by_address.items():
+            if address not in watched:
+                continue
+            new = [i for i in ids if i not in self.notified]
+            for i in new:
+                self.notified[i] = tip
+            if new:
+                out[address] = len(new)
+        return out
+
     def tick(self) -> int:
-        """Handle every block since the last tick. Returns how many blocks were looked at."""
+        """Handle every block since the last tick, then the mempool, so a letter
+        is announced the moment it reaches the node rather than a block later.
+        Returns how many blocks were looked at."""
         tip = int(self.fetch("/status")["height"])
         if self.height is None:
             self.height = tip
             return 0
         seen = 0
+        watched = self.registry.addresses()
         while self.height < tip:
             h = self.height + 1
             block = self.fetch(f"/block/{h}")
-            watched = self.registry.addresses()
-            for address, n in letters_in_block(block).items():
-                if address in watched:
-                    self.notify(address, n)
+            for address, n in self._fresh(letters_in(block.get("txs", [])), watched, h).items():
+                self.notify(address, n)
             self.height = h
             seen += 1
+        try:
+            waiting = self.fetch("/mempool").get("txs", [])
+        except Exception:  # noqa: BLE001  an older node, or a hiccup: blocks still cover it
+            waiting = []
+        for address, n in self._fresh(letters_in(waiting), watched, tip).items():
+            self.notify(address, n)
+        if len(self.notified) > 10_000 or (self.notified and seen):
+            self.notified = {i: h for i, h in self.notified.items() if tip - h <= self.REMEMBER_BLOCKS}
         return seen
 
     def notify(self, address: str, n: int) -> None:

@@ -165,3 +165,54 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(r.status, 200)
         self.assertEqual(r.getheader("Access-Control-Allow-Origin"), "*")
         self.assertIn(b'"height"', body)
+
+
+class PendingLetterTests(unittest.TestCase):
+    """Node 0.10.1: a letter still in the mempool is served as pending, so the
+    recipient can read it before the block lands."""
+
+    def test_pending_letter_is_listed_and_served_then_confirmed(self):
+        import http.client
+        import json
+        import threading
+        from http.server import ThreadingHTTPServer
+        from berrychain import crypto, tx as T
+        import hashlib
+        h = Harness(founders=2)
+        alice, bob = h.founders
+        node = Node(h.chain)
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(node))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        port = server.server_address[1]
+
+        def get(path):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.request("GET", path)
+            r = c.getresponse()
+            return r.status, json.loads(r.read())
+
+        key = crypto.new_packet_key()
+        aad = crypto.letter_aad(alice.address, bob.address)
+        ct = crypto.encrypt_packet(key, b"before the block", aad)
+        lid = h.send(alice, T.SEND_LETTER, {"to": bob.address, "enc_pub": bob.enc_pub, "ciphertext": ct.hex(),
+                                             "ciphertext_hash": hashlib.sha256(ct).hexdigest(),
+                                             "wrapped_key": crypto.wrap_to_recipient(bob.enc_pub, key, aad), "seal": 2},
+                   fee=h.chain.state.letter_fee())
+        st, body = get(f"/letters?to={bob.address}")
+        self.assertEqual([l["id"] for l in body["letters"]], [])                 # confirmed only, as before
+        st, body = get(f"/letters?to={bob.address}&pending=1")
+        self.assertEqual([(l["id"], l["height"], l["pending"]) for l in body["letters"]], [(lid, None, True)])
+        st, body = get(f"/letter/{lid}")
+        self.assertEqual(st, 200)
+        self.assertTrue(body["pending"])
+        self.assertEqual(body["seal"], 2)
+        opened = crypto.decrypt_packet(crypto.unwrap_from_sender(bob.enc_priv, body["wrapped_key"], aad), bytes.fromhex(body["ciphertext"]), aad)
+        self.assertEqual(opened, b"before the block")
+        h.mine()
+        st, body = get(f"/letters?to={bob.address}&pending=1")
+        self.assertEqual([(l["id"], l["height"]) for l in body["letters"]], [(lid, h.chain.height)])
+        st, body = get(f"/letter/{lid}")
+        self.assertNotIn("pending", body)
+        st, _ = get("/letter/" + "00" * 32)
+        self.assertEqual(st, 404)

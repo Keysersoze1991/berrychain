@@ -283,6 +283,22 @@ class Node:
         }
 
 
+def pending_letter(tx: dict) -> dict | None:
+    """A SEND_LETTER still in the mempool, shaped like a confirmed letter record
+    but with height None and pending True, so a reader can open it before the
+    block lands (node 0.10.1: letters in transit)."""
+    if not isinstance(tx, dict) or tx.get("type") != "SEND_LETTER":
+        return None
+    p = tx.get("payload") or {}
+    try:
+        raw = bytes.fromhex(p.get("ciphertext") or "")
+    except ValueError:
+        return None
+    return {"id": _txid(tx), "from": tx.get("from"), "to": p.get("to"), "enc_pub": p.get("enc_pub"), "height": None,
+            "size": len(raw), "ciphertext_hash": p.get("ciphertext_hash"), "wrapped_key": p.get("wrapped_key"),
+            "amount": p.get("amount", 0), "seal": p.get("seal", 1), "pending": True}
+
+
 def key_history(rec: dict) -> dict:
     """Every receiving key an account has published, oldest first, with the
     wrapped backup of each rotated key (None when the owner chose not to)."""
@@ -455,12 +471,24 @@ def make_handler(node: Node):
                         items = [l for l in items if l[k] == q[k]]
                 if q.get("since", "").isdigit():
                     items = [l for l in items if l["height"] >= int(q["since"])]
+                if q.get("pending") == "1":
+                    # letters in transit: in the mempool, not yet in a block
+                    with c.lock:
+                        waiting = [pending_letter(t) for t in c.mempool.values()]
+                    for l in waiting:
+                        if l and all(not q.get(k) or l[k] == q[k] for k in ("to", "from")):
+                            items.append(l)
                 return self._send({"letters": items})
             if head == "letter" and arg:
                 l = st.letters.get(arg)
-                if not l:
+                if l:
+                    return self._send(dict(l, ciphertext=c.get_ciphertext(arg)))
+                with c.lock:
+                    tx = c.mempool.get(arg)
+                pl = pending_letter(tx) if tx else None
+                if not pl:
                     return self._error("no such letter", 404)
-                return self._send(dict(l, ciphertext=c.get_ciphertext(arg)))
+                return self._send(dict(pl, ciphertext=tx["payload"].get("ciphertext")))
             if head == "escrows":
                 items = list(st.escrows.values())
                 for k in ("buyer", "seller", "status", "packet_id"):

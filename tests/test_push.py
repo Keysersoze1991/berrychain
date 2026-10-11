@@ -47,13 +47,17 @@ class RelayTests(unittest.TestCase):
         self.me = "brry1" + "a" * 48
         self.other = "brry1" + "b" * 48
         self.blocks = {}
+        self.mempool = []
         self.tip = 10
         self.sent = []
         self.answer = (200, "")
+        self.n = 0
 
         def fetch(path):
             if path == "/status":
                 return {"height": self.tip}
+            if path == "/mempool":
+                return {"txs": list(self.mempool)}
             h = int(path.rsplit("/", 1)[1])
             return self.blocks.get(h, {"height": h, "txs": []})
 
@@ -67,7 +71,8 @@ class RelayTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def letter(self, to, frm="brry1" + "c" * 48):
-        return {"type": "SEND_LETTER", "from": frm, "payload": {"to": to, "ciphertext": "…"}}
+        self.n += 1
+        return {"type": "SEND_LETTER", "from": frm, "nonce": self.n, "payload": {"to": to, "ciphertext": "…"}}
 
     def test_first_tick_only_takes_the_tip(self):
         self.assertEqual(self.relay.tick(), 0)
@@ -82,6 +87,27 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(self.sent, [("ab" * 32, "2 letters have arrived")])
         self.assertEqual(self.relay.tick(), 0)  # nothing new, nothing sent
         self.assertEqual(len(self.sent), 1)
+
+    def test_a_letter_in_the_mempool_is_pushed_at_once_and_not_again_when_mined(self):
+        self.relay.tick()
+        self.reg.add("ab" * 32, self.me, "ios", 10)
+        waiting = self.letter(self.me)
+        self.mempool = [waiting, self.letter(self.other)]
+        self.assertEqual(self.relay.tick(), 0)                      # no new block, but the letter is announced
+        self.assertEqual(self.sent, [("ab" * 32, "A letter has arrived")])
+        self.relay.tick()                                            # still waiting: no second push
+        self.assertEqual(len(self.sent), 1)
+        self.blocks[11] = {"height": 11, "txs": [waiting, self.letter(self.me)]}   # mined, with one more letter
+        self.mempool = []
+        self.tip = 11
+        self.assertEqual(self.relay.tick(), 1)
+        self.assertEqual(self.sent[-1], ("ab" * 32, "A letter has arrived"))   # only the new one counts
+        self.assertEqual(len(self.sent), 2)
+
+    def test_an_older_node_without_a_mempool_route_still_works(self):
+        self.relay.fetch = lambda path: {"height": self.tip} if path == "/status" else (_ for _ in ()).throw(KeyError(path))
+        self.relay.tick()
+        self.assertEqual(self.relay.tick(), 0)
 
     def test_dead_tokens_are_forgotten_and_the_file_persists(self):
         self.relay.tick()
