@@ -218,12 +218,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       'address as the payout, and he sends ${Network.prizeBerry} BERRY more. The prizes shrink as the crew grows.',
                       style: TextStyle(height: 1.35),
                     ),
-                    trailing: IconButton(icon: const Icon(Icons.ios_share), tooltip: 'Share BerryChain with a friend', onPressed: () => shareInvite(context)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Write to the Harbourmaster',
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ComposeScreen(to: Network.harbourmaster))),
+                    ),
                   ),
                 ),
                 Tile(
                   label: 'Your address',
-                  trailing: IconButton(icon: const Icon(Icons.copy, size: 20), onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(icon: const Icon(Icons.copy, size: 20), tooltip: 'Copy', onPressed: () => copyToClipboard(context, w.address, what: 'Address copied')),
+                    IconButton(icon: const Icon(Icons.ios_share, size: 20), tooltip: 'Share your address', onPressed: () => shareAddress(context)),
+                  ]),
                   child: Text(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
                 ),
                 if (s.registry != null)
@@ -234,11 +241,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         : null,
                     child: Text('${s.registry!['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                   ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Open the app on Letters'),
+                  subtitle: const Text('Skip this page and land on your letters. This page stays one tap away.', style: TextStyle(fontSize: 12.5)),
+                  value: s.homeIsLetters,
+                  onChanged: (v) => s.setHomeIsLetters(v),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   s.nodeHeight == null
                       ? 'Not connected yet.'
-                      : 'Node at block ${s.nodeHeight}. Verified in $deviceThe: ${s.verifiedHeight < 0 ? 'not yet' : 'block ${s.verifiedHeight}'}.',
+                      : 'Node at block ${s.nodeHeight}. Verified in $deviceThe: ${s.verifiedHeight < 0 ? 'not yet' : 'block ${s.verifiedHeight}'}${s.verifying ? ', checking…' : ''}.',
                   style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13),
                 ),
                 const SizedBox(height: 4),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'screens/home.dart';
+import 'screens/letters.dart';
 import 'screens/unlock.dart';
 import 'screens/welcome.dart';
 import 'session.dart';
@@ -12,7 +13,7 @@ void main() {
 }
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
-const appVersion = '0.12.2';
+const appVersion = '0.13.0';
 /// What the app is running on, for copy that says where the wallet lives.
 /// A web build made for store screenshots (--dart-define=SHOTS=true) speaks as the phone app.
 const shots = bool.fromEnvironment('SHOTS');
@@ -73,7 +74,7 @@ class _BerryAppState extends State<BerryApp> {
                 listenable: widget.session,
                 builder: (context, _) {
                   final s = widget.session;
-                  if (s.wallet != null) return const HomeScreen();
+                  if (s.wallet != null) return s.homeIsLetters ? const LettersScreen(asHome: true) : const HomeScreen();
                   if (s.hasWalletFile) return const UnlockScreen();
                   return const WelcomeScreen();
                 },

@@ -84,3 +84,10 @@ journalctl -u berrychain-push -n 50 --no-pager
 
 On a phone with the switch on, have someone write to it: the push should
 arrive within a block of the letter being carried (about a minute).
+
+## On arrival, not on mining (node 0.10.1)
+
+The relay watches the node's mempool as well as its blocks: a letter is
+pushed the moment it reaches the seed, and the ids it has announced are kept
+for 300 blocks so the same letter is not pushed again when it is mined. If
+the node is older and has no `/mempool` route, the relay falls back to blocks.

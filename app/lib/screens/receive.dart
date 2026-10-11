@@ -23,6 +23,18 @@ Future<void> shareInvite(BuildContext context) async {
   }
 }
 
+/// The share sheet with nothing but this wallet's address.
+Future<void> shareAddress(BuildContext context) async {
+  final s = SessionScope.of(context);
+  final address = s.wallet!.address;
+  try {
+    final r = await SharePlus.instance.share(ShareParams(text: address, subject: 'My BerryChain address'));
+    if (r.status == ShareResultStatus.unavailable) throw StateError('no share sheet');
+  } catch (_) {
+    if (context.mounted) await copyToClipboard(context, address, what: 'Address copied');
+  }
+}
+
 class ReceiveScreen extends StatelessWidget {
   const ReceiveScreen({super.key});
 

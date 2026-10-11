@@ -274,6 +274,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(height: 32),
+          const Text('START PAGE', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          ListenableBuilder(
+            listenable: s,
+            builder: (context, _) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Open the app on Letters'),
+              subtitle: const Text('Land on your letters instead of the chest page. The same switch sits at the bottom of the chest page.'),
+              value: s.homeIsLetters,
+              onChanged: (v) => s.setHomeIsLetters(v),
+            ),
+          ),
+          const Divider(height: 32),
           const Text('RECEIVING KEYS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
           const SizedBox(height: 6),
           ListenableBuilder(listenable: s, builder: (context, _) => KeysPanel(s)),

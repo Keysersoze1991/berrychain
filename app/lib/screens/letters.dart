@@ -16,9 +16,24 @@ import '../main.dart';
 import '../session.dart';
 import 'common.dart';
 import 'contacts.dart';
+import 'home.dart';
+import 'settings.dart';
 
-class LettersScreen extends StatelessWidget {
-  const LettersScreen({super.key});
+class LettersScreen extends StatefulWidget {
+  /// As the app's first page (Settings, or the switch on the chest page):
+  /// refreshes on open and carries the chest, settings and lock buttons.
+  final bool asHome;
+  const LettersScreen({super.key, this.asHome = false});
+  @override
+  State<LettersScreen> createState() => _LettersScreenState();
+}
+
+class _LettersScreenState extends State<LettersScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.asHome) WidgetsBinding.instance.addPostFrameCallback((_) => SessionScope.of(context).refresh());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +43,13 @@ class LettersScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Letters'),
+          actions: widget.asHome
+              ? [
+                  IconButton(icon: const Icon(Icons.account_balance_wallet_outlined), tooltip: 'Chest: balance, grants, address', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeScreen()))),
+                  IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
+                  IconButton(icon: const Icon(Icons.lock_outline), tooltip: 'Lock', onPressed: s.lock),
+                ]
+              : null,
           bottom: TabBar(
             indicatorColor: Palette.gold,
             labelColor: Colors.white,
@@ -157,10 +179,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 final when = whenText(s.cachedLetterTime(l));
                 final removed = s.isRemoved(l.id);
                 return ListTile(
-                  leading: Icon(incoming ? Icons.mail_outline : Icons.send_outlined, color: removed ? const Color(0xFF9A8D94) : (unread ? Palette.band : Palette.brass)),
+                  leading: Icon(l.pending ? Icons.hourglass_top : (incoming ? Icons.mail_outline : Icons.send_outlined), color: removed ? const Color(0xFF9A8D94) : (unread ? Palette.band : Palette.brass)),
                   title: Text(incoming ? (f.crew != null ? 'From ${s.contacts.where((c) => c.address == l.from).map((c) => c.label).firstOrNull ?? shortAddress(l.from)}' : 'Received') : (f.crew != null ? 'To ${s.contacts.where((c) => c.address == l.to).map((c) => c.label).firstOrNull ?? shortAddress(l.to)}' : 'Sent'),
                       style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: removed ? const Color(0xFF9A8D94) : null)),
-                  subtitle: Text('${removed ? 'removed · ' : ''}${when.isEmpty ? 'block ${l.height}' : when}${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
+                  subtitle: Text('${removed ? 'removed · ' : ''}${l.pending ? 'in transit, waiting for a block' : (when.isEmpty ? 'block ${l.height}' : when)}${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
                   trailing: unread ? const Icon(Icons.circle, size: 10, color: Palette.band) : const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadLetterScreen(l, incoming: incoming))),
                   onLongPress: () => removed ? s.restoreLetter(l.id) : confirmRemove(context, l),
@@ -349,7 +371,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
               padding: const EdgeInsets.only(top: 4),
               child: Text('Sent to the crew "${group.name}" (${group.members.length + 1} people, including you)', style: const TextStyle(color: Palette.brass, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
-          Text('${widget.incoming ? 'Received' : 'Sent'} ${when == null ? 'in block ${l.height}' : '${whenText(when)} (block ${l.height})'}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+          Text('${widget.incoming ? 'Received' : 'Sent'} ${l.pending ? 'moments ago, in transit until the next block' : when == null ? 'in block ${l.height}' : '${whenText(when)} (block ${l.height})'}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           if (o?.replyTo != null) Text('Reply to letter ${shortAddress(o!.replyTo!)}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           const Divider(height: 28),
           if (error != null) Text(error!, style: const TextStyle(color: Palette.band)),

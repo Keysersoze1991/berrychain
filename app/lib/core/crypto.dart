@@ -132,8 +132,14 @@ Future<Uint8List> _aeadDecrypt(List<int> key, List<int> nonce, List<int> ctAndTa
   return Uint8List.fromList(pt);
 }
 
+/// Sealed post v2 (chain 0.10.0): the sender's and recipient's addresses are
+/// bound into both the wrapped key and the content, so a letter's ciphertext
+/// cannot be re-sent under another name or redirected and still open.
+List<int> letterAad(String from, String to) => utf8.encode('berry-letter-v2|$from|$to');
+
 /// ECIES: seal [plaintext] so only the holder of [recipientPubHex] can read it.
-Future<Map<String, String>> wrapToRecipient(String recipientPubHex, List<int> plaintext) async {
+/// [aad] is bound into the seal: the wrap only opens with the same bytes.
+Future<Map<String, String>> wrapToRecipient(String recipientPubHex, List<int> plaintext, {List<int> aad = const []}) async {
   final rpk = fromHex(recipientPubHex);
   final ephSeed = randomBytes(32);
   final eph = await _x.newKeyPairFromSeed(ephSeed);
@@ -142,31 +148,31 @@ Future<Map<String, String>> wrapToRecipient(String recipientPubHex, List<int> pl
       keyPair: eph, remotePublicKey: SimplePublicKey(rpk, type: KeyPairType.x25519));
   final key = await _derive(await shared.extractBytes(), epk, rpk);
   final nonce = randomBytes(12);
-  final ct = await _aeadEncrypt(key, nonce, plaintext, epk);
+  final ct = await _aeadEncrypt(key, nonce, plaintext, [...epk, ...aad]);
   return {'epk': toHex(epk), 'nonce': toHex(nonce), 'ct': toHex(ct)};
 }
 
-Future<Uint8List> unwrapFromSender(String recipientPrivHex, Map<String, dynamic> blob) async {
+Future<Uint8List> unwrapFromSender(String recipientPrivHex, Map<String, dynamic> blob, {List<int> aad = const []}) async {
   final kp = await _x.newKeyPairFromSeed(fromHex(recipientPrivHex));
   final rpk = (await kp.extractPublicKey()).bytes;
   final epk = fromHex(blob['epk'] as String);
   final shared = await _x.sharedSecretKey(
       keyPair: kp, remotePublicKey: SimplePublicKey(epk, type: KeyPairType.x25519));
   final key = await _derive(await shared.extractBytes(), epk, rpk);
-  return _aeadDecrypt(key, fromHex(blob['nonce'] as String), fromHex(blob['ct'] as String), epk);
+  return _aeadDecrypt(key, fromHex(blob['nonce'] as String), fromHex(blob['ct'] as String), [...epk, ...aad]);
 }
 
 Uint8List newPacketKey() => randomBytes(32);
 
-Future<Uint8List> encryptPacket(List<int> key, List<int> plaintext) async {
+Future<Uint8List> encryptPacket(List<int> key, List<int> plaintext, {List<int> aad = const []}) async {
   final nonce = randomBytes(12);
-  final ct = await _aeadEncrypt(key, nonce, plaintext, utf8.encode(_packetAad));
+  final ct = await _aeadEncrypt(key, nonce, plaintext, [...utf8.encode(_packetAad), ...aad]);
   return Uint8List.fromList([...nonce, ...ct]);
 }
 
-Future<Uint8List> decryptPacket(List<int> key, List<int> ciphertext) async {
+Future<Uint8List> decryptPacket(List<int> key, List<int> ciphertext, {List<int> aad = const []}) async {
   if (ciphertext.length < 12 + 16) throw const FormatException('ciphertext too short');
-  return _aeadDecrypt(key, ciphertext.sublist(0, 12), ciphertext.sublist(12), utf8.encode(_packetAad));
+  return _aeadDecrypt(key, ciphertext.sublist(0, 12), ciphertext.sublist(12), [...utf8.encode(_packetAad), ...aad]);
 }
 
 String keyCommitment(List<int> key) => toHex(sha256([...utf8.encode(_keyCommit), ...key]));

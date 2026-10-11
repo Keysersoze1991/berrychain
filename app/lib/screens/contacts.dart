@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard;
 
 import '../core/letters.dart';
 import '../core/crypto.dart';
@@ -18,7 +19,10 @@ class ContactsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Contacts'),
-        actions: [IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'New crew', onPressed: () => editGroup(context))],
+        actions: [
+          IconButton(icon: const Icon(Icons.person_add_alt_outlined), tooltip: 'Add a contact', onPressed: () => addContact(context)),
+          IconButton(icon: const Icon(Icons.group_add_outlined), tooltip: 'New crew', onPressed: () => editGroup(context)),
+        ],
       ),
       body: ListenableBuilder(
         listenable: s,
@@ -47,6 +51,87 @@ class ContactsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Add someone by address before any letter has passed: the chain is asked
+/// for their registered name at once, so a typo cannot become a lost letter.
+Future<void> addContact(BuildContext context) async {
+  final s = SessionScope.of(context);
+  final addr = TextEditingController();
+  final name = TextEditingController();
+  String? status;
+  var checking = false;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) {
+        Future<void> check() async {
+          final a = addr.text.trim();
+          if (!isValidAddress(a)) {
+            setState(() => status = a.isEmpty ? null : 'Not a BerryChain address yet: it starts with brry1 and is 53 characters long.');
+            return;
+          }
+          setState(() { checking = true; status = 'Asking the chain…'; });
+          final reg = await s.registeredName(a);
+          setState(() {
+            checking = false;
+            status = reg == null
+                ? 'This address is not registered on the chain. A letter cannot be sealed to it until they claim a starter in the app.'
+                : 'Registered on the chain as "$reg".';
+          });
+        }
+        return AlertDialog(
+          title: const Text('Add a contact'),
+          content: SizedBox(
+            width: 420,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              TextField(
+                controller: addr,
+                autofocus: true,
+                autocorrect: false,
+                minLines: 1,
+                maxLines: 3,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5),
+                decoration: InputDecoration(
+                  labelText: 'Address (brry1…)',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.content_paste),
+                    tooltip: 'Paste',
+                    onPressed: () async {
+                      final d = await Clipboard.getData(Clipboard.kTextPlain);
+                      final t = (d?.text ?? '').trim();
+                      if (t.isEmpty) return;
+                      addr.text = t;
+                      await check();
+                    },
+                  ),
+                ),
+                onChanged: (_) => check(),
+              ),
+              if (status != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(status!, style: TextStyle(fontSize: 12.5, height: 1.4, color: status!.startsWith('Registered') ? Palette.leaf : (checking ? const Color(0xFF6F7883) : Palette.band))),
+                ),
+              const SizedBox(height: 10),
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'Name (optional)', helperText: 'Kept on this phone only')),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: isValidAddress(addr.text.trim()) && !checking ? () => Navigator.pop(ctx, true) : null, child: const Text('Save')),
+          ],
+        );
+      },
+    ),
+  );
+  if (ok != true) return;
+  try {
+    final reg = await s.addContact(addr.text, name.text);
+    if (context.mounted) toast(context, reg == null ? 'Saved. They are not registered yet, so wait for them to claim a starter before writing.' : 'Saved. Registered on the chain as "$reg".');
+  } catch (e) {
+    if (context.mounted) toast(context, '$e'.replaceFirst('Invalid argument(s): ', ''));
   }
 }
 
@@ -167,18 +252,20 @@ class ContactRow extends StatelessWidget {
   Future<void> rename(BuildContext context) async {
     final s = SessionScope.of(context);
     final ctl = TextEditingController(text: c.nickname);
-    final ok = await showDialog<bool>(
+    final ok = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Name this person'),
         content: TextField(controller: ctl, autofocus: true, decoration: InputDecoration(hintText: c.name.isNotEmpty ? c.name : 'e.g. Mum', helperText: 'Kept on this phone only')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          if (c.manual && c.letters == 0) TextButton(onPressed: () => Navigator.pop(context, 'remove'), child: const Text('Remove', style: TextStyle(color: Palette.band))),
+          TextButton(onPressed: () => Navigator.pop(context, 'cancel'), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'save'), child: const Text('Save')),
         ],
       ),
     );
-    if (ok == true) await s.setNickname(c.address, ctl.text);
+    if (ok == 'remove') await s.removeContact(c.address);
+    if (ok == 'save') await s.setNickname(c.address, ctl.text);
   }
 
   @override

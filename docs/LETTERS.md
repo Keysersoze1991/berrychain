@@ -175,3 +175,16 @@ Clients seal v2 only once the node reports the chain is past the activation
 apps still open until then; after it, nodes refuse v1 letters outright and
 older apps must update. Opening uses the version the chain recorded for each
 letter, so old letters stay readable forever.
+
+## Letters in transit (node 0.10.1)
+
+A letter used to appear for its recipient only once it was in a block, a
+minute or so after sending. Node 0.10.1 serves letters that are still in its
+mempool too: `GET /letters?...&pending=1` lists them beside the confirmed
+ones with `height: null` and `pending: true`, and `GET /letter/<id>` serves a
+pending letter with its ciphertext, so an app can open it at once. The app
+shows such a letter as "in transit" until its block lands and asks the seed
+every 20 seconds while it is open; the push relay announces a letter when it
+reaches the seed, and not again when it is mined. A pending letter can still
+be dropped (a mempool is not the chain), so nothing is counted, paid or
+verified from it until it is confirmed.

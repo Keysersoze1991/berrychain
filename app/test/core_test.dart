@@ -74,6 +74,22 @@ void main() {
     expect(utf8.decode(await decryptPacket(key, ct)), 'round trip');
   });
 
+  test('seal v2 binds sender and recipient: the same bytes under another name do not open', () async {
+    final (rpriv, rpub) = await newEncryptionKeypair();
+    final key = newPacketKey();
+    final alice = 'brry1${'a' * 48}', bob = 'brry1${'b' * 48}', eve = 'brry1${'e' * 48}';
+    final aad = letterAad(alice, bob);
+    final ct = await encryptPacket(key, utf8.encode('only from alice'), aad: aad);
+    final wrapped = await wrapToRecipient(rpub, key, aad: aad);
+    final k2 = await unwrapFromSender(rpriv, wrapped, aad: aad);
+    expect(utf8.decode(await decryptPacket(k2, ct, aad: aad)), 'only from alice');
+    expect(() => unwrapFromSender(rpriv, wrapped, aad: letterAad(eve, bob)), throwsA(anything));
+    expect(() => decryptPacket(key, ct, aad: letterAad(eve, bob)), throwsA(anything));
+    // v1 (no binding) still round-trips, for letters sealed before the upgrade
+    final ct1 = await encryptPacket(key, utf8.encode('old style'));
+    expect(utf8.decode(await decryptPacket(key, ct1)), 'old style');
+  });
+
   test('wallet file from the python cli opens, and ours opens there too (same format)', () async {
     final wv = v['wallet'] as Map<String, dynamic>;
     final w = await Wallet.fromJson(Map<String, dynamic>.from(wv['file']), passphrase: wv['passphrase']);

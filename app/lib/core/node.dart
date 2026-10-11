@@ -70,11 +70,14 @@ class Node {
   Future<List<Map<String, dynamic>>> headers(int from, int to) async =>
       ((await get('/headers?from=$from&to=$to'))['headers'] as List).cast<Map<String, dynamic>>();
 
-  Future<List<Map<String, dynamic>>> letters({String? to, String? from, int? since}) async {
+  /// Letters on the chain; with [pending] also the ones still in the node's
+  /// mempool (height null), so a letter shows the moment it reaches the seed.
+  Future<List<Map<String, dynamic>>> letters({String? to, String? from, int? since, bool pending = false}) async {
     final q = <String>[
       if (to != null) 'to=$to',
       if (from != null) 'from=$from',
       if (since != null) 'since=$since',
+      if (pending) 'pending=1',
     ].join('&');
     return ((await get('/letters${q.isEmpty ? '' : '?$q'}'))['letters'] as List).cast<Map<String, dynamic>>();
   }

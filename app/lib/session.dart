@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -47,9 +48,14 @@ class LetterItem {
   String get id => meta['id'] as String;
   String get from => meta['from'] as String;
   String get to => meta['to'] as String;
-  int get height => meta['height'] as int;
-  int get amount => meta['amount'] as int;
-  int get size => meta['size'] as int;
+  /// A letter in transit (still in the seed's mempool) has no block yet; it
+  /// sorts newest so it sits at the top until its block lands.
+  static const pendingHeight = 1 << 40;
+  bool get pending => meta['height'] == null;
+  int get height => (meta['height'] as int?) ?? pendingHeight;
+  int get amount => (meta['amount'] as int?) ?? 0;
+  int get size => (meta['size'] as int?) ?? 0;
+  int get seal => (meta['seal'] as int?) ?? 1;
   /// The receiving key this letter was sealed to.
   String? get encPub => meta['enc_pub'] as String?;
 }
@@ -61,7 +67,8 @@ class Contact {
   String nickname;  // what you call them, kept on this phone only
   int letters;      // letters exchanged
   int lastHeight;
-  Contact(this.address, {this.name = '', this.nickname = '', this.letters = 0, this.lastHeight = 0});
+  bool manual;      // added by hand on the Contacts page (kept on this phone)
+  Contact(this.address, {this.name = '', this.nickname = '', this.letters = 0, this.lastHeight = 0, this.manual = false});
   String get label {
     if (nickname.isNotEmpty) return nickname;
     if (address == Network.harbourmaster) return 'the Harbourmaster'; // his chain name is the genesis label
@@ -137,6 +144,11 @@ class Session extends ChangeNotifier {
   bool showRemoved = false;
   final Map<String, String> _nicknames = {};
   final Map<String, String> _nameCache = {};
+  final Map<String, String> _manual = {};        // contacts added by hand: address -> nickname
+  final Map<String, OpenedLetter> _opened = {};  // letters opened this session, so reopening is instant
+  bool homeIsLetters = false;                    // open on the Letters page instead of the chest page
+  bool verifying = false;                        // the chain check runs after the screen is current
+  Timer? _poll;
 
   /// Letters, without the ones removed on this phone (unless [showRemoved])
   /// and never the burned ones.
@@ -167,6 +179,7 @@ class Session extends ChangeNotifier {
         if (urls != null && urls.isNotEmpty) nodeUrls = urls;
         backgroundChecks = (s['background'] as bool?) ?? true;
         instantNotices = (s['instant'] as bool?) ?? false;
+        homeIsLetters = (s['home'] as String?) == 'letters';
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
@@ -183,6 +196,27 @@ class Session extends ChangeNotifier {
         m.forEach((k, v) => _nicknames[k] = v as String);
       } catch (_) {}
     }
+    final manual = await readText('${d}contacts-manual.json');
+    if (manual != null) {
+      try {
+        (jsonDecode(manual) as Map<String, dynamic>).forEach((k, v) => _manual[k] = (v as String?) ?? '');
+      } catch (_) {}
+    }
+    final names = await readText('${d}names.json');
+    if (names != null) {
+      try {
+        (jsonDecode(names) as Map<String, dynamic>).forEach((k, v) => _nameCache[k] = v as String);
+      } catch (_) {}
+    }
+    // Letters as last seen, so the lists are on screen before the network answers.
+    final cache = await readText('${d}letters-cache.json');
+    if (cache != null) {
+      try {
+        final m = jsonDecode(cache) as Map<String, dynamic>;
+        _inboxAll = ((m['in'] as List?) ?? []).map((j) => LetterItem(Map<String, dynamic>.from(j as Map))).toList();
+        _sentAll = ((m['out'] as List?) ?? []).map((j) => LetterItem(Map<String, dynamic>.from(j as Map))).toList();
+      } catch (_) {}
+    }
     await _loadLocal(d);
     light = await LightClient.open(Profile.mainnet, Network.genesisHash,
         checkpointHeight: Network.checkpointHeight, checkpointHash: Network.checkpointHash, path: '${d}headers-${Network.chainId}.json');
@@ -190,7 +224,61 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _writeSettings() async =>
-      writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks, 'instant': instantNotices}));
+      writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks, 'instant': instantNotices, 'home': homeIsLetters ? 'letters' : 'chest'}));
+
+  /// Which page the app opens on: the chest (balance, grants, address) or Letters.
+  Future<void> setHomeIsLetters(bool on) async {
+    homeIsLetters = on;
+    await _writeSettings();
+    notifyListeners();
+  }
+
+  Future<void> _saveLetterCache() async {
+    try {
+      await writeText('${await storeDir()}letters-cache.json',
+          jsonEncode({'in': _inboxAll.map((l) => l.meta).toList(), 'out': _sentAll.map((l) => l.meta).toList()}));
+    } catch (_) {}
+  }
+
+  Future<void> _saveNames() async {
+    try {
+      await writeText('${await storeDir()}names.json', jsonEncode(_nameCache));
+    } catch (_) {}
+  }
+
+  // ------------------------------------------------------- polling
+  /// While the chest is open, ask the seed for letters every 20 seconds
+  /// (including ones still in its mempool), so a reply shows within seconds
+  /// of being sent rather than after the next block and a manual pull.
+  void startPolling() {
+    _poll?.cancel();
+    _poll = Timer.periodic(const Duration(seconds: 20), (_) => pollLetters());
+  }
+
+  void stopPolling() {
+    _poll?.cancel();
+    _poll = null;
+  }
+
+  Future<void> pollLetters() async {
+    final w = wallet;
+    if (w == null || busy) return;
+    try {
+      final results = await Future.wait([
+        node.letters(to: w.address, pending: true),
+        node.letters(from: w.address, pending: true),
+      ]);
+      final fresh = results[0].map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      final sentNow = results[1].map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      String sig(List<LetterItem> ls) => ls.map((l) => '${l.id}:${l.meta['height']}').join(',');
+      if (sig(fresh) == sig(_inboxAll) && sig(sentNow) == sig(_sentAll)) return;
+      _inboxAll = fresh;
+      _sentAll = sentNow;
+      await _buildContacts();
+      notifyListeners();
+      await _saveLetterCache();
+    } catch (_) {}
+  }
 
   /// Turn the iOS push relay on or off. On: ask for the Apple token, sign it,
   /// hand it to a seed. Off: tell the seeds to forget it. Throws with a plain
@@ -257,6 +345,7 @@ class Session extends ChangeNotifier {
     await w.save(walletPath);
     wallet = w;
     hasWalletFile = true;
+    startPolling();
     notifyListeners();
     return w.mnemonic!;
   }
@@ -267,6 +356,7 @@ class Session extends ChangeNotifier {
     await w.save(walletPath);
     wallet = w;
     hasWalletFile = true;
+    startPolling();
     try {
       await recoverKeys();   // rotated keys that were backed up to the chain
     } catch (_) {}
@@ -280,11 +370,13 @@ class Session extends ChangeNotifier {
     await w.save(walletPath);
     wallet = w;
     hasWalletFile = true;
+    startPolling();
     notifyListeners();
   }
 
   Future<void> unlock(String passphrase) async {
     wallet = await Wallet.load(walletPath!, passphrase: passphrase);
+    startPolling();
     notifyListeners();
   }
 
@@ -296,6 +388,8 @@ class Session extends ChangeNotifier {
   bool confirmPassphrase(String passphrase) => wallet != null && passphrase.isNotEmpty && wallet!.passphrase == passphrase;
 
   void lock() {
+    stopPolling();
+    _opened.clear();
     wallet = null;
     balance = null;
     _inboxAll = [];
@@ -313,25 +407,35 @@ class Session extends ChangeNotifier {
     lastError = null;
     notifyListeners();
     try {
-      final st = await node.status();
+      // Everything the screen needs, asked for at once rather than in turn.
+      final results = await Future.wait<Map<String, dynamic>>([
+        node.status(),
+        node.params(),
+        node.account(w.address),
+        node.letters(to: w.address, pending: true).then((l) => {'letters': l}),
+        node.letters(from: w.address, pending: true).then((l) => {'letters': l}),
+        if (nodeUrls.length > 1) Node(nodeUrls[1]).account(w.address).catchError((_) => <String, dynamic>{}),
+      ]);
+      final st = results[0];
       nodeHeight = st['height'] as int?;
       starterAmount = st['starter_amount'] as int?;
       letterFee = st['letter_fee'] as int?;
-      chainParams = await node.params();
-      final a = await node.account(w.address);
+      chainParams = results[1];
+      final a = results[2];
       balance = a['balance'] as int;
       registry = a['llm'] as Map<String, dynamic>?;
       correspondents = (a['correspondents'] as int?) ?? 0;
-      _inboxAll = (await node.letters(to: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
-      _sentAll = (await node.letters(from: w.address)).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
-      balanceOther = null;
-      if (nodeUrls.length > 1) {
-        try {
-          balanceOther = (await Node(nodeUrls[1]).account(w.address))['balance'] as int;
-        } catch (_) {}
-      }
+      _inboxAll = (results[3]['letters'] as List<Map<String, dynamic>>).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      _sentAll = (results[4]['letters'] as List<Map<String, dynamic>>).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
+      balanceOther = results.length > 5 ? results[5]['balance'] as int? : null;
       await _buildContacts();
+      // The screen is current from here; the rest is housekeeping.
+      busy = false;
+      verifying = true;
+      notifyListeners();
+      await _saveLetterCache();
       await _verifyChain();
+      verifying = false;
       await _maybeAutoRotateOrRecover();
       if (nodeHeight != null) {
         try {
@@ -350,6 +454,7 @@ class Session extends ChangeNotifier {
       lastError = '$e';
     } finally {
       busy = false;
+      verifying = false;
       notifyListeners();
     }
   }
@@ -392,24 +497,37 @@ class Session extends ChangeNotifier {
       note(l.to, l.height);
     }
     seen.putIfAbsent(Network.harbourmaster, () => Contact(Network.harbourmaster));
+    for (final addr in _manual.keys) {
+      if (addr == me) continue;
+      seen.putIfAbsent(addr, () => Contact(addr)).manual = true;
+    }
     for (final c in seen.values) {
-      c.nickname = _nicknames[c.address] ?? '';
+      c.nickname = _nicknames[c.address] ?? (c.manual ? (_manual[c.address] ?? '') : '');
       if (c.address == Network.harbourmaster) {
         c.name = 'the Harbourmaster'; // his chain name is the genesis label; people know him by this one
-        continue;
       }
-      if (c.name.isEmpty) {
-        var n = _nameCache[c.address];
-        if (n == null) {
-          try {
-            n = (((await node.account(c.address))['llm'] as Map?)?['name'] as String?) ?? '';
-          } catch (_) {
-            n = '';
-          }
-          if (n.isNotEmpty) _nameCache[c.address] = n;
+    }
+    // Names from the chain registry: cached on the phone, looked up together, not one by one.
+    final unknown = seen.values.where((c) => c.name.isEmpty && !_nameCache.containsKey(c.address)).toList();
+    if (unknown.isNotEmpty) {
+      final found = await Future.wait(unknown.map((c) async {
+        try {
+          return (((await node.account(c.address))['llm'] as Map?)?['name'] as String?) ?? '';
+        } catch (_) {
+          return '';
         }
-        c.name = n;
+      }));
+      var changed = false;
+      for (var i = 0; i < unknown.length; i++) {
+        if (found[i].isNotEmpty) {
+          _nameCache[unknown[i].address] = found[i];
+          changed = true;
+        }
       }
+      if (changed) await _saveNames();
+    }
+    for (final c in seen.values) {
+      if (c.name.isEmpty) c.name = _nameCache[c.address] ?? '';
     }
     contacts = seen.values.toList()
       ..sort((a, b) {
@@ -484,6 +602,7 @@ class Session extends ChangeNotifier {
 
   /// When a block was mined, from its header; cached on the phone.
   Future<DateTime?> letterTime(LetterItem l) async {
+    if (l.pending) return null;
     final h = l.height;
     var t = _blockTime[h];
     if (t == null) {
@@ -565,6 +684,51 @@ class Session extends ChangeNotifier {
     _burned.add(l.id);
     await _saveHidden();
     notifyListeners();
+  }
+
+  /// A contact added by hand on the Contacts page. Returns the name they
+  /// registered on the chain, or null when the address is not registered
+  /// (a letter cannot be sealed to it until they claim a starter).
+  Future<String?> addContact(String address, String nickname) async {
+    final addr = address.trim();
+    if (!isValidAddress(addr)) throw ArgumentError('that is not a BerryChain address');
+    if (addr == wallet?.address) throw ArgumentError('that is your own address');
+    String? registered;
+    try {
+      registered = ((await node.account(addr))['llm'] as Map?)?['name'] as String?;
+    } catch (_) {
+      registered = null;
+    }
+    _manual[addr] = nickname.trim();
+    if (nickname.trim().isNotEmpty) _nicknames[addr] = nickname.trim();
+    if (registered != null && registered.isNotEmpty) {
+      _nameCache[addr] = registered;
+      await _saveNames();
+    }
+    await writeText('${await storeDir()}contacts-manual.json', jsonEncode(_manual));
+    await writeText('${await storeDir()}contacts.json', jsonEncode(_nicknames));
+    await _buildContacts();
+    notifyListeners();
+    return registered;
+  }
+
+  Future<void> removeContact(String address) async {
+    _manual.remove(address);
+    _nicknames.remove(address);
+    await writeText('${await storeDir()}contacts-manual.json', jsonEncode(_manual));
+    await writeText('${await storeDir()}contacts.json', jsonEncode(_nicknames));
+    await _buildContacts();
+    notifyListeners();
+  }
+
+  /// The name an address registered on the chain, or null if it has none.
+  Future<String?> registeredName(String address) async {
+    try {
+      final n = ((await node.account(address))['llm'] as Map?)?['name'] as String?;
+      return (n == null || n.isEmpty) ? null : n;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// The name to show for an address: your nickname, the name they registered
@@ -673,6 +837,9 @@ class Session extends ChangeNotifier {
   bool get rotationLive => nodeHeight != null && nodeHeight! >= rotateActivation;
   /// Chain 0.9.0: founding seats by the registrars, age rules on claimed grants, and RENAME.
   int get seatsActivation => (chainParams?['seats_and_names_activation'] as int?) ?? 0;
+  /// Sealed post v2 switches on at this height; an older node reports nothing, which counts as not yet.
+  int get sealedPostActivation => (chainParams?['sealed_post_activation'] as int?) ?? LetterItem.pendingHeight;
+  bool get sealedPostLive => nodeHeight != null && nodeHeight! >= sealedPostActivation;
   bool get seatsLive => nodeHeight != null && nodeHeight! >= seatsActivation;
   String? get chainName => registry?['name'] as String?;
 
@@ -909,11 +1076,15 @@ class Session extends ChangeNotifier {
     final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group, parcel: parcel);
     if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
-    final ct = await encryptPacket(key, plain);
+    // Seal v2 (sender and recipient bound in) once the chain is past the
+    // sealed-post upgrade; v1 before it, so pen pals on older apps can still open our letters.
+    final seal = sealedPostLive ? 2 : 1;
+    final aad = seal == 2 ? letterAad(w.address, to) : const <int>[];
+    final ct = await encryptPacket(key, plain, aad: aad);
     final fee = letterFee ?? ((await node.status())['letter_fee'] as int? ?? minFee);
     final payload = {
       'to': to, 'enc_pub': encPub, 'ciphertext': toHex(ct), 'ciphertext_hash': toHex(sha256(ct)),
-      'wrapped_key': await wrapToRecipient(encPub, key), 'amount': amountSeeds,
+      'wrapped_key': await wrapToRecipient(encPub, key, aad: aad), 'amount': amountSeeds, 'seal': seal,
     };
     final tx = buildTx(TxType.sendLetter, w.address, await node.nextNonce(w.address), fee, payload, Network.chainId);
     await w.sign(tx);
@@ -926,14 +1097,25 @@ class Session extends ChangeNotifier {
 
   Future<OpenedLetter> readLetter(LetterItem l) async {
     final w = wallet!;
+    final cached = _opened[l.id];
+    if (cached != null) return cached;
     final full = await node.letter(l.id);
+    // Seal v2 binds the addresses the chain recorded: a copied seal under another name does not open.
+    final seal = (full['seal'] as int?) ?? 1;
+    final aad = seal == 2 ? letterAad(full['from'] as String, full['to'] as String) : const <int>[];
     final List<int> key;
     if (full['to'] == w.address) {
       final priv = w.keyFor((full['enc_pub'] as String?) ?? w.encPub);
       if (priv == null) {
         throw StateError('this letter was sealed to a receiving key this phone does not hold (rotated elsewhere without a backup, burned, or not yet recovered)');
       }
-      key = await unwrapFromSender(priv, Map<String, dynamic>.from(full['wrapped_key'] as Map));
+      try {
+        key = await unwrapFromSender(priv, Map<String, dynamic>.from(full['wrapped_key'] as Map), aad: aad);
+      } catch (_) {
+        throw StateError(seal == 2
+            ? 'this letter does not open: its seal does not match the sender and recipient on the chain (a copied or re-sent letter)'
+            : 'this letter does not open with the key on this phone');
+      }
     } else if (w.packetKeys.containsKey(l.id)) {
       key = fromHex(w.packetKeys[l.id]!);
     } else if (full['from'] == w.address) {
@@ -943,7 +1125,16 @@ class Session extends ChangeNotifier {
     }
     final ct = fromHex((full['ciphertext'] as String?) ?? '');
     if (ct.isEmpty || toHex(sha256(ct)) != full['ciphertext_hash']) throw StateError('the node served a letter that does not match the chain');
-    return openLetter(await decryptPacket(key, ct));
+    final OpenedLetter o;
+    try {
+      o = openLetter(await decryptPacket(key, ct, aad: aad));
+    } catch (_) {
+      throw StateError(seal == 2
+          ? 'this letter does not open: its seal does not match the sender and recipient on the chain (a copied or re-sent letter)'
+          : 'this letter does not open with the key on this phone');
+    }
+    _opened[l.id] = o;
+    return o;
   }
 }
 
