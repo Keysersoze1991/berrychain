@@ -10,7 +10,8 @@
 #                       Named 00-berrychain.conf: sshd keeps the FIRST value it reads and the
 #                       cloud image ships 50-cloud-init.conf with PasswordAuthentication yes.
 #                       (refused unless root already has an authorized key, so you cannot lock yourself out)
-#   file modes          env files, the APNs key and the agent's wallet/state readable by root only
+#   file modes          /etc/berrychain root:berry 640 (the services read it as berry); the agent's and
+#                       relay's own state files 600 berry
 #   xrdp / remote desktop  disabled and masked if present: a seed has no desktop and must not
 #                       expose 3389/3350 to the internet
 #   unattended-upgrades installed and enabled if missing
@@ -49,8 +50,16 @@ else
 fi
 
 echo "== file modes"
-for f in /etc/berrychain/*.env /etc/berrychain/apns.p8 /var/lib/berrychain/agent/*.json /var/lib/berrychain/push/*.json; do
-  [ -e "$f" ] && chmod 600 "$f" && echo "600 $f"
+# /etc/berrychain is root's, read by the services' user through the berry group:
+# root:berry 640. (600 here broke the push relay, which opens apns.p8 itself as berry.)
+for f in /etc/berrychain/*; do
+  [ -f "$f" ] || continue
+  chown root:berry "$f" 2>/dev/null || true
+  chmod 640 "$f" && echo "640 root:berry $f"
+done
+# the services' own state is theirs alone
+for f in /var/lib/berrychain/agent/*.json /var/lib/berrychain/push/*.json; do
+  [ -e "$f" ] && chown berry:berry "$f" 2>/dev/null; [ -e "$f" ] && chmod 600 "$f" && echo "600 berry $f"
 done
 
 echo "== remote desktop"

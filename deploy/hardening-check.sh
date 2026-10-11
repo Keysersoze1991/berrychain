@@ -65,15 +65,24 @@ esac
 # 5. services
 for s in berrychain-node berrychain-agent berrychain-push berrychain-parcels nginx; do
   if systemctl list-unit-files 2>/dev/null | grep -q "^$s.service"; then
-    systemctl is-active --quiet "$s" && pass "$s active" || warn "$s installed but not active" "systemctl status $s; journalctl -u $s -n 50"
+    st=$(systemctl is-active "$s" 2>/dev/null)
+    if [ "$st" = active ] && [ "$(systemctl show -p NRestarts --value "$s" 2>/dev/null)" -lt 5 ]; then pass "$s active"
+    else warn "$s is $st (restarts: $(systemctl show -p NRestarts --value "$s" 2>/dev/null))" "journalctl -u $s -n 30 --no-pager"; fi
   fi
 done
 
-# 6. secrets on disk: env files and wallets readable by root only
-for f in /etc/berrychain/*.env /etc/berrychain/apns.p8 /var/lib/berrychain/agent/*.json; do
+# 6. secrets on disk: /etc/berrychain root:berry 640 (the services run as berry and read
+#    the APNs key themselves); the agent's and relay's state files 600 and theirs
+for f in /etc/berrychain/*; do
+  [ -f "$f" ] || continue
+  m=$(stat -c %a "$f"); g=$(stat -c %G "$f"); u=$(stat -c %U "$f")
+  if [ "$u" = root ] && [ "$g" = berry ] && { [ "$m" = 640 ] || [ "$m" = 600 ]; }; then pass "$f $u:$g $m"
+  else warn "$f is $u:$g $m" "chown root:berry $f && chmod 640 $f"; fi
+done
+for f in /var/lib/berrychain/agent/*.json /var/lib/berrychain/push/*.json; do
   [ -e "$f" ] || continue
-  m=$(stat -c %a "$f")
-  case "$m" in 600|400) pass "$f mode $m";; *) warn "$f mode $m" "chmod 600 $f";; esac
+  m=$(stat -c %a "$f"); u=$(stat -c %U "$f")
+  if [ "$u" = berry ] && { [ "$m" = 600 ] || [ "$m" = 400 ]; }; then pass "$f $u $m"; else warn "$f is $u $m" "chown berry:berry $f && chmod 600 $f"; fi
 done
 
 # 7. clock (block timestamps depend on it)
