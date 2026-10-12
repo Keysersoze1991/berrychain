@@ -46,7 +46,10 @@ class _NamePanelState extends State<NamePanel> {
             const SizedBox(width: 8),
             Padding(
               padding: const EdgeInsets.only(top: 6),
+              // The theme gives filled buttons a full-width minimum; beside a field in a
+              // Row that must be bounded, or Android lays the field out with no width.
               child: FilledButton.tonal(
+                style: FilledButton.styleFrom(minimumSize: const Size(84, 48)),
                 onPressed: () async {
                   await s.setLabel(ctl.text);
                   if (context.mounted) toast(context, 'Saved. New letters are signed this way.');

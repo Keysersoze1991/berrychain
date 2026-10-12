@@ -1,1 +1,1 @@
-71f58c1541e2339b7b4aca6824c988a279698258fc726202380b27b451c62b73 *berrychain-wallet-0.13.0.apk
+313ed4fb943efd24f21b63669cd003db88b0cb55d45d3ffb1dded26dccf16a0f *berrychain-wallet-0.13.1.apk
