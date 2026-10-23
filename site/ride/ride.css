@@ -56,7 +56,9 @@ body.ride main.wrap { max-width: 1100px; padding-top: 14px; }
 .panel p { max-width: 560px; }
 .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 14px; color: #d6e0ea; margin-bottom: 8px; }
 .controls kbd { font: 600 12px/1 Inter, system-ui, sans-serif; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.35); border-radius: 5px; padding: 3px 6px; color: #fff; }
-.levels { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.levels { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; max-width: 760px; }
+.levels .tier { flex-basis: 100%; font: 700 12px/1 Inter, system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #a9bacc; margin-top: 8px; }
+.hud-tricks { margin-left: 10px; color: #f0c453; }
 .levels button { font: 600 13px/1 Inter, system-ui, sans-serif; padding: 8px 12px; max-width: 200px; border-radius: 8px; border: 1px solid rgba(240,196,83,.6); background: rgba(240,196,83,.12); color: #f0c453; cursor: pointer; }
 .levels button:hover { background: rgba(240,196,83,.25); }
 .levels button small { display: block; font-weight: 500; color: #d6e0ea; margin-top: 4px; font-size: 11px; white-space: normal; }

@@ -14,8 +14,8 @@
   const VMAX = 15, VMAX_SPRINT = 19, VCAP = 23;
   const BRAKE = 0.90;
   const LEAN = 0.09;            // ground weight shift
-  const AIR_SPIN = 3.2;         // px/tick of nose speed relative to tail while a lean key is held in the air
-  const SPRINT_DRAIN = 0.55, SPRINT_FILL = 0.18; // per tick, meter 0..100
+  const AIR_SPIN = 5.0;         // px/tick of nose speed relative to tail while a lean key is held in the air
+  const SPRINT_DRAIN = 0.5, SPRINT_FILL = 0.32; // per tick, meter 0..100
   const BIT = { PEDAL: 1, BRAKE: 2, BACK: 4, FWD: 8, SPRINT: 16 };
 
   // ---------- track builder ----------
@@ -39,45 +39,62 @@
       loop(r) { const cx = b.x, cy = b.y - r, n = 40; b.loops.push({ cx, cy, r }); for (let i = 1; i <= n; i++) { const a = Math.PI / 2 - 2 * Math.PI * i / n; pt(cx + r * Math.cos(a), cy + r * Math.sin(a), i < n, Math.floor((i - 1) / (n / 4))); } return api; },
       check() { b.checkpoints.push({ x: b.x, y: b.y }); api.flat(240); return api; },   // a respawn always gets a run-up
       finish() { b.finishX = b.x; api.flat(520); return api; },
+      get x() { return b.x; },
       done(name, blurb) { return { name, blurb, chunks: b.chunks, loops: b.loops, checkpoints: b.checkpoints, finishX: b.finishX, length: b.x, deathY: b.maxY + 420, minY: b.minY }; }
     };
     return api;
   }
 
-  const LEVELS = [
-    // 1. Easy: rolling hills, small kickers, one gentle gap. Teaches pedal, lean and the clock.
-    builder().start().hill(320, 60).flat(140).hill(300, 90).flat(200).bumps(3, 120, 26).flat(180).check()
-      .ramp(90, 36).gap(120).flat(260).hill(360, 110).flat(160).rise(220, 110).flat(140).fall(260, 110).flat(200).check()
-      .bumps(4, 100, 22).flat(160).ramp(100, 44).gap(150).flat(280).hill(300, 80).flat(300).ramp(110, 50).gap(170).flat(300).check()
-      .rise(260, 150).flat(120).hill(240, 60).flat(120).fall(300, 150).flat(220).ramp(100, 40).gap(140).flat(320).finish()
-      .done('Berry Hill', 'Rolling hills and a couple of friendly kickers.'),
-    // 2. Drops and steps, bumps, kickers, and a first gentle loop with a long run-up.
-    builder().start().rise(200, 80).flat(140).drop(60).flat(260).drop(80).flat(280).check().bumps(5, 90, 22).flat(180).ramp(100, 46).gap(150).flat(300).check()
-      .drop(110).flat(320).rise(240, 120).flat(300).loop(85).flat(260).check().bumps(3, 110, 30).flat(160).ramp(110, 52).gap(190).flat(300).check()
-      .drop(90).flat(240).drop(90).flat(260).rise(260, 160).flat(320).ramp(90, 42).gap(150).flat(220).fall(240, 160).flat(260).hill(280, 70).flat(300).finish()
-      .done('Harbour Steps', 'Drops and steps down to the water. Lean back off the edges.'),
-    // 3. Loops. Speed in, keep pedalling, do not brake at the top.
-    builder().start().hill(260, 50).flat(300).loop(85).flat(280).check().ramp(100, 50).gap(180).flat(300).hill(240, 70).flat(320).loop(90).flat(300).check()
-      .bumps(4, 100, 26).flat(200).ramp(110, 56).gap(210).flat(340).loop(95).flat(240).check()
-      .rise(200, 100).flat(300).loop(90).flat(160).loop(90).flat(300).ramp(120, 62).gap(220).flat(340).finish()
-      .done("Devil's Elbow", 'Loops. Speed in, lean back, do not brake at the top.'),
-    // 4. Big air: long climbs, long run-ups, sprint jumps that need the whole meter.
-    builder().start().rise(300, 180).flat(360).ramp(140, 80).gap(260).flat(220).fall(220, 180).flat(300).check()
-      .bumps(4, 90, 30).flat(300).loop(85).flat(320).loop(85).flat(300).check()
-      .rise(320, 240).flat(420).ramp(150, 96).gap(300).flat(220).fall(260, 240).flat(320).check()
-      .drop(120).flat(280).hill(300, 90).flat(360).ramp(130, 70).gap(240).flat(300).loop(90).flat(300).ramp(120, 60).gap(200).flat(340).finish()
-      .done('The Mast', 'Big air. Sprint off the top and land flat.'),
-    // 5. Everything, longer.
-    builder().start().hill(260, 70).flat(240).ramp(90, 40).gap(130).flat(240).drop(100).flat(300).check().loop(90).flat(240).bumps(3, 90, 34).flat(240).ramp(110, 64).gap(220).flat(300).check()
-      .rise(240, 180).flat(380).loop(95).flat(200).drop(140).flat(300).check().ramp(130, 80).gap(290).flat(220).fall(200, 120).flat(300).hill(240, 60).flat(300).loop(85).flat(320).loop(85).flat(300).check()
-      .bumps(5, 80, 24).flat(240).drop(90).flat(260).rise(300, 200).flat(400).ramp(150, 90).gap(310).flat(220).fall(260, 200).flat(300).ramp(120, 60).gap(240).flat(360).finish()
-      .done("Crow's Nest", 'Everything at once. Clean this and you can call yourself crazy.')
-  ];
+  // ---------- courses: 20 of them, generated from a seed, five per tier ----------
+  const TIERS = ['Shore', 'Reef', 'Open Sea', 'Storm'];
+  const NAMES = ['Berry Hill', 'Harbour Steps', "Devil's Elbow", 'The Mast', "Crow's Nest",
+    'Reef Break', 'Salt Flats', 'Gull Rock', 'The Narrows', 'Widow Maker',
+    'Open Water', 'Dead Reckoning', 'The Doldrums', 'Albatross', 'Kraken Loops',
+    'Squall Line', 'Nine Lives', 'Davy Jones', 'Hurricane Deck', 'Maelstrom'];
+  function rng(seed) { let t = seed >>> 0; return () => { t = (t + 0x6D2B79F5) >>> 0; let x = t; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }; }
+  function genLevel(i) {
+    const tier = Math.floor(i / 5), d = tier + (i % 5) / 5;        // difficulty 0 .. 3.8
+    const R = rng(0x5EED + i * 7919);
+    const pick = (lo, hi) => Math.round(lo + (hi - lo) * R());
+    const lerp = (a, b) => a + (b - a) * Math.min(1, d / 3.8);
+    const api = builder().start();
+    const target = Math.round(15000 + d * 3500);
+    let lastCp = api.x, last = '';
+    const pieces = {
+      hills() { for (let k = 0; k < pick(1, 3); k++) api.hill(pick(240, 360), Math.round(lerp(50, 130) * (0.7 + R() * 0.6))).flat(pick(80, 160)); },
+      bumps() { api.bumps(pick(3, 6), pick(80, 120), Math.round(lerp(20, 36))); api.flat(pick(140, 240)); },
+      rollers() { const h = Math.round(lerp(110, 230)); api.rise(pick(220, 300), h).flat(pick(80, 160)).fall(pick(240, 320), h).flat(220); },
+      kicker() { const L = Math.round(lerp(95, 175)), H = Math.round(L * lerp(0.42, 0.62)); const G = Math.round(lerp(135, 300) * (0.85 + R() * 0.3)); api.flat(pick(200, 320)).ramp(L, H).gap(G).flat(pick(240, 320)); },
+      bigAir() { const h = Math.round(lerp(140, 230)); api.rise(pick(320, 380), h).flat(pick(380, 460)).ramp(pick(150, 180), Math.round(lerp(80, 110))).gap(Math.round(lerp(240, 300))).flat(240).fall(pick(220, 280), h).flat(260); },
+      loop() { api.flat(pick(300, 380)).loop(pick(85, Math.round(lerp(85, 95)))).flat(pick(240, 320)); },
+      twinLoop() { const r = pick(85, Math.round(lerp(85, 92))); api.flat(pick(320, 380)).loop(r).flat(320).loop(r).flat(260); },
+      drop() { api.drop(Math.round(lerp(60, 160))).flat(pick(240, 320)); },
+      stairs() { const h = Math.round(lerp(55, 120)); api.drop(h).flat(pick(180, 240)).drop(h).flat(pick(240, 320)); },
+      cliffJump() { const h = Math.round(lerp(100, 200)); api.flat(220).ramp(pick(80, 110), pick(30, 50)).gap(Math.round(lerp(150, 250))).flat(140).fall(pick(220, 280), h).flat(260); }
+    };
+    const weights = [
+      { hills: 4, bumps: 3, rollers: 2, kicker: 4, drop: 2, stairs: 1, loop: 1 },
+      { hills: 3, bumps: 2, rollers: 2, kicker: 4, bigAir: 2, drop: 2, stairs: 2, loop: 3, cliffJump: 1 },
+      { hills: 2, bumps: 2, rollers: 2, kicker: 4, bigAir: 3, drop: 2, stairs: 2, loop: 3, twinLoop: 2, cliffJump: 2 },
+      { hills: 2, bumps: 1, rollers: 2, kicker: 4, bigAir: 4, drop: 2, stairs: 2, loop: 3, twinLoop: 3, cliffJump: 3 }
+    ][tier];
+    const names = Object.keys(weights), total = names.reduce((t, n) => t + weights[n], 0);
+    while (api.x < target) {
+      let roll = R() * total, name = names[0];
+      for (const n of names) { roll -= weights[n]; if (roll <= 0) { name = n; break; } }
+      if (name === last) continue;
+      pieces[name](); last = name;
+      if (api.x - lastCp > 2600) { api.check(); lastCp = api.x; }
+    }
+    api.finish();
+    return api.done(NAMES[i], TIERS[tier] + ' · course ' + (i % 5 + 1));
+  }
+  const LEVELS = []; for (let i = 0; i < 20; i++) LEVELS.push(genLevel(i));
 
   // ---------- physics ----------
   function newRun(level) {
     const cp = level.checkpoints[0];
-    const run = { level, tick: 0, inputs: [], crashes: 0, finished: false, cpIndex: 0, sprint: 100, flash: 0, over: false };
+    const run = { level, tick: 0, inputs: [], crashes: 0, finished: false, cpIndex: 0, sprint: 100, flash: 0, over: false, tricks: 0, airTicks: 0, airAngle: 0, lastAngle: null, toast: null };
     spawn(run, cp);
     return run;
   }
@@ -99,20 +116,21 @@
     for (const c of chunks) {
       for (let i = 1; i < c.length; i++) {
         const a = c[i - 1], b = c[i];
-        if ((a.x < w.x - 40 && b.x < w.x - 40) || (a.x > w.x + 40 && b.x > w.x + 40)) continue;
+        if ((a.x < w.x - 48 && b.x < w.x - 48) || (a.x > w.x + 48 && b.x > w.x + 48)) continue;
         const lid = b.loop !== undefined ? b.loop : a.loop;
         if (lid !== undefined && (b.q !== undefined ? b.q : a.q) === 0 && phase[lid]) continue;     // past the top: the entry quarter is behind you
         const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy; if (!L2) continue;
         let t = ((w.x - a.x) * dx + (w.y - a.y) * dy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
         const cx = a.x + dx * t, cy = a.y + dy * t;
         const ox = w.x - cx, oy = w.y - cy, dist = Math.sqrt(ox * ox + oy * oy);
-        if (dist >= bestDist) continue;
         const L = Math.sqrt(L2), sx = -dy / L, sy = dx / L;               // solid-side normal
+        const side = ox * sx + oy * sy;                                   // > 0: the centre is past the surface
+        const crossed = side > 0 && t > 0 && t < 1 && dist < VCAP + WR;   // went through the surface this tick (fast fall)
+        if (!crossed && dist >= bestDist) continue;
         const sidePrev = (w.px - cx) * sx + (w.py - cy) * sy;             // where the wheel came from this tick
         if (sidePrev > 1.0) continue;                                      // from inside the solid: the back of a loop, ignore
-        bestDist = dist; bestDir = { tx: dx / L, ty: dy / L };
-        if (dist >= WR) continue;
-        const side = ox * sx + oy * sy;
+        if (crossed || dist < bestDist) { bestDist = crossed ? 0 : dist; bestDir = { tx: dx / L, ty: dy / L }; }
+        if (!crossed && dist >= WR) continue;
         let nx, ny, pen;
         if (side > 0 || dist < 1e-6) { nx = -sx; ny = -sy; pen = WR + side; }                 // crossed the surface: put it back on the riding side
         else { nx = ox / dist; ny = oy / dist; pen = WR - dist; }
@@ -190,12 +208,26 @@
       for (const w of [r, fw]) { const dx = w.x - L.cx, dy = w.y - L.cy; if (dx * dx + dy * dy > lim * lim) outside++; else if (dy < -L.r * 0.2 && dx < 0) run.loopPhase[i] = 1; }
       if (outside === 2) run.loopPhase[i] = 0;
     });
+    // tricks: count flips and big air (display only, never feeds back into the physics)
+    {
+      const air = !r.ground && !fw.ground, f2 = frameUp(run), ang = Math.atan2(f2.uy, f2.ux);
+      if (air) {
+        if (run.lastAngle !== null) { let da = ang - run.lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI; run.airAngle += da; }
+        run.airTicks++;
+      } else if (run.airTicks > 0) {
+        const flips = Math.floor(Math.abs(run.airAngle) / (Math.PI * 1.8));
+        if (flips > 0) { run.tricks += flips; run.toast = { text: (flips > 1 ? flips + 'x ' : '') + (run.airAngle < 0 ? 'Backflip!' : 'Frontflip!'), t: 70 }; }
+        else if (run.airTicks > 55) { run.tricks += 1; run.toast = { text: 'Big air!', t: 60 }; }
+        run.airTicks = 0; run.airAngle = 0;
+      }
+      run.lastAngle = ang;
+    }
     // checkpoints, finish, crashes
     const mx = (r.x + fw.x) / 2, my = (r.y + fw.y) / 2;
     const cps = run.level.checkpoints;
     while (run.cpIndex + 1 < cps.length && mx > cps[run.cpIndex + 1].x) run.cpIndex++;
     if (mx > run.level.finishX) { run.finished = true; run.finishTick = run.tick; return; }
-    if (my > run.level.deathY || headHits(run)) { run.crashes++; run.crashed = 45; run.flash = 12; }
+    if (my > run.level.deathY || headHits(run)) { run.crashes++; run.crashed = 45; run.flash = 12; run.airTicks = 0; run.airAngle = 0; run.toast = { text: 'Crash!', t: 45 }; }
   }
 
   // ---------- rendering ----------
@@ -219,12 +251,14 @@
     return { far, near, trees, farW: 40 * 160, nearW: 60 * 110 };
   }
   const SCENES = LEVELS.map((_, i) => scenery(0xB3 + i * 7919));
+  const PALETTES = [['#6fb7e6', '#bfe1f5', '#e8f3e4'], ['#5aa3d9', '#b7d9ee', '#e3efe0'], ['#4f8fc4', '#a9cfe6', '#dbe8dc'], ['#4a6e8f', '#8fb0c4', '#cfd8d2']];
   const cam = { x: 0, y: 0 };
 
   function draw(run, alpha) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     // sky
-    const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#6fb7e6'); sky.addColorStop(0.65, '#bfe1f5'); sky.addColorStop(1, '#e8f3e4');
+    const pal = PALETTES[run ? Math.floor(LEVELS.indexOf(run.level) / 5) : 0];
+    const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, pal[0]); sky.addColorStop(0.65, pal[1]); sky.addColorStop(1, pal[2]);
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
     if (!run) return;
     const lv = run.level, sc = SCENES[LEVELS.indexOf(lv)];
@@ -264,6 +298,11 @@
     // bike
     bike(run);
     ctx.restore();
+    if (run.toast && run.toast.t > 0) {
+      const a = Math.min(1, run.toast.t / 20); ctx.globalAlpha = a; ctx.fillStyle = run.toast.text === 'Crash!' ? '#c2382b' : '#f0c453';
+      ctx.font = '700 ' + Math.round(34 * zoom + 10) + 'px Fraunces, Georgia, serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(12,31,51,.6)';
+      ctx.strokeText(run.toast.text, W / 2, H * 0.3); ctx.fillText(run.toast.text, W / 2, H * 0.3); ctx.globalAlpha = 1; run.toast.t--;
+    }
     // crash flash
     if (run.flash > 0) { ctx.fillStyle = 'rgba(194,56,43,' + (run.flash / 12 * 0.35) + ')'; ctx.fillRect(0, 0, W, H); run.flash--; }
   }
@@ -319,7 +358,7 @@
 
   // ---------- input ----------
   let held = 0;
-  const KEYS = { ArrowRight: BIT.PEDAL, KeyD: BIT.PEDAL, ArrowLeft: BIT.BRAKE, KeyA: BIT.BRAKE, ArrowUp: BIT.BACK, KeyW: BIT.BACK, ArrowDown: BIT.FWD, KeyS: BIT.FWD, ShiftLeft: BIT.SPRINT, ShiftRight: BIT.SPRINT, Space: BIT.SPRINT };
+  const KEYS = { ArrowUp: BIT.PEDAL, KeyW: BIT.PEDAL, ArrowDown: BIT.BRAKE, KeyS: BIT.BRAKE, ArrowLeft: BIT.BACK, KeyA: BIT.BACK, ArrowRight: BIT.FWD, KeyD: BIT.FWD, ShiftLeft: BIT.SPRINT, ShiftRight: BIT.SPRINT, Space: BIT.SPRINT };
   window.addEventListener('keydown', e => {
     if (e.code in KEYS) { held |= KEYS[e.code]; e.preventDefault(); }
     if (e.code === 'KeyR' && run && !run.finished) startLevel(LEVELS.indexOf(run.level));
@@ -347,7 +386,10 @@
 
   function buildMenu() {
     const box = $('levels'); box.innerHTML = '';
-    LEVELS.forEach((lv, i) => { const b = document.createElement('button'); const best = getBest(i); b.innerHTML = (i + 1) + '. ' + lv.name + '<small>' + (best != null ? 'best ' + fmt(best) : lv.blurb) + '</small>'; b.title = lv.blurb; b.addEventListener('click', () => startLevel(i)); box.appendChild(b); });
+    LEVELS.forEach((lv, i) => {
+      if (i % 5 === 0) { const h = document.createElement('div'); h.className = 'tier'; h.textContent = TIERS[i / 5]; box.appendChild(h); }
+      const b = document.createElement('button'); const best = getBest(i); b.innerHTML = (i + 1) + '. ' + lv.name + '<small>' + (best != null ? 'best ' + fmt(best) : lv.blurb) + '</small>'; b.title = lv.blurb; b.addEventListener('click', () => startLevel(i)); box.appendChild(b);
+    });
   }
   function showMenu() { run = null; cancelAnimationFrame(raf); buildMenu(); $('panel-title').hidden = false; $('panel-done').hidden = true; $('hud').hidden = true; draw(null); }
   function startLevel(i) {
@@ -361,9 +403,9 @@
     $('done-title').textContent = run.crashes ? 'Course clear' : 'Clean run!';
     $('done-time').textContent = fmt(t);
     $('done-best').textContent = isBest ? 'New best time for ' + run.level.name : 'Best ' + fmt(best);
-    $('done-crashes').textContent = (run.crashes ? run.crashes + (run.crashes === 1 ? ' crash' : ' crashes') : 'No crashes') + ' · run recorded, ' + run.inputs.length + ' ticks';
+    $('done-crashes').textContent = (run.crashes ? run.crashes + (run.crashes === 1 ? ' crash' : ' crashes') : 'No crashes') + ' · ' + (run.tricks ? run.tricks + (run.tricks === 1 ? ' trick' : ' tricks') : 'no tricks') + ' · run recorded, ' + run.inputs.length + ' ticks';
     $('btn-next').hidden = i + 1 >= LEVELS.length; $('panel-done').hidden = false;
-    run.over = true; window.lastRun = { level: i, ticks: run.inputs.slice(), time: t, crashes: run.crashes };
+    run.over = true; window.lastRun = { level: i, ticks: run.inputs.slice(), time: t, crashes: run.crashes, tricks: run.tricks };
   }
   function next() { const i = LEVELS.indexOf(run.level); if (i + 1 < LEVELS.length) startLevel(i + 1); else showMenu(); }
   $('btn-next').addEventListener('click', next);
@@ -377,6 +419,7 @@
     draw(run);
     $('hud-time').textContent = fmt(run.finished ? run.finishTick : run.tick);
     $('hud-sprint').style.width = run.sprint + '%';
+    $('hud-tricks').textContent = run.tricks ? run.tricks + (run.tricks === 1 ? ' trick' : ' tricks') : '';
     raf = requestAnimationFrame(loop);
   }
 
