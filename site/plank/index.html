@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://seed1.berrychain.link https://seed2.berrychain.link http://localhost:8805; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walk the Plank</title>
+<meta name="description" content="Walk the Plank: the captain asks seven questions a day. Rare answers take you deeper. A daily trivia dive from BerryChain.">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="plank.css">
+</head>
+<body class="plank">
+<header>
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="BerryChain home"><img src="../berry-symbol-gold.svg" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="../index.html#app">The app</a><a href="../ride/">MTB Crazy</a><a href="#how">How it works</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="game" class="board">
+    <aside class="gauge" aria-hidden="true">
+      <div class="gauge-sea">
+        <div class="gauge-marks"><span>Shallows</span><span>Reef</span><span>Wreck</span><span>Abyss</span><span>The Locker</span></div>
+        <div id="diver" class="diver">☠</div>
+      </div>
+      <div class="gauge-depth"><span id="depth">0</span> m</div>
+    </aside>
+
+    <section class="play">
+      <div id="screen-title" class="screen">
+        <h1>Walk the Plank</h1>
+        <p class="tag">The captain asks seven questions. Everyone gets the same seven. The rarer your answer among the whole crew, the deeper you sink, and the deeper you sink, the more treasure you bring up.</p>
+        <label class="name"><span>Your name, sailor</span><input id="player" type="text" maxlength="24" autocomplete="nickname" placeholder="Pegleg Pete"></label>
+        <div class="row">
+          <button id="btn-daily" class="btn">Today's plank</button>
+          <button id="btn-endless" class="btn ghost">Endless plank</button>
+        </div>
+        <p id="title-note" class="muted small"></p>
+      </div>
+
+      <div id="screen-round" class="screen" hidden>
+        <div class="round-head"><span id="round-n">1 of 7</span><span id="round-mode" class="muted"></span></div>
+        <div class="timer"><div id="timer-bar"></div></div>
+        <h2 id="prompt">…</h2>
+        <form id="answer-form" class="answer" autocomplete="off">
+          <input id="answer" type="text" maxlength="60" placeholder="Your answer" autocapitalize="words" enterkeyhint="send">
+          <button class="btn" type="submit">Answer</button>
+        </form>
+        <p class="muted small">One answer, one shot. Rare beats common.</p>
+      </div>
+
+      <div id="screen-reveal" class="screen" hidden>
+        <div id="badge" class="badge"></div>
+        <h2 id="reveal-title"></h2>
+        <p id="reveal-sub" class="muted"></p>
+        <div class="top"><h3>What the crew said</h3><ol id="top-list"></ol></div>
+        <button id="btn-next" class="btn">Next question</button>
+      </div>
+
+      <div id="screen-done" class="screen" hidden>
+        <h2 id="done-title">You reached the Reef</h2>
+        <p class="big"><span id="done-depth">0</span> m</p>
+        <p id="done-sub" class="muted"></p>
+        <div class="recap"><h3>Your seven</h3><ol id="recap"></ol></div>
+        <div class="boardbox"><h3>Today's crew</h3><ol id="board"></ol><p id="board-note" class="muted small"></p></div>
+        <div class="row">
+          <button id="btn-copy" class="btn ghost">Copy result</button>
+          <button id="btn-again" class="btn">Endless plank</button>
+          <button id="btn-home" class="btn ghost">Back to the deck</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section id="how" class="about">
+    <h2>How it works</h2>
+    <p>Each day the captain picks seven prompts from his log, the same seven for everyone, and you get 25 seconds per prompt. Your answer is scored by how rare it is among everything the crew has answered to that prompt so far: the most common answers are worth 10 points, the rarest 100. Every point is ten metres of depth, so a perfect plank is 7,000 metres and lands you in Davy Jones' Locker.</p>
+    <p>Answers that are not in the captain's log are judged once by the Harbourmaster's model and remembered, so spelling is forgiven and a correct answer nobody has given before is the rarest of all. Made-up answers score nothing. The daily plank can be walked once a day; the endless plank draws seven at random and does not count for the crew board.</p>
+    <p><strong>0.2 BERRY for a deep dive.</strong> When the race purse opens, passing 5,000 metres on the daily plank will earn 0.2 BERRY on BerryChain, paid as a letter to your chest, once per day per registered name. BERRY has no price and no value; it is the coin you write letters with.</p>
+    <p class="muted small">Answers are sent to seed1.berrychain.link so they can be counted against everyone else's. Only your name as you typed it, your answers and the day are kept.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap small muted">BerryChain · <a href="../index.html">home</a> · <a href="../privacy.html">privacy</a></div>
+</footer>
+
+<script src="plank.js"></script>
+</body>
+</html>

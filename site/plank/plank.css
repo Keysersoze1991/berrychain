@@ -1,0 +1,57 @@
+/* Walk the Plank */
+body.plank main.wrap { max-width: 1000px; padding-top: 18px; }
+
+.board { display: grid; grid-template-columns: 120px 1fr; gap: 18px; align-items: stretch; }
+
+.gauge { display: flex; flex-direction: column; gap: 8px; }
+.gauge-sea {
+  position: relative; flex: 1; min-height: 420px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(180deg, #8fd0f0 0%, #2f7fb5 20%, #1b4f7f 42%, #102f52 64%, #080f1f 86%, #000 100%);
+  box-shadow: var(--shadow);
+}
+.gauge-marks { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 8px; pointer-events: none; }
+.gauge-marks span { font: 600 10px/1 Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.7); border-top: 1px dashed rgba(255,255,255,.35); padding-top: 4px; }
+.gauge-marks span:first-child { border-top: 0; }
+.diver { position: absolute; left: 50%; top: 4%; transform: translate(-50%, 0); font-size: 26px; color: #f0c453; text-shadow: 0 2px 6px rgba(0,0,0,.6); transition: top 1.2s cubic-bezier(.3,.8,.3,1); }
+.gauge-depth { text-align: center; font: 700 20px/1 Fraunces, Georgia, serif; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.play { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; box-shadow: var(--shadow); min-height: 420px; }
+.screen[hidden] { display: none; }
+.play h1 { font: 700 clamp(34px, 6vw, 56px)/1 Fraunces, Georgia, serif; margin: 0 0 10px; color: var(--ink); }
+.play h2 { font: 600 clamp(22px, 3.4vw, 32px)/1.2 Fraunces, Georgia, serif; margin: 10px 0 14px; color: var(--ink); }
+.play h3 { font: 600 13px/1 Inter, system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin: 18px 0 8px; }
+.play .tag { color: var(--ink-2); max-width: 60ch; }
+.play .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.play .btn { cursor: pointer; font-family: Inter, system-ui, sans-serif; }
+.name { display: block; margin: 16px 0 4px; max-width: 320px; }
+.name span { display: block; font: 600 12px/1 Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+.name input, .answer input { width: 100%; font: 500 17px/1.3 Inter, system-ui, sans-serif; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg); color: var(--ink); }
+.answer { display: flex; gap: 10px; margin-top: 6px; }
+.answer input { flex: 1; font-size: 20px; }
+.round-head { display: flex; justify-content: space-between; font: 600 13px/1 Inter, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.timer { height: 8px; border-radius: 4px; background: var(--line); margin: 10px 0 4px; overflow: hidden; }
+#timer-bar { height: 100%; width: 100%; background: linear-gradient(90deg, var(--leaf), var(--gold)); transition: width .25s linear; }
+#timer-bar.hot { background: var(--band); }
+
+.badge { display: inline-block; font: 700 14px/1 Inter, system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; padding: 8px 12px; border-radius: 999px; color: #fff; background: var(--ink-3); }
+.badge.t10 { background: #6f7883; } .badge.t20 { background: #4e7fa3; } .badge.t30 { background: #2f7a4b; }
+.badge.t50 { background: #b07a1e; } .badge.t75 { background: #c2382b; } .badge.t100 { background: #5b2a86; }
+.badge.t0 { background: #1b2430; }
+.top ol, .recap ol, .boardbox ol { margin: 0; padding-left: 22px; }
+.top li, .recap li, .boardbox li { padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 15px; display: flex; justify-content: space-between; gap: 10px; }
+.top li span:last-child, .recap li span:last-child, .boardbox li span:last-child { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.top li.mine { font-weight: 600; color: var(--brass); }
+.play .big { font: 700 48px/1 Fraunces, Georgia, serif; margin: 6px 0; font-variant-numeric: tabular-nums; }
+#btn-next { margin-top: 16px; }
+.about { margin: 24px 0 30px; }
+footer .wrap { padding: 16px 0 30px; }
+.err { color: var(--band); }
+
+@media (max-width: 640px) {
+  .board { grid-template-columns: 1fr; }
+  .gauge { flex-direction: row; align-items: center; gap: 12px; }
+  .gauge-sea { min-height: 54px; height: 54px; flex: 1; background: linear-gradient(90deg, #8fd0f0 0%, #2f7fb5 20%, #1b4f7f 42%, #102f52 64%, #080f1f 86%, #000 100%); }
+  .gauge-marks { display: none; }
+  .diver { top: 50%; left: 2%; transform: translate(0, -50%); transition: left 1.2s cubic-bezier(.3,.8,.3,1); font-size: 22px; }
+  .play { min-height: 0; }
+}
