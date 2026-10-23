@@ -1,0 +1,103 @@
+/* MTB Crazy */
+body.ride { overflow-x: hidden; }
+body.ride main.wrap { max-width: 1100px; padding-top: 14px; }
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 120px);
+  background: #9fd3f2;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stage:focus-visible { box-shadow: 0 0 0 3px var(--gold-2), var(--shadow); }
+.stage canvas { display: block; width: 100%; height: 100%; }
+
+.hud {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px;
+  font: 600 15px/1 Inter, system-ui, sans-serif;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+.hud[hidden] { display: none; }
+.hud-mid { font: 700 26px/1 Fraunces, Georgia, serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.hud-right { display: flex; align-items: center; gap: 8px; }
+.hud-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .9; }
+.meter { display: inline-block; width: 90px; height: 10px; border-radius: 5px; background: rgba(0,0,0,.35); overflow: hidden; border: 1px solid rgba(255,255,255,.5); }
+.meter > span { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #f0c453, #ffd86b); transition: width .08s linear; }
+
+.panel {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+  padding: 14px 18px;
+  overflow: auto;
+  background: rgba(12,31,51,.72);
+  color: #eef3f8;
+  backdrop-filter: blur(2px);
+}
+.panel[hidden] { display: none; }
+.panel > * { flex-shrink: 0; }
+.panel h1 { font: 700 clamp(34px, 6vw, 64px)/1 Fraunces, Georgia, serif; color: #f0c453; margin: 0 0 6px; letter-spacing: .01em; }
+.panel h2 { font: 700 clamp(26px, 4vw, 40px)/1.1 Fraunces, Georgia, serif; color: #f0c453; margin: 0 0 8px; }
+.panel .tag { margin: 0 0 14px; font-size: 16px; color: #d6e0ea; }
+.panel .big { font: 700 44px/1 Fraunces, Georgia, serif; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.panel .muted { color: #a9bacc; }
+.panel .small { font-size: 13px; }
+.panel p { max-width: 560px; }
+.controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 14px; color: #d6e0ea; margin-bottom: 8px; }
+.controls kbd { font: 600 12px/1 Inter, system-ui, sans-serif; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.35); border-radius: 5px; padding: 3px 6px; color: #fff; }
+.levels { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+.levels button { font: 600 13px/1 Inter, system-ui, sans-serif; padding: 8px 12px; max-width: 200px; border-radius: 8px; border: 1px solid rgba(240,196,83,.6); background: rgba(240,196,83,.12); color: #f0c453; cursor: pointer; }
+.levels button:hover { background: rgba(240,196,83,.25); }
+.levels button small { display: block; font-weight: 500; color: #d6e0ea; margin-top: 4px; font-size: 11px; white-space: normal; }
+.panel .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.panel .btn { cursor: pointer; font-family: Inter, system-ui, sans-serif; }
+.panel .btn.ghost { color: #eef3f8; border-color: rgba(255,255,255,.4); }
+
+.touch {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  padding: 10px;
+  pointer-events: none;
+}
+.touch[hidden] { display: none; }
+.tgroup { display: flex; gap: 10px; pointer-events: auto; }
+.tbtn {
+  width: 62px; height: 62px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.6);
+  background: rgba(12,31,51,.45);
+  color: #fff; font-size: 26px; line-height: 1;
+  touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.tbtn:active, .tbtn.down { background: rgba(240,196,83,.75); color: #0c1f33; }
+.tbtn-go { width: 76px; height: 76px; font-size: 30px; }
+.tbtn-sprint { color: #f0c453; }
+
+.about { margin: 22px 0 30px; }
+.about h2 { margin-bottom: 6px; }
+footer .wrap { padding: 16px 0 30px; }
+
+@media (max-height: 520px) {
+  .panel h1 { font-size: 30px; }
+  .panel .tag, .levels button small, .controls { display: none; }
+}
+@media (max-width: 700px) {
+  .stage { max-height: none; }
+  .controls { display: none; }
+  .panel .tag { font-size: 14px; }
+}
+@media (max-height: 460px) and (orientation: landscape) {
+  body.ride header, body.ride .about, body.ride footer { display: none; }
+  body.ride main.wrap { padding: 0; margin: 0; max-width: none; width: 100%; }
+  .stage { border-radius: 0; aspect-ratio: auto; height: 100vh; height: 100dvh; max-height: none; }
+}

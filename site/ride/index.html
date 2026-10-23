@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://seed1.berrychain.link https://seed2.berrychain.link; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>MTB Crazy</title>
+<meta name="description" content="MTB Crazy: a mountain-bike stunt racer from BerryChain. Pedal, lean, loop the loop and beat the clock. A clean run earns 0.2 BERRY once the race purse opens.">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="ride.css">
+</head>
+<body class="ride">
+<header>
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="BerryChain home"><img src="../berry-symbol-gold.svg" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="../index.html#app">The app</a><a href="../letters.html">Letters guide</a><a href="../mine.html">Mine</a><a href="#about">About the game</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="stage" class="stage" tabindex="0" aria-label="MTB Crazy game">
+    <canvas id="game"></canvas>
+
+    <div id="hud" class="hud" hidden>
+      <div class="hud-left"><span id="hud-level"></span></div>
+      <div class="hud-mid"><span id="hud-time">0.00</span></div>
+      <div class="hud-right"><span class="hud-label">sprint</span><span class="meter"><span id="hud-sprint"></span></span></div>
+    </div>
+
+    <div id="panel-title" class="panel">
+      <h1>MTB Crazy</h1>
+      <p class="tag">Pedal hard, lean into the jumps, loop the loop, beat the clock.</p>
+      <div class="controls">
+        <div><kbd>→</kbd> or <kbd>D</kbd> pedal</div>
+        <div><kbd>←</kbd> or <kbd>A</kbd> brake</div>
+        <div><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd> <kbd>S</kbd> lean</div>
+        <div><kbd>Shift</kbd> or <kbd>Space</kbd> sprint</div>
+        <div><kbd>R</kbd> restart &nbsp; <kbd>Esc</kbd> courses</div>
+      </div>
+      <p class="muted small">On a phone, turn it sideways and use the buttons at the bottom.</p>
+      <div id="levels" class="levels"></div>
+    </div>
+
+    <div id="panel-done" class="panel" hidden>
+      <h2 id="done-title">Course clear</h2>
+      <p id="done-time" class="big"></p>
+      <p id="done-best" class="muted"></p>
+      <p id="done-crashes" class="muted small"></p>
+      <div class="row">
+        <button id="btn-next" class="btn">Next course</button>
+        <button id="btn-again" class="btn ghost">Ride again</button>
+        <button id="btn-menu" class="btn ghost">Courses</button>
+      </div>
+    </div>
+
+    <div id="touch" class="touch" hidden>
+      <div class="tgroup">
+        <button class="tbtn" data-bit="4" aria-label="Lean back">◂</button>
+        <button class="tbtn" data-bit="8" aria-label="Lean forward">▸</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-bit="2" aria-label="Brake">■</button>
+        <button class="tbtn tbtn-sprint" data-bit="16" aria-label="Sprint">⚡</button>
+        <button class="tbtn tbtn-go" data-bit="1" aria-label="Pedal">▲</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="about" class="about">
+    <h2>About the game</h2>
+    <p>MTB Crazy is a side-on stunt racer in the spirit of the old Game Boy motocross games, swapped to a mountain bike. Five courses, each with its own jumps, drops and loops. The clock runs from the start gate to the finish flag; crashing puts you back at the last checkpoint with the clock still running, so a clean run is a fast run.</p>
+      <p><strong>0.2 BERRY for a clean run.</strong> Every run is recorded, pedal stroke by pedal stroke. When the race purse opens, finishing a course without a crash will earn 0.2 BERRY on BerryChain, paid as a letter to your chest with the coins attached, once per course per registered name. BERRY has no price and no value; it is the coin you write letters with. Until the purse opens, your best times live on this device only.</p>
+    <p class="muted small">Built by BerryChain. Nothing is sent anywhere while you play.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap small muted">BerryChain · <a href="../index.html">home</a> · <a href="../privacy.html">privacy</a></div>
+</footer>
+
+<script src="game.js"></script>
+</body>
+</html>
