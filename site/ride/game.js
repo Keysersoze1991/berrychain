@@ -14,7 +14,7 @@
   const VMAX = 15, VMAX_SPRINT = 19, VCAP = 23;
   const BRAKE = 0.90;
   const LEAN = 0.09;            // ground weight shift
-  const AIR_SPIN = 5.0;         // px/tick of nose speed relative to tail while a lean key is held in the air
+  const AIR_SPIN = 7.0;         // px/tick of nose speed relative to tail while a lean key is held in the air
   const SPRINT_DRAIN = 0.5, SPRINT_FILL = 0.32; // per tick, meter 0..100
   const BIT = { PEDAL: 1, BRAKE: 2, BACK: 4, FWD: 8, SPRINT: 16 };
 
@@ -35,7 +35,8 @@
       ramp(len, h) { pt(b.x + len, b.y - h); return api; },           // straight kicker
       drop(h) { pt(b.x, b.y + h); return api; },                        // sheer wall down
       bumps(n, len, h) { for (let i = 0; i < n; i++) api.hill(len, h); return api; },
-      gap(len) { const x = b.x + len, y = b.y; b.chunks.push([]); pt(x, y); return api; },
+      gap(len, dy) { const x = b.x + len, y = b.y + (dy || 0); b.chunks.push([]); pt(x, y); return api; },
+      curve(r, deg) { const x0 = b.x, y0 = b.y, n = Math.max(8, Math.round(deg / 6)); for (let i = 1; i <= n; i++) { const a = (deg * Math.PI / 180) * i / n; pt(x0 + r * Math.sin(a), y0 - r * (1 - Math.cos(a))); } return api; },   // quarter-pipe style launch
       loop(r) { const cx = b.x, cy = b.y - r, n = 40; b.loops.push({ cx, cy, r }); for (let i = 1; i <= n; i++) { const a = Math.PI / 2 - 2 * Math.PI * i / n; pt(cx + r * Math.cos(a), cy + r * Math.sin(a), i < n, Math.floor((i - 1) / (n / 4))); } return api; },
       check() { b.checkpoints.push({ x: b.x, y: b.y }); api.flat(240); return api; },   // a respawn always gets a run-up
       finish() { b.finishX = b.x; api.flat(520); return api; },
@@ -52,9 +53,11 @@
     'Open Water', 'Dead Reckoning', 'The Doldrums', 'Albatross', 'Kraken Loops',
     'Squall Line', 'Nine Lives', 'Davy Jones', 'Hurricane Deck', 'Maelstrom'];
   function rng(seed) { let t = seed >>> 0; return () => { t = (t + 0x6D2B79F5) >>> 0; let x = t; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }; }
-  function genLevel(i) {
+  // one salt per course, chosen offline as the first that produced a course the test pilot could finish (see mtbFindSalts)
+  const SALTS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1];
+  function genLevel(i, salt) {
     const tier = Math.floor(i / 5), d = tier + (i % 5) / 5;        // difficulty 0 .. 3.8
-    const R = rng(0x5EED + i * 7919);
+    const R = rng(0x5EED + i * 7919 + (salt || 0) * 104729);
     const pick = (lo, hi) => Math.round(lo + (hi - lo) * R());
     const lerp = (a, b) => a + (b - a) * Math.min(1, d / 3.8);
     const api = builder().start();
@@ -64,19 +67,24 @@
       hills() { for (let k = 0; k < pick(1, 3); k++) api.hill(pick(240, 360), Math.round(lerp(50, 130) * (0.7 + R() * 0.6))).flat(pick(80, 160)); },
       bumps() { api.bumps(pick(3, 6), pick(80, 120), Math.round(lerp(20, 36))); api.flat(pick(140, 240)); },
       rollers() { const h = Math.round(lerp(110, 230)); api.rise(pick(220, 300), h).flat(pick(80, 160)).fall(pick(240, 320), h).flat(220); },
-      kicker() { const L = Math.round(lerp(95, 175)), H = Math.round(L * lerp(0.42, 0.62)); const G = Math.round(lerp(135, 300) * (0.85 + R() * 0.3)); api.flat(pick(200, 320)).ramp(L, H).gap(G).flat(pick(240, 320)); },
+      kicker() { const L = Math.round(lerp(95, 175)), H = Math.round(L * lerp(0.42, 0.62)); const G = Math.round(lerp(135, 270) * (0.85 + R() * 0.3)); api.flat(pick(280, 380)).ramp(L, H).gap(G).flat(pick(240, 320)); },
       bigAir() { const h = Math.round(lerp(140, 230)); api.rise(pick(320, 380), h).flat(pick(380, 460)).ramp(pick(150, 180), Math.round(lerp(80, 110))).gap(Math.round(lerp(240, 300))).flat(240).fall(pick(220, 280), h).flat(260); },
       loop() { api.flat(pick(300, 380)).loop(pick(85, Math.round(lerp(85, 95)))).flat(pick(240, 320)); },
       twinLoop() { const r = pick(85, Math.round(lerp(85, 92))); api.flat(pick(320, 380)).loop(r).flat(320).loop(r).flat(260); },
       drop() { api.drop(Math.round(lerp(60, 160))).flat(pick(240, 320)); },
       stairs() { const h = Math.round(lerp(55, 120)); api.drop(h).flat(pick(180, 240)).drop(h).flat(pick(240, 320)); },
+      whoops() { api.bumps(pick(6, 9), pick(56, 72), Math.round(lerp(14, 22))); api.flat(pick(160, 240)); },
+      doubleKicker() { const L = Math.round(lerp(100, 150)), H = Math.round(L * 0.5); const G = Math.round(lerp(140, 230)); api.flat(pick(240, 320)).ramp(L, H).gap(G).flat(pick(160, 220)).ramp(L, H).gap(G).flat(pick(260, 320)); },
+      stepDown() { const dropH = Math.round(lerp(140, 260)); api.flat(pick(320, 400)).ramp(pick(110, 140), pick(50, 70)).gap(Math.round(lerp(220, 320)), dropH).slope(pick(200, 260), Math.round(dropH * 0.55)).flat(pick(280, 340)); },
+      megaKicker() { const r = pick(110, 150), deg = Math.round(lerp(42, 56)); const dropH = Math.round(lerp(120, 260)); api.flat(pick(420, 520)).curve(r, deg).gap(Math.round(lerp(220, 300)), dropH).slope(pick(220, 280), Math.round(dropH * 0.5)).flat(pick(300, 360)); },
+      bowlLaunch() { const h = Math.round(lerp(150, 240)), r = pick(120, 160), deg = Math.round(lerp(48, 62)); const dropH = Math.round(lerp(160, 300)); api.fall(pick(240, 300), h).flat(pick(120, 180)).curve(r, deg).gap(Math.round(lerp(240, 330)), dropH).slope(pick(240, 300), Math.round(dropH * 0.5)).flat(pick(320, 380)); },
       cliffJump() { const h = Math.round(lerp(100, 200)); api.flat(220).ramp(pick(80, 110), pick(30, 50)).gap(Math.round(lerp(150, 250))).flat(140).fall(pick(220, 280), h).flat(260); }
     };
     const weights = [
-      { hills: 4, bumps: 3, rollers: 2, kicker: 4, drop: 2, stairs: 1, loop: 1 },
-      { hills: 3, bumps: 2, rollers: 2, kicker: 4, bigAir: 2, drop: 2, stairs: 2, loop: 3, cliffJump: 1 },
-      { hills: 2, bumps: 2, rollers: 2, kicker: 4, bigAir: 3, drop: 2, stairs: 2, loop: 3, twinLoop: 2, cliffJump: 2 },
-      { hills: 2, bumps: 1, rollers: 2, kicker: 4, bigAir: 4, drop: 2, stairs: 2, loop: 3, twinLoop: 3, cliffJump: 3 }
+      { hills: 3, bumps: 2, whoops: 2, rollers: 2, kicker: 4, doubleKicker: 2, stepDown: 2, megaKicker: 1, drop: 2, stairs: 1, loop: 1 },
+      { hills: 2, bumps: 1, whoops: 2, rollers: 2, kicker: 3, doubleKicker: 2, stepDown: 3, megaKicker: 2, bowlLaunch: 1, bigAir: 2, drop: 2, stairs: 2, loop: 3, cliffJump: 1 },
+      { hills: 2, bumps: 1, whoops: 2, rollers: 2, kicker: 3, doubleKicker: 2, stepDown: 3, megaKicker: 3, bowlLaunch: 2, bigAir: 2, drop: 2, stairs: 2, loop: 3, twinLoop: 2, cliffJump: 2 },
+      { hills: 1, bumps: 1, whoops: 2, rollers: 2, kicker: 3, doubleKicker: 3, stepDown: 3, megaKicker: 4, bowlLaunch: 3, bigAir: 3, drop: 2, stairs: 2, loop: 3, twinLoop: 3, cliffJump: 3 }
     ][tier];
     const names = Object.keys(weights), total = names.reduce((t, n) => t + weights[n], 0);
     while (api.x < target) {
@@ -89,7 +97,7 @@
     api.finish();
     return api.done(NAMES[i], TIERS[tier] + ' · course ' + (i % 5 + 1));
   }
-  const LEVELS = []; for (let i = 0; i < 20; i++) LEVELS.push(genLevel(i));
+  const LEVELS = []; for (let i = 0; i < 20; i++) LEVELS.push(genLevel(i, SALTS[i]));
 
   // ---------- physics ----------
   function newRun(level) {
@@ -351,8 +359,13 @@
     ctx.strokeStyle = '#d9a62b'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shX, shY); ctx.stroke(); // torso
     ctx.strokeStyle = '#2b5a8a'; ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(26, 14); ctx.lineTo(30 + Math.cos(r.spin) * 7, 4 + Math.sin(r.spin) * 7); ctx.stroke(); // leg
     ctx.strokeStyle = '#e8c9a0'; ctx.lineWidth = 4.5; ctx.beginPath(); ctx.moveTo(shX, shY); ctx.lineTo(50, 48); ctx.lineTo(55, 43); ctx.stroke(); // arm
-    ctx.fillStyle = '#e8c9a0'; ctx.beginPath(); ctx.arc(shX + 3, shY + 11, 7, 0, Math.PI * 2); ctx.fill(); // head
-    ctx.fillStyle = '#c2382b'; ctx.beginPath(); ctx.arc(shX + 3, shY + 12, 8.5, Math.PI * 1.05, Math.PI * 2.05); ctx.fill(); // helmet
+    const hx = shX + 3, hy = shY + 11;                                 // head centre in bike space (y up)
+    ctx.fillStyle = '#e8c9a0'; ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI * 2); ctx.fill();            // face
+    ctx.fillStyle = '#f0c453'; ctx.beginPath(); ctx.arc(hx, hy + 1, 10, 0, Math.PI, true); ctx.lineTo(hx - 10, hy - 3); ctx.lineTo(hx + 10, hy - 3); ctx.closePath(); ctx.fill(); // shell
+    ctx.fillStyle = '#1b2430'; ctx.fillRect(hx - 9.5, hy - 3, 19, 4);                                          // visor band
+    ctx.fillStyle = '#f0c453'; ctx.beginPath(); ctx.moveTo(hx + 6, hy + 4); ctx.lineTo(hx + 16, hy + 2); ctx.lineTo(hx + 8, hy - 1); ctx.closePath(); ctx.fill(); // peak
+    ctx.strokeStyle = '#c2382b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(hx - 8, hy + 2); ctx.lineTo(hx + 8, hy + 2); ctx.stroke();    // stripe
+    ctx.strokeStyle = '#1b2430'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(hx - 5, hy - 3); ctx.lineTo(hx - 2, hy - 8); ctx.stroke(); // strap
     ctx.restore(); ctx.globalAlpha = 1;
   }
 
@@ -426,6 +439,7 @@
   // replay a recorded input log and return the finishing tick (null if it never finishes). Used by the checker.
   window.mtbTrace = function (levelIndex, inputs, every) { const r = newRun(LEVELS[levelIndex]); const out = []; for (let i = 0; i < inputs.length; i++) { step(r, inputs[i]); if (i % (every || 60) === 0) out.push([r.tick, Math.round((r.rear.x + r.front.x) / 2), Math.round((r.rear.y + r.front.y) / 2), r.crashes, r.cpIndex, r.rear.ground ? 1 : 0]); if (r.finished) { out.push(['finish', r.finishTick, r.crashes]); break; } } return out; };
   window.mtbAuto = function (levelIndex, pilot, maxTicks) { const r = newRun(LEVELS[levelIndex]); const log = []; for (let i = 0; i < maxTicks; i++) { const m = pilot(r, frameUp(r)); log.push(m); step(r, m); if (r.finished) return { finish: r.finishTick, crashes: r.crashes, log }; } return { finish: null, crashes: r.crashes, x: Math.round((r.rear.x + r.front.x) / 2), cp: r.cpIndex, log }; };
+  window.mtbFindSalts = function (pilots, maxSalt, maxTicks) { const out = []; for (let i = 0; i < 20; i++) { let found = -1; for (let salt = 0; salt <= maxSalt && found < 0; salt++) { const lv = genLevel(i, salt); for (const pilot of pilots) { const r = newRun(lv); let fin = null; for (let t = 0; t < maxTicks; t++) { step(r, pilot(r, frameUp(r))); if (r.finished) { fin = r.finishTick; break; } } if (fin) { found = salt; break; } } } out.push(found); } return out; };
   window.mtbReplay = function (levelIndex, inputs) { const r = newRun(LEVELS[levelIndex]); for (const m of inputs) { step(r, m); if (r.finished) return r.finishTick; } return null; };
 
   showMenu();
