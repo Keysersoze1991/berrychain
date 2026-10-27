@@ -103,3 +103,7 @@ footer .wrap { padding: 16px 0 30px; }
   body.ride main.wrap { padding: 0; margin: 0; max-width: none; width: 100%; }
   .stage { border-radius: 0; aspect-ratio: auto; height: 100vh; height: 100dvh; max-height: none; }
 }
+
+.kit { display: inline-flex; align-items: center; gap: 8px; font: 500 14px/1 Inter, system-ui, sans-serif; color: #d6e0ea; margin: 4px 0 6px; cursor: pointer; }
+.kit input { width: 18px; height: 18px; accent-color: #f0c453; }
+@media (max-height: 520px) { .kit { font-size: 12px; } }
