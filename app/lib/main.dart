@@ -41,13 +41,30 @@ class BerryApp extends StatefulWidget {
   State<BerryApp> createState() => _BerryAppState();
 }
 
-class _BerryAppState extends State<BerryApp> {
+class _BerryAppState extends State<BerryApp> with WidgetsBindingObserver {
   bool ready = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.session.init().then((_) => setState(() => ready = true));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Back in the foreground: whichever page is open, ask the seed again straight away
+  /// and make sure the twenty-second poll is running (the OS may have paused it).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.session.wallet != null) {
+      widget.session.startPolling();
+      widget.session.refresh();
+    }
   }
 
   @override

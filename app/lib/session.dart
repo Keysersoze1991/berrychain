@@ -347,12 +347,15 @@ class Session extends ChangeNotifier {
       final fresh = results[0].map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       final sentNow = results[1].map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       String sig(List<LetterItem> ls) => ls.map((l) => '${l.id}:${l.meta['height']}').join(',');
-      if (sig(fresh) == sig(_inboxAll) && sig(sentNow) == sig(_sentAll)) return;
+      final same = sig(fresh) == sig(_inboxAll) && sig(sentNow) == sig(_sentAll);
+      // Even with no new letters, a name that could not be looked up earlier may be available now.
+      final namesMissing = contacts.any((c) => c.name.isEmpty && c.nickname.isEmpty && !_nameCache.containsKey(c.address));
+      if (same && !namesMissing) return;
       _inboxAll = fresh;
       _sentAll = sentNow;
       await _buildContacts();
       notifyListeners();
-      await _saveLetterCache();
+      if (!same) await _saveLetterCache();
     } catch (_) {}
   }
 

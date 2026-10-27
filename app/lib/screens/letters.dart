@@ -32,7 +32,13 @@ class _LettersScreenState extends State<LettersScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.asHome) WidgetsBinding.instance.addPostFrameCallback((_) => SessionScope.of(context).refresh());
+    if (widget.asHome) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final s = SessionScope.of(context);
+        s.startPolling();
+        s.refresh();
+      });
+    }
   }
 
   @override
