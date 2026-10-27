@@ -72,6 +72,12 @@
 	<string>Only when you choose a picture from your library to attach to a letter.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock your chest quickly with Face ID instead of typing the passphrase. Optional; turn it on in Settings.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Reserved for carrying sealed letters between nearby BerryChain phones when there is no internet. Not switched on for iPhone in this version.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Only ever for finding nearby BerryChain phones to carry sealed letters, a feature not switched on for iPhone in this version. Your location is never read or sent.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Reserved for carrying sealed letters between nearby BerryChain phones. Not switched on for iPhone in this version.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIBackgroundModes</key>

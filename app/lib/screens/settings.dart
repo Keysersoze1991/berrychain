@@ -7,6 +7,7 @@ import '../core/secure.dart';
 import '../main.dart';
 import '../push.dart';
 import '../session.dart';
+import '../nearby.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'common.dart';
 import 'welcome.dart';
@@ -287,6 +288,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: s.homeIsLetters,
               onChanged: (v) => s.setHomeIsLetters(v),
             ),
+          ),
+          const Divider(height: 32),
+          const Text('CARRYING', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),
+          ListenableBuilder(
+            listenable: s,
+            builder: (context, _) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Carry letters for nearby pen pals'),
+                subtitle: Text(Carrier.supported
+                    ? 'With no internet, a letter you send waits in the outbox and is also handed to any BerryChain phone within Bluetooth range, and you carry theirs. Whichever phone next reaches a seed delivers the lot. Letters stay sealed; a carrier cannot read them. Uses a little battery while on.'
+                    : 'Android only for now. On this phone a letter written without a connection still waits in the outbox and goes the moment one returns.'),
+                value: s.carryLetters,
+                onChanged: Carrier.supported
+                    ? (v) async {
+                        final why = await s.setCarryLetters(v);
+                        if (why != null && context.mounted) toast(context, why);
+                      }
+                    : null,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 2, bottom: 6),
+                child: Text(s.carryStatusLine, style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+              ),
+            ]),
           ),
           const Divider(height: 32),
           const Text('RECEIVING KEYS', style: TextStyle(fontSize: 11.5, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Color(0xFF6F7883))),

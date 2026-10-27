@@ -568,7 +568,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
       sent = true;
       await s.deleteDraft(draftId);
       if (!mounted) return;
-      toast(context, g == null ? 'Sealed and sent. Readable once the block is mined.' : 'Sealed and sent to the whole crew ${g.name}.');
+      toast(context, s.lastSendQueued
+          ? 'Sealed and queued: no connection right now. It goes the moment this phone, or a phone carrying it, reaches the chain.'
+          : g == null ? 'Sealed and sent. Readable once the block is mined.' : 'Sealed and sent to the whole crew ${g.name}.');
       s.refresh();
       Navigator.pop(context);
     }

@@ -233,6 +233,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ]),
                   child: Text(w.address, style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5)),
                 ),
+                if (s.carryLetters || !s.outbox.isEmpty)
+                  Tile(
+                    label: 'Carrying',
+                    trailing: const Icon(Icons.bluetooth_searching, size: 20, color: Palette.brass),
+                    child: Text(s.carryStatusLine, style: const TextStyle(fontSize: 13.5)),
+                  ),
                 if (s.registry != null)
                   Tile(
                     label: 'Registered as',

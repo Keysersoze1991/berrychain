@@ -13,6 +13,8 @@ import 'core/parcels.dart';
 import 'core/light.dart';
 import 'core/node.dart';
 import 'core/tx.dart';
+import 'core/outbox.dart';
+import 'nearby.dart';
 import 'core/units.dart';
 import 'core/wallet.dart';
 import 'push.dart';
@@ -147,6 +149,14 @@ class Session extends ChangeNotifier {
   final Map<String, String> _manual = {};        // contacts added by hand: address -> nickname
   final Map<String, OpenedLetter> _opened = {};  // letters opened this session, so reopening is instant
   bool homeIsLetters = false;                    // open on the Letters page instead of the chest page
+  final Outbox outbox = Outbox();                // signed letters waiting for a connection, ours and carried
+  Carrier? carrier;                              // nearby-phone carriage (Android)
+  bool carryLetters = false;
+  bool lastSendQueued = false;                   // the last letter went to the outbox rather than the chain
+  int lastKnownHeight = 0;                       // so the seal version is right even with no connection
+  int? _knownNextNonce;                          // the chain's view at the last refresh
+  int? _knownFee;
+  final Map<String, String> _encPubs = {};       // receiving keys seen for other addresses, for sealing offline
   bool verifying = false;                        // the chain check runs after the screen is current
   Timer? _poll;
 
@@ -165,6 +175,7 @@ class Session extends ChangeNotifier {
 
   Session() {
     node = Node(nodeUrls.first);
+    carrier = Carrier(outbox, onReceived: () async { notifyListeners(); await drainOutbox(); }, onChange: notifyListeners);
   }
 
   Future<void> init() async {
@@ -180,6 +191,10 @@ class Session extends ChangeNotifier {
         backgroundChecks = (s['background'] as bool?) ?? true;
         instantNotices = (s['instant'] as bool?) ?? false;
         homeIsLetters = (s['home'] as String?) == 'letters';
+        carryLetters = (s['carry'] as bool?) ?? false;
+        lastKnownHeight = (s['height'] as int?) ?? 0;
+        _knownNextNonce = s['nonce'] as int?;
+        _knownFee = s['fee'] as int?;
       } catch (_) {}
     }
     node = Node(nodeUrls.first);
@@ -208,6 +223,14 @@ class Session extends ChangeNotifier {
         (jsonDecode(names) as Map<String, dynamic>).forEach((k, v) => _nameCache[k] = v as String);
       } catch (_) {}
     }
+    final pubs = await readText('${d}encpubs.json');
+    if (pubs != null) {
+      try {
+        (jsonDecode(pubs) as Map<String, dynamic>).forEach((k, v) => _encPubs[k] = v as String);
+      } catch (_) {}
+    }
+    await outbox.load();
+    if (carryLetters && Carrier.supported) carrier?.start();
     // Letters as last seen, so the lists are on screen before the network answers.
     final cache = await readText('${d}letters-cache.json');
     if (cache != null) {
@@ -224,7 +247,8 @@ class Session extends ChangeNotifier {
   }
 
   Future<void> _writeSettings() async =>
-      writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks, 'instant': instantNotices, 'home': homeIsLetters ? 'letters' : 'chest'}));
+      writeText('${await storeDir()}settings.json', jsonEncode({'nodes': nodeUrls, 'background': backgroundChecks, 'instant': instantNotices, 'home': homeIsLetters ? 'letters' : 'chest',
+          'carry': carryLetters, 'height': nodeHeight ?? lastKnownHeight, 'nonce': _knownNextNonce, 'fee': letterFee ?? _knownFee}));
 
   /// Which page the app opens on: the chest (balance, grants, address) or Letters.
   Future<void> setHomeIsLetters(bool on) async {
@@ -239,6 +263,57 @@ class Session extends ChangeNotifier {
           jsonEncode({'in': _inboxAll.map((l) => l.meta).toList(), 'out': _sentAll.map((l) => l.meta).toList()}));
     } catch (_) {}
   }
+
+  Future<void> _saveEncPubs() async {
+    try {
+      await writeText('${await storeDir()}encpubs.json', jsonEncode(_encPubs));
+    } catch (_) {}
+  }
+
+  // ------------------------------------------------------- the outbox and carrying
+  /// Hand anything waiting to a seed. Quiet when nothing can be reached.
+  Future<void> drainOutbox() async {
+    if (outbox.isEmpty) return;
+    final (sent, rejected) = await outbox.drain(nodeUrls);
+    if (sent + rejected == 0) return;
+    if (outbox.lastRejection != null) {
+      lastError = 'A queued letter was refused by the chain: ${outbox.lastRejection}';
+      outbox.lastRejection = null;
+    }
+    notifyListeners();
+  }
+
+  int get nearbyPeers => carrier?.peers ?? 0;
+  bool get carrying => carrier?.running ?? false;
+  String get carryStatusLine {
+    final parts = <String>[];
+    if (outbox.mineCount > 0) parts.add('${outbox.mineCount} of yours waiting for a connection');
+    if (outbox.carriedCount > 0) parts.add('${outbox.carriedCount} carried for others');
+    if (carrying) parts.add(nearbyPeers == 0 ? 'no BerryChain phones nearby' : '$nearbyPeers ${nearbyPeers == 1 ? 'phone' : 'phones'} nearby');
+    if (carrier?.error != null) parts.add(carrier!.error!);
+    return parts.isEmpty ? 'Nothing waiting.' : '${parts.join(' · ')}.';
+  }
+
+  /// Switch nearby carriage on or off. Returns a plain reason when it cannot start.
+  Future<String?> setCarryLetters(bool on) async {
+    final c = carrier;
+    if (on) {
+      if (c == null || !Carrier.supported) return 'Carrying letters between phones is Android only for now.';
+      final why = await c.requestPermissions();
+      if (why != null) return why;
+      carryLetters = true;
+      await c.start();
+      if (c.error != null) { carryLetters = false; await _writeSettings(); notifyListeners(); return c.error; }
+    } else {
+      carryLetters = false;
+      await c?.stop();
+    }
+    await _writeSettings();
+    notifyListeners();
+    return null;
+  }
+
+  int _localNextNonce(String address) => (_knownNextNonce ?? 0) + outbox.items.where((i) => i.mine && i.tx['from'] == address).length;
 
   Future<void> _saveNames() async {
     try {
@@ -263,6 +338,7 @@ class Session extends ChangeNotifier {
   Future<void> pollLetters() async {
     final w = wallet;
     if (w == null || busy) return;
+    await drainOutbox();
     try {
       final results = await Future.wait([
         node.letters(to: w.address, pending: true),
@@ -406,6 +482,7 @@ class Session extends ChangeNotifier {
     busy = true;
     lastError = null;
     notifyListeners();
+    await drainOutbox();
     try {
       // Everything the screen needs, asked for at once rather than in turn.
       final results = await Future.wait<Map<String, dynamic>>([
@@ -428,6 +505,16 @@ class Session extends ChangeNotifier {
       _inboxAll = (results[3]['letters'] as List<Map<String, dynamic>>).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       _sentAll = (results[4]['letters'] as List<Map<String, dynamic>>).map((m) => LetterItem(m)).toList()..sort((x, y) => y.height.compareTo(x.height));
       balanceOther = results.length > 5 ? results[5]['balance'] as int? : null;
+      lastKnownHeight = nodeHeight ?? lastKnownHeight;
+      _knownNextNonce = (a['next_nonce'] ?? a['nonce']) as int?;
+      _knownFee = letterFee ?? _knownFee;
+      _writeSettings();
+      var newPubs = false;
+      for (final l in _sentAll) {
+        final p = l.meta['enc_pub'] as String?;
+        if (p != null && _encPubs[l.to] != p) { _encPubs[l.to] = p; newPubs = true; }
+      }
+      if (newPubs) _saveEncPubs();
       await _buildContacts();
       // The screen is current from here; the rest is housekeeping.
       busy = false;
@@ -839,7 +926,7 @@ class Session extends ChangeNotifier {
   int get seatsActivation => (chainParams?['seats_and_names_activation'] as int?) ?? 0;
   /// Sealed post v2 switches on at this height; an older node reports nothing, which counts as not yet.
   int get sealedPostActivation => (chainParams?['sealed_post_activation'] as int?) ?? LetterItem.pendingHeight;
-  bool get sealedPostLive => nodeHeight != null && nodeHeight! >= sealedPostActivation;
+  bool get sealedPostLive => (nodeHeight ?? lastKnownHeight) >= sealedPostActivation;
   bool get seatsLive => nodeHeight != null && nodeHeight! >= seatsActivation;
   String? get chainName => registry?['name'] as String?;
 
@@ -1069,10 +1156,28 @@ class Session extends ChangeNotifier {
     final w = wallet!;
     if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
     if (to == w.address) throw ArgumentError('that is your own address');
-    final acct = await node.account(to);
-    final reg = acct['llm'] as Map<String, dynamic>?;
-    final encPub = reg?['enc_pub'] as String?;
-    if (encPub == null) throw ArgumentError('that address has not claimed a starter yet, so it has no receiving key');
+    await drainOutbox();
+    lastSendQueued = false;
+    String? encPub;
+    int nonce;
+    int fee;
+    var online = true;
+    try {
+      final acct = await node.account(to);
+      final reg = acct['llm'] as Map<String, dynamic>?;
+      encPub = reg?['enc_pub'] as String?;
+      if (encPub == null) throw ArgumentError('that address has not claimed a starter yet, so it has no receiving key');
+      if (_encPubs[to] != encPub) { _encPubs[to] = encPub; _saveEncPubs(); }
+      nonce = await node.nextNonce(w.address);
+      fee = letterFee ?? ((await node.status())['letter_fee'] as int? ?? minFee);
+    } on NodeError catch (e) {
+      if (e.status != null) rethrow;                  // the node answered: a real refusal, not a lost connection
+      online = false;
+      encPub = _encPubs[to];
+      if (encPub == null) throw ArgumentError('no connection, and this phone has never seen a receiving key for that address; it can seal a letter to them once it has been online');
+      nonce = _localNextNonce(w.address);
+      fee = letterFee ?? _knownFee ?? minFee;
+    }
     final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group, parcel: parcel);
     if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
@@ -1081,17 +1186,30 @@ class Session extends ChangeNotifier {
     final seal = sealedPostLive ? 2 : 1;
     final aad = seal == 2 ? letterAad(w.address, to) : const <int>[];
     final ct = await encryptPacket(key, plain, aad: aad);
-    final fee = letterFee ?? ((await node.status())['letter_fee'] as int? ?? minFee);
     final payload = {
       'to': to, 'enc_pub': encPub, 'ciphertext': toHex(ct), 'ciphertext_hash': toHex(sha256(ct)),
       'wrapped_key': await wrapToRecipient(encPub, key, aad: aad), 'amount': amountSeeds, 'seal': seal,
     };
-    final tx = buildTx(TxType.sendLetter, w.address, await node.nextNonce(w.address), fee, payload, Network.chainId);
+    final tx = buildTx(TxType.sendLetter, w.address, nonce, fee, payload, Network.chainId);
     await w.sign(tx);
     final id = txid(tx);
     w.packetKeys[id] = toHex(key);
     await w.save();
-    await node.sendTx(tx);
+    var queued = !online;
+    if (online) {
+      try {
+        await node.sendTx(tx);
+      } on NodeError catch (e) {
+        if (e.status != null) rethrow;
+        queued = true;                                 // the connection dropped between sealing and sending
+      }
+    }
+    if (queued) {
+      await outbox.addMine(tx);
+      lastSendQueued = true;
+      carrier?.announce();
+      notifyListeners();
+    }
     return id;
   }
 

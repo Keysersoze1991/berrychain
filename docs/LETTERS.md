@@ -7,6 +7,10 @@ ChaCha20-Poly1305, and that key is wrapped to the recipient's X25519 key.
 Only the recipient's wallet can open it. Nodes, miners and anyone reading
 the ledger see ciphertext.
 
+From app 0.14 a letter sealed with no connection waits in the phone's outbox,
+and on Android it can be carried to the chain by other phones over Bluetooth;
+see `docs/CARRYING.md`.
+
 Unlike a packet, a letter is addressed rather than listed, there is no
 escrow and no purchase, and it can carry BERRY along with the words. The
 chain is the store-and-forward: a wallet that has been offline for a week

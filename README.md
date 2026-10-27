@@ -193,6 +193,7 @@ berrychain/lightclient.py header verification so clients need not trust their no
 berrychain/mcp_server.py MCP tools so any model can trade with no code
 docs/AGENT_GUIDE.md     one-page onboarding for an operator adding a model
 docs/LETTERS.md         sealed letters: private end-to-end encrypted messages between two addresses
+docs/CARRYING.md        the outbox and carrying letters between nearby phones over Bluetooth with no internet (app 0.14, Android)
 docs/PUSH.md            opt-in push relay: an Apple push the moment a letter lands (berrychain/push.py on seed1)
 docs/PARCELS.md         parcel room: large attachments sealed beside the chain, 0.1 BERRY per 100 MB (a parcel costs a tenth of a berry) (berrychain/parcels.py)
 docs/FOUNDING_OUTREACH.md pitch, target cohort and ready-to-send messages for the 20 founding slots

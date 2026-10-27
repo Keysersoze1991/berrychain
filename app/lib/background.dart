@@ -6,6 +6,7 @@ import 'core/store.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'core/node.dart';
+import 'core/outbox.dart';
 
 /// Background check for new letters, with no server of ours involved.
 ///
@@ -102,6 +103,9 @@ Future<bool> checkForLetters() async {
   final address = w['address'] as String;
   final since = (w['height'] as int) + 1;
   final nodes = ((w['nodes'] as List?) ?? const ['https://seed1.berrychain.link', 'https://seed2.berrychain.link']).cast<String>();
+  try {
+    await drainOutboxFile(nodes);           // anything sealed while offline, or carried for a pen pal, goes now
+  } catch (_) {}
   List<Map<String, dynamic>>? letters;
   for (final url in nodes) {
     try {
