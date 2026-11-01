@@ -71,7 +71,7 @@
     <p>A wallet and a letterbox for your phone. Make a wallet, claim your starter, and write. Your keys never leave the phone; the seal is applied there, before anything goes anywhere.</p>
     <div class="card crew">
       <div class="seats">BerryChain for Android <small>· version 0.16.1</small></div>
-      <p>On Google Play now, for Android phones from the last several years. Install it from the Play Store like any other app and updates arrive on their own. It will never sell coins there. Prefer the file? The direct download below is the same build, signed with the same key: copy it to the phone, open it, and allow installs from that source once. If you sideloaded a version before 0.5.0, export your wallet first, uninstall it, then install this one and recover from the exported file or your twelve words.</p>
+      <p>On Google Play now, for Android phones from the last several years. Install it from the Play Store like any other app and updates arrive on their own. It will never sell coins there. Prefer the file? The direct download below is the same build, signed with the same key: copy it to the phone, open it, and allow installs from that source once. If you sideloaded a version before 0.5.0, export your wallet first, uninstall it, then install this one and recover from the exported file or your twelve words. New in 0.16: carrying letters between nearby phones works on Android 13 and newer (it would not switch on before), bottles (sealed notes that drift phone to phone and never touch the chain), and the daily quiz and MTB Crazy open from the chest page with your name filled in.</p>
       <p style="margin:0"><a class="btn" href="https://play.google.com/store/apps/details?id=link.berrychain.berrychain_app">Get it on Google Play</a> &nbsp; <a class="btn ghost" href="app/berrychain-wallet-0.16.1.apk">Direct download (22 MB)</a> &nbsp; <span class="muted">Check the file: its SHA-256 is printed in <a href="app/SHA256.txt">SHA256.txt</a>. Updating over an older version? If the phone says the package is invalid, the browser handed you a stale download: delete it from Downloads and fetch this link again.</span></p>
     </div>
     <div class="card crew">
@@ -80,8 +80,8 @@
       <p style="margin:0"><a class="btn" href="write/">Open the letterbox</a></p>
     </div>
     <div class="card crew">
-      <div class="seats">BerryChain for iPhone <small>· version 0.13.1 on the App Store</small></div>
-      <p>On the App Store now. Install it like any other app and updates arrive on their own. It is the same app as the Android one: wallet, letters, crews, photos, parcels, Face ID unlock and the arrival nudge. It will never sell coins there. Already on the TestFlight build? Delete it and install from the App Store; your chest is restored from your twelve words or an export.</p>
+      <div class="seats">BerryChain for iPhone <small>· version 0.13.1 on the App Store, 0.16.1 with Apple for review</small></div>
+      <p>On the App Store now. Install it like any other app and updates arrive on their own. It is the same app as the Android one: wallet, letters, crews, photos, parcels, Face ID unlock and the arrival nudge. It will never sell coins there. Already on the TestFlight build? Delete it and install from the App Store; your chest is restored from your twelve words or an export. Version 0.16.1, with letters that wait for a connection instead of failing and the links to the games, is with Apple for review; it arrives as an ordinary update.</p>
       <p style="margin:0"><a class="btn" href="https://apps.apple.com/au/app/berrychain/id6816338150">Get it on the App Store</a> &nbsp; <a class="btn ghost" href="iphone.html">iPhone guide</a> &nbsp; <span class="muted">No iPhone handy? <a href="write/">berrychain.link/write</a> works in Safari too.</span></p>
     </div>
     <p>Prefer the command line? The <a href="letters.html">letters guide</a> does it all from a terminal.</p>
@@ -160,7 +160,7 @@
     <p class="sec-label">Charts and bearings</p>
     <h2>Network facts</h2>
     <div class="card">
-      <strong>Second upgrade at block 24,000, around 11 October.</strong> Founding seats will be given by the harbour's registrars to pen pals who apply with a letter, instead of claimed by the account itself; bonus grants will count only pen pals whose accounts are at least a day old; and a registered name can be changed from the app. <strong>Miners: update again before 24,000</strong>, same two commands as below. &nbsp; <strong>First upgrade at block 14,400, around 4 October.</strong> Rotating receiving keys: from that block an account can publish a fresh key for its letters, with a backup the recovery words can restore, or without one so a key can later be burned for good. Balances, names and letters carry on unchanged. <strong>If you mine,</strong> update before then: in the <code>C:errychain</code> folder run <code>git pull</code>, then the install line from <a href="mine.html">Part E of the mining guide</a>. A miner still on the old version stops being accepted at block 14,400 until it updates. The seed nodes are already on it.
+      <strong>Upgrades so far.</strong> Block 14,400 (4 October): rotating receiving keys, so an account can publish a fresh key for its letters with a backup to its words. Block 24,000 (11 October): founding seats given by the harbour's registrars to pen pals who apply with a letter, bonus grants counting only pen pals whose accounts are a day old, and registered names changeable from the app. Miners who updated after 11 October are current. The next proposed change, a carriage fee for the phone that submits a carried letter, will be announced here with its block height well ahead.
     </div>
     <dl class="fact">
       <dt>Chain id</dt><dd><code>berry-1</code></dd>
@@ -180,8 +180,13 @@
     <h2>A bit of fun</h2>
     <div class="card crew">
       <div class="seats">Walk the Plank <small>· a daily trivia dive, just for fun</small></div>
-      <p>The captain asks seven questions a day, the same seven for everyone. Rare answers sink you deeper than common ones, and the deeper you go the more treasure you bring up. One plank a day, an endless plank whenever you like, and a crew board of the day's deepest. Pass 5,000 metres under your registered BerryChain name and 0.2 BERRY comes to your chest.</p>
+      <p>The captain asks seven questions a day, the same seven for everyone. Rare answers sink you deeper than common ones, and the deeper you go the more treasure you bring up. One plank a day, an endless plank whenever you like, and crew boards of the five deepest today and this week. Pass 5,000 metres under your registered BerryChain name and 0.2 BERRY comes to your chest. In the app, the anchor on the Harbourmaster's purse card takes you there with your name filled in.</p>
       <p style="margin:0"><a class="btn" href="plank/">Walk the Plank</a></p>
+    </div>
+    <div class="card crew">
+      <div class="seats">MTB Crazy <small>· a pirate on a mountain bike</small></div>
+      <p>Twenty courses in four tiers, side-on stunt racing in the spirit of the old handheld motocross games. Flips, loops you jump into and big air take time off the clock. Every run is recorded and the record on each course is held by whoever set the fastest verified time: the referee on seed1 replays your run on the same engine before it counts. The record holder holds that course's purse, 0.2 BERRY, or 2 BERRY when it was set under a registered BerryChain name, paid as a letter to their chest when the record changes hands. In the app, the small penny-farthing at the foot of the chest page is the way in. BERRY has no price and no value; it is the coin you write letters with.</p>
+      <p style="margin:0"><a class="btn" href="ride/">Ride MTB Crazy</a></p>
     </div>
   </section>
 
