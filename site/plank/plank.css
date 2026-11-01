@@ -55,3 +55,11 @@ footer .wrap { padding: 16px 0 30px; }
   .diver { top: 50%; left: 2%; transform: translate(0, -50%); transition: left 1.2s cubic-bezier(.3,.8,.3,1); font-size: 22px; }
   .play { min-height: 0; }
 }
+
+/* the two crew boards side by side */
+.boards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; text-align: left; }
+@media (max-width: 640px) { .boards { grid-template-columns: 1fr; } }
+.boards .boardbox { margin: 0; }
+.boards ol { margin: 0; padding-left: 22px; }
+.boards li.muted { list-style: none; margin-left: -22px; }
+.named { color: #f0c453; font-size: .9em; }

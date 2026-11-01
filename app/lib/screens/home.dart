@@ -1,3 +1,5 @@
+import 'dart:math' show cos, sin;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -210,7 +212,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 Card(
                   color: const Color(0xFFEEF3F8),
                   child: ListTile(
-                    leading: const Icon(Icons.anchor, color: Palette.brass),
+                    // the anchor is the way down to Walk the Plank, where his purse pays for deep dives
+                    leading: _gamesShown
+                        ? IconButton(
+                            icon: const Icon(Icons.anchor, color: Palette.brass),
+                            tooltip: 'Walk the Plank',
+                            padding: EdgeInsets.zero,
+                            onPressed: () => launchUrl(gameLink(s.registry?['name']?.toString(), w.address, 'plank'), mode: LaunchMode.externalApplication),
+                          )
+                        : const Icon(Icons.anchor, color: Palette.brass),
                     title: const Text("The Harbourmaster's purse"),
                     subtitle: const Text(
                       'Write to the Harbourmaster and ${Network.welcomeTipBerry} BERRY rides back with his first reply. '
@@ -273,6 +283,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => launchUrl(Uri.parse(Network.site), mode: LaunchMode.externalApplication),
                   ),
                 ),
+                // a small penny-farthing: the quiet way to MTB Crazy
+                if (_gamesShown)
+                  Center(
+                    child: IconButton(
+                      icon: const PennyFarthing(size: 22),
+                      tooltip: 'MTB Crazy',
+                      onPressed: () => launchUrl(gameLink(s.registry?['name']?.toString(), w.address, 'ride'), mode: LaunchMode.externalApplication),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -280,6 +299,51 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+/// The website's games open in the browser with this wallet's registered name and address filled in, so the
+/// race purse pays the right chest. Held back on iPhone until the App Store side of the purse is settled.
+bool get _gamesShown => kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
+
+Uri gameLink(String? name, String address, String game) {
+  final q = <String, String>{if (name != null && name.trim().isNotEmpty) 'name': name.trim(), 'addr': address};
+  return Uri.parse('${Network.site}/$game/').replace(queryParameters: q);
+}
+
+/// A penny-farthing drawn in a few strokes, the size of a small icon.
+class PennyFarthing extends StatelessWidget {
+  final double size;
+  final Color color;
+  const PennyFarthing({super.key, this.size = 22, this.color = const Color(0xFF6F7883)});
+  @override
+  Widget build(BuildContext context) => CustomPaint(size: Size(size * 1.35, size), painter: _PennyPainter(color));
+}
+
+class _PennyPainter extends CustomPainter {
+  final Color color;
+  const _PennyPainter(this.color);
+  @override
+  void paint(Canvas c, Size s) {
+    final h = s.height;
+    final rim = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = h * 0.09..strokeCap = StrokeCap.round;
+    final spoke = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = h * 0.04;
+    final bigR = h * 0.42, smallR = h * 0.16;
+    final big = Offset(bigR + rim.strokeWidth, h - bigR - rim.strokeWidth / 2);
+    final small = Offset(s.width - smallR - rim.strokeWidth, h - smallR - rim.strokeWidth / 2);
+    c.drawCircle(big, bigR, rim);
+    c.drawCircle(small, smallR, rim);
+    for (var i = 0; i < 4; i++) {
+      final a = i * 3.14159265 / 4;
+      final d = Offset(bigR * cos(a), bigR * sin(a));
+      c.drawLine(big + d, big - d, spoke);
+    }
+    final saddle = Offset(big.dx + bigR * 0.3, big.dy - bigR - h * 0.1);
+    c.drawLine(big, saddle, rim);                                             // seat post up from the hub
+    c.drawLine(saddle, Offset(small.dx, small.dy - smallR * 0.2), rim);       // backbone down to the little wheel
+    c.drawLine(saddle + Offset(-h * 0.14, 0), saddle + Offset(h * 0.1, 0), rim);   // the saddle
+  }
+  @override
+  bool shouldRepaint(_PennyPainter old) => old.color != color;
 }
 
 class _Count extends StatelessWidget {

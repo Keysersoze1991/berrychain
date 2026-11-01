@@ -28,8 +28,31 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   function today() { return new Date().toISOString().slice(0, 10); }
 
+  // ---------- boards: the five deepest named dives, today and this week
+  function boardRow(row) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span>' + esc(row.player) + (row.named ? ' <span class="named" title="registered BerryChain name">\u2726</span>' : '') + '</span><span>' + row.depth.toLocaleString() + ' m</span>';
+    return li;
+  }
+  async function loadBoards(dayOl, weekOl, note, day) {
+    const d = day || today();
+    try {
+      const [b, w] = await Promise.all([api('/plank/board?day=' + d), api('/plank/board?day=' + d + '&range=week')]);
+      dayOl.innerHTML = ''; weekOl.innerHTML = '';
+      for (const row of b.board.slice(0, 5)) dayOl.appendChild(boardRow(row));
+      for (const row of w.board.slice(0, 5)) weekOl.appendChild(boardRow(row));
+      if (!b.board.length) { const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'Nobody with a name has finished today yet.'; dayOl.appendChild(li); }
+      if (!w.board.length) { const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'No named dives this week yet.'; weekOl.appendChild(li); }
+      if (note) note.textContent = b.board.length ? 'Deepest dive per name. Give your name on the deck and you are on these boards.' : 'Give your name on the deck and you will be on these boards.';
+    } catch (e) { if (note) note.textContent = 'The crew boards are out of reach right now.'; }
+  }
+
   // ---------- title
+  // the app opens this page with ?name=<registered name>, so the dive counts for the purse without typing
+  const linkName = (new URLSearchParams(location.search).get('name') || '').trim().slice(0, 24);
+  if (linkName) store.set('name', linkName);
   $('player').value = store.get('name', '');
+  loadBoards($('board-day'), $('board-week'), null);
   const played = store.get('daily', null);
   if (played && played.day === today()) $('title-note').textContent = 'You walked today\'s plank: ' + played.depth.toLocaleString() + ' m, ' + depthName(played.depth) + '. The endless plank is open, or come back tomorrow.';
   $('btn-daily').addEventListener('click', () => start('daily'));
@@ -120,14 +143,10 @@
     if (state.mode === 'daily') {
       store.set('daily', { day: state.day, depth });
       const best = store.get('best', 0); if (depth > best) store.set('best', depth);
-      try {
-        const b = await api('/plank/board?day=' + state.day);
-        const ol = $('board'); ol.innerHTML = '';
-        for (const row of b.board) { const li = document.createElement('li'); li.innerHTML = '<span>' + esc(row.player) + '</span><span>' + row.depth.toLocaleString() + ' m</span>'; ol.appendChild(li); }
-        $('board-note').textContent = b.board.length ? 'The deepest of today\'s crew, by name.' : 'Nobody with a name has finished today yet. Give yours on the deck and you will be on this board.';
-      } catch (e) { $('board-note').textContent = 'The crew board is out of reach right now.'; }
+      await loadBoards($('board'), $('board-week-done'), $('board-note'), state.day);
     } else {
-      $('board').innerHTML = ''; $('board-note').textContent = 'The endless plank does not count for the crew board.';
+      await loadBoards($('board'), $('board-week-done'), null);
+      $('board-note').textContent = 'The endless plank does not count for the crew boards.';
     }
   }
   $('btn-copy').addEventListener('click', async () => {

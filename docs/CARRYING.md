@@ -47,6 +47,12 @@ devices, and location on versions before 12 (Android ties Bluetooth discovery
 to location there). The app asks when the switch is turned on. Android also
 needs location services switched on for Nearby to keep connections.
 
+App 0.16 fixes carrying on Android 13 and newer: the manifest declared the
+Wi-Fi state permissions only up to Android 12, and Nearby Connections refuses
+to start without them (error 8032, MISSING_PERMISSION_ACCESS_WIFI_STATE). They
+are install-time permissions, so nothing in the phone settings could add them;
+the fix is in the build.
+
 iPhone: the outbox works; carrying between phones does not yet. Apple only
 allows this kind of peer link while the app is in the foreground, and it is
 planned as a later version once the Android side has run for a while.

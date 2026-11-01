@@ -192,5 +192,42 @@ class DivePrizeTests(unittest.TestCase):
         self.assertIsNone(self.g.answer(sid2, prompts2[6].id, prompts2[6].canon[0])["prize"], "a shallow dive carries prize: null")
 
 
+class BoardTests(unittest.TestCase):
+    """One row per name, deepest dive wins, today or the Monday-to-Sunday week."""
+
+    def setUp(self):
+        from berrychain import purse
+        reg = purse.Registry("http://127.0.0.1:1", fetch=lambda: [{"address": "brry1" + "c" * 52, "name": "Pip"}])
+        self.g = Plank(load_prompts(BANK), tempfile.mkdtemp(), OffJudge(), 25, reg)
+        self.pids = [p.id for p in self.g.prompts[:7]]
+
+    def dive(self, day, player, total, answers=7):
+        sess = {"mode": "daily", "day": day, "player": player, "prompts": self.pids, "total": total, "started": 0,
+                "answers": {pid: {"raw": "x", "canon": "x", "points": 0} for pid in self.pids[:answers]}}
+        self.g._day(day)["sessions"][f"{day}-{player}-{total}"] = sess
+
+    def test_week_of(self):
+        self.assertEqual(self.g.week_of("2026-11-04")[0], "2026-11-02")
+        self.assertEqual(self.g.week_of("2026-11-08"), [f"2026-11-0{i}" for i in range(2, 9)])
+        self.assertEqual(self.g.week_of("2026-11-09")[0], "2026-11-09")
+
+    def test_boards(self):
+        self.dive("2026-11-03", "Pip", 520)
+        self.dive("2026-11-03", "pip", 300)             # same person, shallower: one row
+        self.dive("2026-11-03", "Pegleg", 610)
+        self.dive("2026-11-03", "Quiet", 700, answers=6)  # unfinished: not on the board
+        self.dive("2026-11-03", "", 700)                 # nameless: not on the board
+        self.dive("2026-11-05", "Pip", 650)
+        self.dive("2026-11-01", "Pegleg", 690)           # Sunday before: last week
+        day = self.g.board("2026-11-03")
+        self.assertEqual([(r["player"], r["depth"], r["named"]) for r in day], [("Pegleg", 6100, False), ("Pip", 5200, True)])
+        self.assertEqual(day[1]["dives"], 2)
+        week = self.g.week_board("2026-11-04")
+        self.assertEqual([(r["player"], r["depth"], r["day"]) for r in week], [("Pip", 6500, "2026-11-05"), ("Pegleg", 6100, "2026-11-03")])
+        self.assertEqual(week[0]["dives"], 3)
+        self.assertEqual(self.g.week_board("2026-11-01")[0]["depth"], 6900)
+        self.assertEqual(self.g.board("2026-11-04"), [])
+
+
 if __name__ == "__main__":
     unittest.main()

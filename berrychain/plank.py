@@ -338,12 +338,40 @@ class Plank:
         return {"paid": True, "amount": amount, "to": addr,
                 "why": f"Past {params.PLANK_PRIZE_DEPTH:,} m under a registered name: {amount} BERRY is on its way to {name}'s chest as a letter from the Harbourmaster."}
 
+    # -- boards: the deepest named, completed dives, one row per name (deepest dive wins), today or this week
+    @staticmethod
+    def week_of(day: str) -> list[str]:
+        d = dt.date.fromisoformat(day)
+        monday = d - dt.timedelta(days=d.weekday())
+        return [(monday + dt.timedelta(days=i)).isoformat() for i in range(7)]
+
+    def _named(self, player: str) -> bool:
+        return bool(self.registry and self.registry.address_of(player))
+
+    def _best(self, days: list[str]) -> list[dict[str, Any]]:
+        best: dict[str, dict[str, Any]] = {}
+        for day in days:
+            for s in self.state["days"].get(day, {"sessions": {}})["sessions"].values():
+                if not s.get("player") or len(s["answers"]) != DAILY_PROMPTS:
+                    continue
+                key = norm(s["player"]) or s["player"].lower()
+                depth = s["total"] * 10
+                cur = best.get(key)
+                dives = (cur["dives"] if cur else 0) + 1
+                if cur is None or depth > cur["depth"]:
+                    best[key] = {"player": s["player"], "depth": depth, "day": day, "dives": dives}
+                else:
+                    cur["dives"] = dives
+        rows = sorted(best.values(), key=lambda r: (-r["depth"], r["day"], r["player"]))[:20]
+        for r in rows:
+            r["named"] = self._named(r["player"])
+        return rows
+
     def board(self, day: str) -> list[dict[str, Any]]:
-        d = self.state["days"].get(day, {"sessions": {}})
-        rows = [{"player": s["player"], "depth": s["total"] * 10}
-                for s in d["sessions"].values() if s.get("player") and len(s["answers"]) == DAILY_PROMPTS]
-        rows.sort(key=lambda r: -r["depth"])
-        return rows[:20]
+        return self._best([day])
+
+    def week_board(self, day: str) -> list[dict[str, Any]]:
+        return self._best(self.week_of(day))
 
 
 # ------------------------------------------------------------------ http
@@ -409,7 +437,10 @@ def make_handler(game: Plank):
                     day = q.get("day", game.today())
                     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
                         return self._send({"error": "bad day"}, 400)
-                    return self._send({"day": day, "board": game.board(day)})
+                    if q.get("range") == "week":
+                        week = game.week_of(day)
+                        return self._send({"day": day, "range": "week", "week": [week[0], week[-1]], "board": game.week_board(day)})
+                    return self._send({"day": day, "range": "day", "board": game.board(day)})
                 if route == "/plank/reveal":
                     p = game.by_id.get(q.get("pid", ""))
                     if not p:

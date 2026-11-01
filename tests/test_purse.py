@@ -82,6 +82,11 @@ class RegistryTests(unittest.TestCase):
         self.reg._fetch = boom
         self.reg._at = 0
         self.assertEqual(self.reg.name_of(ADDR_A), "Pip")
+        calls = []
+        self.reg._fetch = lambda: calls.append(1) or boom()
+        self.assertEqual(self.reg.name_of(ADDR_A), "Pip")
+        self.assertEqual(self.reg.name_of(ADDR_A), "Pip")
+        self.assertEqual(calls, [], "after a failed fetch the registry backs off instead of retrying on every lookup")
         empty = purse.Registry("http://127.0.0.1:1", fetch=boom)
         self.assertIsNone(empty.address_of("Pip"))
 

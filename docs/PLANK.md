@@ -37,8 +37,11 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
 | `GET /plank/today?player=` | a session for today's seven (seeded by the UTC date) |
 | `GET /plank/endless?player=` | a session for seven random prompts; not on the board |
 | `POST /plank/answer` `{session, pid, answer, player}` | scores one answer, once per prompt per session |
-| `GET /plank/board?day=` | the day's deepest named, completed dives (top 20) |
+| `GET /plank/board?day=` | the day's deepest named, completed dives, one row per name (top 20); `&range=week` gives the Monday-to-Sunday week of that day, each name's deepest dive and how many dives they made. Rows carry `named` when the name is a registered BerryChain name. |
 | `GET /plank/reveal?pid=` | the top eight answers to a prompt |
+
+The page opens with `?name=<registered name>` from the app (home screen, the
+anchor on the Harbourmaster's purse card), which fills the name in.
 
 ## Judging answers
 

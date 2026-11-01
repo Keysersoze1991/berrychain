@@ -227,7 +227,13 @@
   // ---------- the record board ----------
   const claimForm = $('claim'), claimName = $('claim-name'), claimAddr = $('claim-addr'), claimNote = $('claim-note'), claimResult = $('claim-result'), claimBtn = $('claim-btn');
   let pendingClaim = null;
-  try { claimName.value = localStorage.getItem('mtbcrazy.name') || ''; claimAddr.value = localStorage.getItem('mtbcrazy.addr') || ''; } catch (e) { }
+  // the app opens this page with ?name=<registered name>&addr=<address>, so a claim pays the right chest
+  const linkParams = new URLSearchParams(location.search), linkName = (linkParams.get('name') || '').trim().slice(0, 24), linkAddr = (linkParams.get('addr') || '').trim().slice(0, 64);
+  try {
+    if (linkName) localStorage.setItem('mtbcrazy.name', linkName);
+    if (linkAddr) localStorage.setItem('mtbcrazy.addr', linkAddr);
+    claimName.value = localStorage.getItem('mtbcrazy.name') || linkName; claimAddr.value = localStorage.getItem('mtbcrazy.addr') || linkAddr;
+  } catch (e) { claimName.value = linkName; claimAddr.value = linkAddr; }
   async function loadBoard() {
     try { const r = await fetch(API + '/ride/board', { cache: 'no-store' }); const d = await r.json(); records = d.board || []; if (!$('panel-title').hidden) buildMenu(); } catch (e) { /* the board is a nicety; the game does not need it */ }
   }

@@ -41,6 +41,10 @@ match the page because both run the same script on V8; a browser whose maths
 library rounds `sin`/`cos` differently could in principle diverge over a long
 run, in which case the referee's figure stands.
 
+The app (from 0.16) opens the page as `/ride/?name=<registered name>&addr=<address>`
+from the small penny-farthing at the foot of the home screen, which fills the
+claim form in; the plank link is the anchor on the purse card.
+
 ## The purse
 
 Whoever holds a course record holds that course's purse, paid when the record

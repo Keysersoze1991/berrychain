@@ -109,7 +109,7 @@ class Registry:
         self.lock = threading.Lock()
 
     def _http(self) -> list[dict]:
-        with urllib.request.urlopen(self.url + "/llms", timeout=10) as r:
+        with urllib.request.urlopen(self.url + "/llms", timeout=3) as r:
             return json.load(r).get("llms", [])
 
     def refresh(self, force: bool = False) -> bool:
@@ -118,7 +118,8 @@ class Registry:
                 return True
             try:
                 rows = self._fetch()
-            except Exception:  # noqa: BLE001  a registry outage must not break a game
+            except Exception:  # noqa: BLE001  a registry outage must not break a game: keep the last list, retry in 30 s
+                self._at = time.time() - self.ttl + 30
                 return bool(self._by_addr)
             by_addr: dict[str, str] = {}
             by_name: dict[str, list[str]] = {}

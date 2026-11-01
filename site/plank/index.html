@@ -40,6 +40,11 @@
           <button id="btn-endless" class="btn ghost">Endless plank</button>
         </div>
         <p id="title-note" class="muted small"></p>
+        <div class="boards">
+          <div class="boardbox"><h3>Today's deepest</h3><ol id="board-day"></ol></div>
+          <div class="boardbox"><h3>This week's deepest</h3><ol id="board-week"></ol></div>
+        </div>
+        <p class="muted small">The crew boards show the five deepest named dives, today and this week (Monday to Sunday, UTC). A ✦ marks a registered BerryChain name.</p>
       </div>
 
       <div id="screen-round" class="screen" hidden>
@@ -66,7 +71,11 @@
         <p class="big"><span id="done-depth">0</span> m</p>
         <p id="done-sub" class="muted"></p>
         <div class="recap"><h3>Your seven</h3><ol id="recap"></ol></div>
-        <div class="boardbox"><h3>Today's crew</h3><ol id="board"></ol><p id="board-note" class="muted small"></p></div>
+        <div class="boards">
+          <div class="boardbox"><h3>Today's deepest</h3><ol id="board"></ol></div>
+          <div class="boardbox"><h3>This week's deepest</h3><ol id="board-week-done"></ol></div>
+        </div>
+        <p id="board-note" class="muted small"></p>
         <div class="row">
           <button id="btn-copy" class="btn ghost">Copy result</button>
           <button id="btn-again" class="btn">Endless plank</button>
