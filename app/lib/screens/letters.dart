@@ -75,7 +75,7 @@ class _LettersScreenState extends State<LettersScreen> {
         ),
         body: ListenableBuilder(
           listenable: s,
-          builder: (context, _) => const TabBarView(children: [_FolderList(), _DraftList()]),
+          builder: (context, _) => TabBarView(children: [_FolderList(), _DraftList()]),   // not const: a constant subtree is never rebuilt
         ),
       ),
     );
@@ -100,6 +100,10 @@ class _FolderList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = SessionScope.of(context);
+    return ListenableBuilder(listenable: s, builder: (context, _) => _folders(context, s));
+  }
+
+  Widget _folders(BuildContext context, Session s) {
     final folders = s.folders;
     return RefreshIndicator(
       onRefresh: s.refresh,
