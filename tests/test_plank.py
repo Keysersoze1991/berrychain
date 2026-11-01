@@ -134,5 +134,63 @@ class JudgeTests(unittest.TestCase):
         self.assertFalse(bad["valid"]); self.assertEqual(j.calls, 2)
 
 
+class DivePrizeTests(unittest.TestCase):
+    """Past 5,000 m on the daily plank under a registered name queues 0.2 BERRY, once a day per address."""
+    PIP = "brry1" + "c" * 52
+
+    def setUp(self):
+        from berrychain import params, purse
+        self.params, self.purse = params, purse
+        self.dir = tempfile.mkdtemp()
+        reg = purse.Registry("http://127.0.0.1:1", fetch=lambda: [{"address": self.PIP, "name": "Pip"}])
+        self.g = Plank(load_prompts(BANK), self.dir, OffJudge(), 25, reg)
+
+    def dive(self, player, total, mode="daily", game=None):
+        g = game or self.g
+        sid, sess, prompts = g.new_session(mode, player)
+        sess["total"] = total
+        sess["answers"] = {p.id: {"raw": "x", "canon": "x", "points": 0} for p in prompts}
+        return g.dive_prize(sess)
+
+    def queued(self):
+        return [e for _, e in self.purse.pending([os.path.join(self.dir, "queue")])]
+
+    def test_registered_name_is_paid_once_a_day(self):
+        res = self.dive("pip", 520)
+        self.assertTrue(res["paid"]); self.assertEqual(res["amount"], "0.2"); self.assertEqual(res["to"], self.PIP)
+        q = self.queued()
+        self.assertEqual(len(q), 1)
+        self.assertEqual((q[0]["kind"], q[0]["amount"], q[0]["ref"]["depth"]), ("plank-dive", self.params.PURSE_PLANK_DIVE, 5200))
+        self.assertIn("5,200 metres", q[0]["body"])
+        again = self.dive("Pip", 700)
+        self.assertFalse(again["paid"]); self.assertIn("already been paid", again["why"])
+        self.assertEqual(len(self.queued()), 1)
+
+    def test_shallow_unnamed_unregistered_endless_and_shut_dives_pay_nothing(self):
+        self.assertIsNone(self.dive("Pip", 499))
+        self.assertIsNone(self.dive("Pip", 700, mode="endless"))
+        self.assertFalse(self.dive("", 600)["paid"])
+        res = self.dive("Pegleg Pete", 600)
+        self.assertFalse(res["paid"]); self.assertIn("not a registered", res["why"])
+        shut = Plank(load_prompts(BANK), tempfile.mkdtemp(), OffJudge(), 25)
+        self.assertIn("shut", self.dive("Pip", 600, game=shut)["why"])
+        self.assertEqual(self.queued(), [])
+
+    def test_prize_rides_on_the_seventh_answer(self):
+        sid, sess, prompts = self.g.new_session("daily", "Pip")
+        for p in prompts[:5]:
+            self.g.answer(sid, p.id, p.canon[0])
+        sixth = self.g.answer(sid, prompts[5].id, prompts[5].canon[0])
+        self.assertNotIn("prize", sixth)
+        sess["total"] = 600
+        last = self.g.answer(sid, prompts[6].id, prompts[6].canon[0])
+        self.assertTrue(last["prize"]["paid"])
+        self.assertEqual(len(self.queued()), 1)
+        sid2, sess2, prompts2 = self.g.new_session("daily", "Pegleg")
+        for p in prompts2[:6]:
+            self.g.answer(sid2, p.id, p.canon[0])
+        self.assertIsNone(self.g.answer(sid2, prompts2[6].id, prompts2[6].canon[0])["prize"], "a shallow dive carries prize: null")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,7 +33,7 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
 
 | route | what |
 |---|---|
-| `GET /plank/status` | prompt count, answers so far, today's date, whether the judge is on |
+| `GET /plank/status` | prompt count, answers so far, today's date, whether the judge is on, whether the purse is open and what it pays |
 | `GET /plank/today?player=` | a session for today's seven (seeded by the UTC date) |
 | `GET /plank/endless?player=` | a session for seven random prompts; not on the board |
 | `POST /plank/answer` `{session, pid, answer, player}` | scores one answer, once per prompt per session |
@@ -50,11 +50,19 @@ spelling, so no spelling is judged twice. `PLANK_JUDGE_PER_DAY` caps the calls.
 With no key the judge is off and unlisted answers score nothing, with the
 message "the captain cannot rule on that one right now".
 
-## Rewards
+## The dive prize
 
-Decided, not yet built: 0.2 BERRY for passing 5,000 m on the daily plank, once
-per day per registered name, paid from the race purse as a gift letter, the same
-purse as MTB Crazy. The page says so and says BERRY has no price and no value.
+0.2 BERRY (`PURSE_PLANK_DIVE`) for passing 5,000 m (`PLANK_PRIZE_DEPTH`) on the
+daily plank, once per day per registered name. When the seventh answer of a
+daily session lands deep enough, the service looks the player's name up in the
+chain's registry (`/llms` on `PLANK_NODE_URL`, cached five minutes; `off` keeps
+the purse shut). A name carried by exactly one account earns one file in
+`PLANK_DIR/queue` (see `berrychain/purse.py`); the Harbourmaster pays it as a
+gift letter on its next tick, under its daily cap. The answer response carries
+`prize`: `{paid, amount, to, why}`, or just `{paid: false, why}` when the name
+is missing, unregistered or already paid today (state key `dive_paid`, by day
+and address). Typing someone else's registered name only sends the coins to
+them. The endless plank never pays.
 
 ## Privacy
 

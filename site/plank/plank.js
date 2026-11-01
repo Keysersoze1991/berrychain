@@ -81,6 +81,7 @@
     }
     state.answers.push({ prompt: p.text, raw: text.trim(), canonical: res.canonical || null, points: res.points || 0 });
     state.total = res.total != null ? res.total : state.total + (res.points || 0);
+    if (res.prize !== undefined) state.prize = res.prize;   // rides on the seventh answer of a daily plank
     setDepth(state.total * 10);
     reveal(res, text.trim());
   }
@@ -113,6 +114,7 @@
     $('done-depth').textContent = depth.toLocaleString();
     const clean = state.answers.filter(a => a.points > 0).length;
     $('done-sub').textContent = clean + ' of ' + state.prompts.length + ' answers landed' + (state.mode === 'daily' ? '. Come back tomorrow for the next seven.' : '. Another seven await on the endless plank.');
+    if (state.prize && state.prize.why) $('done-sub').textContent += ' ' + state.prize.why;
     const recap = $('recap'); recap.innerHTML = '';
     for (const a of state.answers) { const li = document.createElement('li'); li.innerHTML = '<span>' + esc(a.prompt) + ': <strong>' + esc(a.canonical || a.raw || '—') + '</strong></span><span>' + a.points + '</span>'; recap.appendChild(li); }
     if (state.mode === 'daily') {

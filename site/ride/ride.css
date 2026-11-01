@@ -107,3 +107,12 @@ footer .wrap { padding: 16px 0 30px; }
 .kit { display: inline-flex; align-items: center; gap: 8px; font: 500 14px/1 Inter, system-ui, sans-serif; color: #d6e0ea; margin: 4px 0 6px; cursor: pointer; }
 .kit input { width: 18px; height: 18px; accent-color: #f0c453; }
 @media (max-height: 520px) { .kit { font-size: 12px; } }
+
+/* the record claim on the finish panel */
+.claim { margin: 10px 0 0; text-align: left; max-width: 560px; }
+.claim[hidden] { display: none; }
+.claim .claim-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.claim input { flex: 1 1 180px; min-width: 0; padding: 9px 11px; border-radius: 9px; border: 1px solid rgba(240,196,83,.35); background: rgba(8,18,30,.7); color: #e9eef4; font: inherit; font-size: 14px; }
+.claim input:focus { outline: 2px solid #f0c453; outline-offset: 1px; }
+.claim p { margin: 4px 0; }
+#claim-result { color: #f0c453; margin: 8px 0 0; min-height: 1em; }

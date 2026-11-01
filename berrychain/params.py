@@ -216,3 +216,9 @@ FOUNDING_POOL_ADDRESS = "brry1" + "00" * 20 + "666f756e64"   # checksum-free sen
 RESERVE_ADDRESS = "brry1" + "00" * 20 + "7265736572"         # checksum-free sentinel ("reser")
 PROTOCOL_ADDRESSES = frozenset({TREASURY_ADDRESS, FOUNDING_POOL_ADDRESS, RESERVE_ADDRESS})
 COINBASE_SENDER = "coinbase"
+# The race purse (docs/RIDE.md, docs/PLANK.md): the games on the website pay small prizes from the
+# Harbourmaster's purse. Policy of the standing agent, not consensus, and under the same daily cap.
+PLANK_PRIZE_DEPTH = 5000                     # metres on the daily plank that earn the dive prize
+PURSE_PLANK_DIVE = SEEDS_PER_BERRY // 5      # 0.2 BERRY, once a day per registered name
+PURSE_RIDE_RECORD = SEEDS_PER_BERRY // 5     # 0.2 BERRY when a course record changes hands
+PURSE_RIDE_NAMED = berry(2)                  # 2 BERRY when the new holder set it under their registered name

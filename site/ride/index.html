@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://seed1.berrychain.link https://seed2.berrychain.link; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://seed1.berrychain.link https://seed2.berrychain.link http://localhost:8806; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>MTB Crazy</title>
-<meta name="description" content="MTB Crazy: a pirate on a mountain bike, side-on stunt racing from BerryChain. Pedal, lean, flip, loop the loop and beat the clock. The record on each course holds BERRY once the race purse opens.">
+<meta name="description" content="MTB Crazy: a pirate on a mountain bike, side-on stunt racing from BerryChain. Pedal, lean, flip, loop the loop and beat the clock. The record on each course holds BERRY from the race purse.">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="../style.css">
@@ -50,6 +50,16 @@
       <p id="done-time" class="big"></p>
       <p id="done-best" class="muted"></p>
       <p id="done-crashes" class="muted small"></p>
+      <form id="claim" class="claim" hidden autocomplete="off">
+        <p id="claim-note" class="small"></p>
+        <div class="claim-row">
+          <input id="claim-name" type="text" maxlength="24" placeholder="Name for the board" aria-label="Name for the board" required>
+          <input id="claim-addr" type="text" maxlength="64" placeholder="BerryChain address (optional)" aria-label="BerryChain address" spellcheck="false">
+          <button id="claim-btn" class="btn" type="submit">Claim the record</button>
+        </div>
+        <p class="muted small">Your registered BerryChain name on its own is enough, and makes the purse 2 BERRY. A name plus an address: 0.2 BERRY to that address. Only your key presses go to the referee on seed1.</p>
+      </form>
+      <p id="claim-result" class="small"></p>
       <div class="row">
         <button id="btn-next" class="btn">Next course</button>
         <button id="btn-again" class="btn ghost">Ride again</button>
@@ -73,8 +83,8 @@
   <section id="about" class="about">
     <h2>About the game</h2>
     <p>MTB Crazy is a side-on stunt racer in the spirit of the old Game Boy motocross games, swapped to a mountain bike with a pirate in the saddle (tick the box for a penny-farthing). Twenty courses in four tiers, Shore, Reef, Open Sea and Storm, each tier with bigger hills, bigger jumps, more loops and nastier drops than the last. Flips and big air count as tricks: every backflip or frontflip you land takes a second off your time, so a double flip is two seconds. Some loops sit on a raised deck behind a kicker: jump in and ride the loop for a second off, or drop short and take the low road underneath. The clock runs from the start gate to the finish flag; crashing puts you back at the last checkpoint with the clock still running, so a clean run is a fast run.</p>
-      <p><strong>BERRY for the record holder.</strong> Every run is recorded, pedal stroke by pedal stroke, so a time can be replayed and checked. When the race purse opens, the fastest clean run on each course holds the purse for that course: 0.2 BERRY, paid as a letter to your chest with the coins attached. Set the record here on the website under a name that is a registered BerryChain name, the same one your wallet carries, and the purse for that course is 2 BERRY instead. Lose the record and the purse moves to whoever took it. BERRY has no price and no value; it is the coin you write letters with. Until the purse opens, your best times live on this device only.</p>
-    <p class="muted small">Built by BerryChain. Nothing is sent anywhere while you play.</p>
+      <p><strong>BERRY for the record holder.</strong> Every run is recorded, pedal stroke by pedal stroke. Beat the record on a course and you can claim it: the referee on seed1 replays your run on the same engine the page uses, and the time it clocks is the one that counts. Whoever holds a course record holds that course's purse: 0.2 BERRY, paid as a letter to your chest with the coins attached. Claim it under your registered BerryChain name, the one your wallet carries, and the purse is 2 BERRY. The purse moves when a record changes hands (beating your own time earns nothing more), at most once per course per day, and whoever takes the record next takes the purse. BERRY has no price and no value; it is the coin you write letters with. Your best times also live on this device.</p>
+    <p class="muted small">Built by BerryChain. Nothing is sent anywhere while you play; only a record claim goes to the board.</p>
   </section>
 </main>
 
@@ -82,6 +92,7 @@
   <div class="wrap small muted">BerryChain · <a href="../index.html">home</a> · <a href="../privacy.html">privacy</a></div>
 </footer>
 
+<script src="engine.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

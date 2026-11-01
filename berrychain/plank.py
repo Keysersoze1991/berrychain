@@ -25,6 +25,8 @@ import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from . import params, purse
+
 TIERS = [(0.25, 10), (0.12, 20), (0.06, 30), (0.03, 50), (0.01, 75), (0.0, 100)]
 PRIOR = [20, 12, 8, 5, 4, 3, 3, 2]          # weight of the bank's listed answers, in order; the rest get 1
 DAILY_PROMPTS = 7
@@ -163,15 +165,17 @@ class Judge:
 
 # ------------------------------------------------------------------ game
 class Plank:
-    def __init__(self, prompts: list[Prompt], data_dir: str, judge: Judge, seconds: int):
+    def __init__(self, prompts: list[Prompt], data_dir: str, judge: Judge, seconds: int, registry: purse.Registry | None = None):
         self.prompts = prompts
+        self.registry = registry                      # registered names -> addresses; None keeps the purse shut
+        self.queue = os.path.join(data_dir, "queue")   # prizes for the Harbourmaster to pay (berrychain/purse.py)
         self.by_id = {p.id: p for p in prompts}
         self.dir = data_dir
         self.path = os.path.join(data_dir, "plank-state.json")
         self.judge = judge
         self.seconds = seconds
         self.lock = threading.Lock()
-        self.state: dict[str, Any] = {"counts": {}, "judged": {}, "days": {}, "endless": {}}
+        self.state: dict[str, Any] = {"counts": {}, "judged": {}, "days": {}, "endless": {}, "dive_paid": {}}
         if os.path.exists(self.path):
             with open(self.path, encoding="utf-8") as f:
                 self.state.update(json.load(f))
@@ -297,8 +301,42 @@ class Plank:
         self.state["counts"][pid][canon] = self.state["counts"][pid].get(canon, 0) + 1
         sess["answers"][pid] = {"raw": raw, "canon": canon, "points": pts}
         sess["total"] += pts
-        return {"valid": True, "canonical": canon, "points": pts, "share": round(share, 4), "answers_seen": total,
-                "how": how, "top": self.top(p), "total": sess["total"]}
+        out = {"valid": True, "canonical": canon, "points": pts, "share": round(share, 4), "answers_seen": total,
+               "how": how, "top": self.top(p), "total": sess["total"]}
+        if len(sess["answers"]) == DAILY_PROMPTS:
+            out["prize"] = self.dive_prize(sess)
+        return out
+
+    # -- the dive prize: 0.2 BERRY for passing PLANK_PRIZE_DEPTH on the daily plank, once a day per registered name
+    def dive_prize(self, sess: dict[str, Any]) -> dict[str, Any] | None:
+        """Called once, when the seventh answer lands. Queues the prize and says what happened, or None when the dive was not deep enough."""
+        depth = sess["total"] * 10
+        if sess.get("mode") != "daily" or depth < params.PLANK_PRIZE_DEPTH:
+            return None
+        amount = purse.berry_str(params.PURSE_PLANK_DIVE)
+        if self.registry is None:
+            return {"paid": False, "why": "The race purse is shut on this log."}
+        name = sess.get("player") or ""
+        if not name:
+            return {"paid": False, "why": f"Past {params.PLANK_PRIZE_DEPTH:,} m: that earns {amount} BERRY when you dive under your registered BerryChain name."}
+        addr = self.registry.address_of(name)
+        if not addr:
+            return {"paid": False, "why": f"Past {params.PLANK_PRIZE_DEPTH:,} m. '{name}' is not a registered BerryChain name, so the {amount} BERRY stays in the purse; register the name in the app and dive under it."}
+        day = sess.get("day") or self.today()
+        paid = self.state.setdefault("dive_paid", {})
+        if len(paid) > KEEP_DAYS:
+            for old in sorted(paid)[:-KEEP_DAYS]:
+                paid.pop(old, None)
+        if addr in paid.setdefault(day, []):
+            return {"paid": False, "why": f"Past {params.PLANK_PRIZE_DEPTH:,} m again, but {name} has already been paid for today's plank."}
+        body = (f"You walked today's plank ({day}) to {depth:,} metres, past the {params.PLANK_PRIZE_DEPTH:,} m mark. "
+                f"The dive prize rides with this letter: {amount} BERRY. Once a day per registered name; the next seven are up tomorrow. "
+                "BERRY has no price and no value; it is the coin you write letters with.")
+        purse.enqueue(self.queue, "plank-dive", addr, params.PURSE_PLANK_DIVE, f"Walk the Plank: {depth:,} m on {day}", body,
+                      ref={"day": day, "depth": depth, "name": name})
+        paid[day].append(addr)
+        return {"paid": True, "amount": amount, "to": addr,
+                "why": f"Past {params.PLANK_PRIZE_DEPTH:,} m under a registered name: {amount} BERRY is on its way to {name}'s chest as a letter from the Harbourmaster."}
 
     def board(self, day: str) -> list[dict[str, Any]]:
         d = self.state["days"].get(day, {"sessions": {}})
@@ -358,7 +396,8 @@ def make_handler(game: Plank):
                 if route == "/plank/status":
                     answered = sum(sum(c.values()) for c in game.state["counts"].values())
                     return self._send({"prompts": len(game.prompts), "answers": answered, "day": game.today(),
-                                       "judge": game.judge.enabled, "seconds": game.seconds})
+                                       "judge": game.judge.enabled, "seconds": game.seconds, "purse": game.registry is not None,
+                                       "prize": {"depth": params.PLANK_PRIZE_DEPTH, "amount": purse.berry_str(params.PURSE_PLANK_DIVE)}})
                 if route in ("/plank/today", "/plank/endless"):
                     mode = "daily" if route.endswith("today") else "endless"
                     player = re.sub(r"[^\w .'-]", "", (q.get("player", "")))[:MAX_PLAYER].strip()
@@ -411,8 +450,10 @@ def main(argv=None) -> None:
     os.makedirs(data_dir, exist_ok=True)
     prompts = load_prompts(prompts_path)
     judge = Judge(env("PLANK_MODEL", "claude-haiku-5-5"), int(env("PLANK_JUDGE_PER_DAY", "3000")))
-    game = Plank(prompts, data_dir, judge, int(env("PLANK_SECONDS", "25")))
-    print(f"plank: {len(prompts)} prompts, judge {'on' if judge.enabled else 'off'}, port {port}", flush=True)
+    node_url = env("PLANK_NODE_URL", "http://127.0.0.1:8801")
+    registry = purse.Registry(node_url) if node_url and node_url != "off" else None
+    game = Plank(prompts, data_dir, judge, int(env("PLANK_SECONDS", "25")), registry)
+    print(f"plank: {len(prompts)} prompts, judge {'on' if judge.enabled else 'off'}, purse {'open' if registry else 'shut'}, port {port}", flush=True)
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(game))
     try:
         server.serve_forever()

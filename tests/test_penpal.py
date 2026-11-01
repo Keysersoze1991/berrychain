@@ -256,6 +256,32 @@ class PenPalTests(unittest.TestCase):
         self.assertIn("paid out 1500 BERRY", body)
         self.assertIn("1000 BERRY alarm line", body)
 
+    def test_game_purse_pays_queued_prizes(self):
+        from berrychain import purse
+        q = os.path.join(self.tmp.name, "ride", "queue")
+        purse.enqueue(q, "ride-record", self.alice.address, params.PURSE_RIDE_NAMED, "MTB Crazy: the record on Berry Hill is yours", "fast rider")
+        purse.enqueue(q, "bogus", self.bob.address, params.berry(50), "too much", "no")
+        purse.enqueue(q, "bogus", "not-an-address", params.PURSE_PLANK_DIVE, "nowhere", "no")
+        before = self.h.chain.state.balance(self.alice.address)
+        note = self.pp._game_purse()
+        self.h.mine()
+        self.assertIn("1 paid", note)
+        self.assertIn("2 refused", note)
+        self.assertEqual(self.h.chain.state.balance(self.alice.address), before + params.PURSE_RIDE_NAMED)
+        self.assertEqual(purse.pending([q]), [])
+        paid = os.listdir(os.path.join(self.tmp.name, "ride", "paid"))
+        self.assertEqual(len(paid), 3)
+        self.assertEqual(self.pp.state["paid_today"], params.PURSE_RIDE_NAMED)
+        self.assertEqual(self.pp.state["purse_paid"], params.PURSE_RIDE_NAMED)
+        self.assertEqual(self.pp._game_purse(), "", "nothing left to pay")
+        # the daily cap holds a prize back rather than refusing it
+        purse.enqueue(q, "plank-dive", self.bob.address, params.PURSE_PLANK_DIVE, "Walk the Plank: 5,200 m", "deep")
+        self.pp.daily_cap = params.PURSE_RIDE_NAMED
+        self.assertIn("1 held", self.pp._game_purse())
+        self.assertEqual(len(purse.pending([q])), 1)
+        self.pp.tips = False
+        self.assertEqual(self.pp._game_purse(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

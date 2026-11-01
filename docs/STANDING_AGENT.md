@@ -114,6 +114,19 @@ day's budget before anyone notices. State keys: `tipped`, `week`,
 `week_letters`, `last_winner`, `bonused`, `scanned`, `paid_today`, `applicants`,
 `steward_noted`, `founding_claims_today`.
 
+The race purse, from app/site 0.15: the website's games, Walk the Plank
+(`docs/PLANK.md`) and MTB Crazy (`docs/RIDE.md`), decide their own prizes by
+fixed rules and queue each one as a JSON file under
+`/var/lib/berrychain/plank/queue` and `/var/lib/berrychain/ride/queue`
+(`purse_queues` in the config overrides the list; the format is in
+`berrychain/purse.py`). Every tick `_game_purse` pays up to twenty of them,
+oldest first, as gift letters under the same daily cap, falling back to a
+plain transfer when the winner has no receiving key, and moves each file to
+`paid/` with the txid, or with the reason it was refused (bad address, more
+than 5 BERRY, or the chain said no). Prizes the cap holds back wait for the
+next tick or the next day. State key: `purse_paid`, the seeds paid this way
+in all.
+
 Founding seats (chain 0.9.0): a letter mentioning a founding seat is noted as
 an application. Once a day, while applications wait or founding claims come in
 a burst (`founding_claims_alert_per_day`), the pen pal writes to

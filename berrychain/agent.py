@@ -37,7 +37,7 @@ import time
 import traceback
 from typing import Any
 
-from . import params
+from . import params, purse
 from .client import BerryClient, ClientError, compose_letter, open_letter, to_seeds
 from .wallet import Wallet
 
@@ -393,6 +393,12 @@ class PenPal:
         os.makedirs(os.path.join(self.data_dir, "threads"), exist_ok=True)
         self.state_path = os.path.join(self.data_dir, "penpal-state.json")
         self.journal_path = os.path.join(self.data_dir, "journal.md")
+        # The race purse: queues the website's games fill (berrychain/purse.py), paid here under the daily cap.
+        queues = cfg.get("purse_queues")
+        if queues is None:
+            lib = os.path.dirname(os.path.abspath(self.data_dir))
+            queues = [os.path.join(lib, g, "queue") for g in ("plank", "ride")]
+        self.purse_queues = [q for q in (queues if isinstance(queues, list) else str(queues).split(",")) if q]
         self.state = self._load_state()
 
     def _load_state(self) -> dict:
@@ -507,7 +513,7 @@ class PenPal:
             self._save_state()
             self.log(f"replied to {addr[:12]}... ({subject!r})")
         extra = []
-        for step in (self._weekly_prize, self._first_block_bonus, self._steward_note, self._watch):
+        for step in (self._weekly_prize, self._first_block_bonus, self._game_purse, self._steward_note, self._watch):
             try:
                 note = step()
             except Exception as e:  # noqa: BLE001  the purse must never stop the post
@@ -550,6 +556,42 @@ class PenPal:
         self._paid(amount)
         self._remember(addr, {"dir": "out", "id": rid, "subject": subject, "body": body})
         return rid
+
+    def _game_purse(self) -> str:
+        """Prizes the website's games have queued (Walk the Plank, MTB Crazy): paid as gift letters, under the daily cap."""
+        if not self.tips:
+            return ""
+        items = purse.pending(self.purse_queues)
+        if not items:
+            return ""
+        paid = held = refused = 0
+        for path, entry in items[:20]:
+            to, amount = str(entry.get("to", "")), int(entry.get("amount", 0))
+            if not purse.is_address(to) or to == self.wallet.address or amount <= 0 or amount > params.berry(5):
+                purse.settle(path, {"error": "refused: bad address or amount"})
+                refused += 1
+                continue
+            if not self._can_pay(amount):
+                held += 1
+                continue
+            subject = (entry.get("subject") or "From the race purse")[:120]
+            try:
+                rid = self._gift_letter(to, subject, entry.get("body") or "", amount)
+            except Exception as e:  # noqa: BLE001  no receiving key, most likely: send the coins plain
+                try:
+                    rid = self.client.transfer(self.wallet, to, amount, memo=subject[:params.MAX_MEMO_BYTES])
+                    self._paid(amount)
+                except Exception as e2:  # noqa: BLE001
+                    purse.settle(path, {"error": f"{type(e2).__name__}: {e2}"[:300]})
+                    refused += 1
+                    self.log(f"purse: could not pay {to[:12]}... ({e}; {e2})")
+                    continue
+            purse.settle(path, {"txid": rid})
+            paid += 1
+            self.state["purse_paid"] = int(self.state.get("purse_paid", 0)) + amount
+            self.log(f"purse: {entry.get('kind', 'prize')} {_b(amount)} BERRY to {to[:12]}...")
+        parts = ([f"{paid} paid"] if paid else []) + ([f"{held} held (purse low or daily cap)"] if held else []) + ([f"{refused} refused"] if refused else [])
+        return "race purse: " + ", ".join(parts) if parts else ""
 
     @staticmethod
     def _week_key(now: dt.datetime | None = None) -> str:
