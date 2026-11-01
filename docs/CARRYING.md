@@ -57,25 +57,27 @@ A carriage fee, where the phone that submits a letter keeps a slice of its
 fee, is a chain change and is deliberately not in 0.14. It will be proposed as
 a node 0.11 feature after carriage has been used in the wild.
 
-## BluMail (app 0.15)
+## Bottles (app 0.15)
 
-A BluMail note is a sealed letter that never goes to the chain. It is sealed
-with the same envelope and the same receiving keys, signed by the sender, and
-handed phone to phone over the nearby link until it reaches the recipient, who
-opens it exactly as a letter. The recipient's phone sends a small signed receipt
-back the same way, so the sender sees "delivered". Nothing is ever submitted
-to a seed: no fee, no coins, no block, and no copy anywhere once the carrying
-phones let it go (notes are dropped after a week, twelve hops, or 48 KB).
+A bottle, as in a message in a bottle, is a sealed letter that never goes to
+the chain. It is sealed with the same envelope and the same receiving keys,
+signed by the sender, and handed phone to phone over the nearby link until it
+reaches the recipient, who opens it exactly as a letter. The recipient's phone
+sends a small signed receipt back the same way, so the sender sees "delivered".
+Nothing is ever submitted to a seed: no fee, no coins, no block, and no copy
+anywhere once the carrying phones let it go (bottles are dropped after a week,
+twelve hops, or 48 KB).
 
-On the compose screen the switch "Send as BluMail" picks the off-chain lane;
-the default stays the chain letter. BluMail needs the carrying switch on, on the
-sending phone and along the way, and in 0.15 it moves between Android phones
-only. In the Letters list a note is marked "BluMail · by hand, off the chain";
-a sent one shows "carried, not yet delivered" until the receipt arrives.
+On the compose screen the switch "Send in a bottle" picks the off-chain lane;
+the default stays the chain letter. A bottle needs the carrying switch on, on
+the sending phone and along the way, and in 0.15 it drifts between Android
+phones only. In the Letters list a bottle is marked "Bottle · by hand, off the
+chain"; a sent one shows "afloat, not yet delivered" until the receipt arrives.
 
 Wire form (inside the same hand-over as carried transactions, under `notes`):
-`{v, kind: blumail|bluack, from, to, enc_pub, pubkey, ciphertext, ciphertext_hash,
-wrapped_key, seal: 2, created, sig, id}`; `id` is the SHA-256 of the canonical
-JSON without `sig`, and `sig` is the sender's signature over the same bytes.
-Carriers verify the signature, the sender's address against `pubkey`, the hash
-and the age before keeping a note; nothing carried is ever opened or executed.
+`{v, kind: bottle|bottle_ack, from, to, enc_pub, pubkey, ciphertext,
+ciphertext_hash, wrapped_key, seal: 2, created, sig, id}`; `id` is the SHA-256
+of the canonical JSON without `sig`, and `sig` is the sender's signature over
+the same bytes. Carriers verify the signature, the sender's address against
+`pubkey`, the hash and the age before keeping a bottle; nothing carried is ever
+opened or executed.

@@ -22,7 +22,7 @@ class Carrier {
 
   final Outbox outbox;
   final Future<void> Function() onReceived;   // the session drains and redraws
-  Future<int> Function(List<dynamic> notes)? onNotes;   // the session takes in carried BluMail; returns how many were new
+  Future<int> Function(List<dynamic> notes)? onNotes;   // the session takes in carried bottles; returns how many were new
   final void Function() onChange;
   bool running = false;
   String? error;

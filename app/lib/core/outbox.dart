@@ -29,7 +29,7 @@ class Outbox {
   static const fileName = 'outbox.json';
 
   final List<OutboxItem> items = [];
-  /// BluMail notes and receipts being carried: {'note': {...}, 'hops': n, 'created': ts, 'mine': bool}.
+  /// bottles (off-chain notes) and receipts being carried: {'note': {...}, 'hops': n, 'created': ts, 'mine': bool}.
   final List<Map<String, dynamic>> notes = [];
   String? _path;
 

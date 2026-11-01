@@ -5,15 +5,15 @@ import 'crypto.dart';
 import 'crypto.dart' as c;
 import 'letters.dart';
 
-/// BluMail: a sealed note that travels phone to phone over the nearby link and
+/// A bottle (message in a bottle): a sealed note that travels phone to phone over the nearby link and
 /// never touches the chain. Same envelope and same receiving keys as a letter,
 /// so the recipient opens it exactly as a letter; but there is no block, no
 /// fee, no coins and no record anywhere once the phones that carried it let it
 /// go. Carriers see only ciphertext. The sender signs the note so carriers and
 /// the recipient can throw away forgeries.
-class BluMail {
-  static const kindNote = 'blumail';
-  static const kindAck = 'bluack';
+class Bottle {
+  static const kindNote = 'bottle';
+  static const kindAck = 'bottle_ack';
   static const ttlSeconds = 7 * 24 * 3600;
   static const maxBytes = 48 * 1024;
 

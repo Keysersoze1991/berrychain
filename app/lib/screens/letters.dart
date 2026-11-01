@@ -193,7 +193,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   leading: Icon(l.pending ? Icons.hourglass_top : (incoming ? Icons.mail_outline : Icons.send_outlined), color: removed ? const Color(0xFF9A8D94) : (unread ? Palette.band : Palette.brass)),
                   title: Text(incoming ? (f.crew != null ? 'From ${s.contacts.where((c) => c.address == l.from).map((c) => c.label).firstOrNull ?? shortAddress(l.from)}' : 'Received') : (f.crew != null ? 'To ${s.contacts.where((c) => c.address == l.to).map((c) => c.label).firstOrNull ?? shortAddress(l.to)}' : 'Sent'),
                       style: TextStyle(fontWeight: unread ? FontWeight.w700 : FontWeight.w500, color: removed ? const Color(0xFF9A8D94) : null)),
-                  subtitle: Text('${removed ? 'removed · ' : ''}${l.blumail ? (incoming ? 'BluMail · by hand, off the chain' : (l.delivered ? 'BluMail · delivered by hand' : 'BluMail · carried, not yet delivered')) : l.pending ? 'in transit, waiting for a block' : (when.isEmpty ? 'block ${l.height}' : when)}${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
+                  subtitle: Text('${removed ? 'removed · ' : ''}${l.bottle ? (incoming ? 'Bottle · by hand, off the chain' : (l.delivered ? 'Bottle · washed up, delivered by hand' : 'Bottle · afloat, not yet delivered')) : l.pending ? 'in transit, waiting for a block' : (when.isEmpty ? 'block ${l.height}' : when)}${l.amount > 0 ? ' · +${formatBerry(l.amount)} BERRY${l.verified ? ' ✓' : ''}' : ''}'),
                   trailing: unread ? const Icon(Icons.circle, size: 10, color: Palette.band) : const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReadLetterScreen(l, incoming: incoming))),
                   onLongPress: () => removed ? s.restoreLetter(l.id) : confirmRemove(context, l),
@@ -382,7 +382,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
               padding: const EdgeInsets.only(top: 4),
               child: Text('Sent to the crew "${group.name}" (${group.members.length + 1} people, including you)', style: const TextStyle(color: Palette.brass, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
-          Text('${widget.incoming ? 'Received' : 'Sent'} ${l.blumail ? 'as BluMail${when == null ? '' : ' ${whenText(when)}'}, phone to phone, never on the chain${!widget.incoming ? (l.delivered ? '; delivered' : '; not yet delivered') : ''}' : l.pending ? 'moments ago, in transit until the next block' : when == null ? 'in block ${l.height}' : '${whenText(when)} (block ${l.height})'}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+          Text('${widget.incoming ? 'Received' : 'Sent'} ${l.bottle ? 'in a bottle${when == null ? '' : ' ${whenText(when)}'}, phone to phone, never on the chain${!widget.incoming ? (l.delivered ? '; delivered' : '; not yet delivered') : ''}' : l.pending ? 'moments ago, in transit until the next block' : when == null ? 'in block ${l.height}' : '${whenText(when)} (block ${l.height})'}${l.amount > 0 ? ' · ${formatBerry(l.amount)} BERRY attached${l.verified ? ', verified against the chain' : ''}' : ''}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           if (o?.replyTo != null) Text('Reply to letter ${shortAddress(o!.replyTo!)}', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
           const Divider(height: 28),
           if (error != null) Text(error!, style: const TextStyle(color: Palette.band)),
@@ -430,7 +430,7 @@ class ComposeScreen extends StatefulWidget {
 class _ComposeScreenState extends State<ComposeScreen> {
   late final TextEditingController to, subject, body;
   final amount = TextEditingController();
-  bool bluMail = false;
+  bool inBottle = false;
   late final String draftId;
   String? replyTo;
   LetterGroup? group;
@@ -574,15 +574,15 @@ class _ComposeScreenState extends State<ComposeScreen> {
         s.claimProgress.value = '';
       }
       if (g != null) return s.sendGroupLetter(g, subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo, parcel: ref);
-      if (bluMail) return s.sendBluMail(to.text.trim(), subject.text.trim(), body.text, replyTo: replyTo, photoJpeg: photo);
+      if (inBottle) return s.sendInBottle(to.text.trim(), subject.text.trim(), body.text, replyTo: replyTo, photoJpeg: photo);
       return s.sendLetter(to.text.trim(), subject.text.trim(), body.text, seeds, replyTo: replyTo, photoJpeg: photo, parcel: ref);
     }, progress: s.claimProgress);
     if (result != null && mounted) {
       sent = true;
       await s.deleteDraft(draftId);
       if (!mounted) return;
-      toast(context, bluMail
-          ? 'Sealed as BluMail. It travels phone to phone from here; you will see "delivered" when it lands.'
+      toast(context, inBottle
+          ? 'Corked and sealed. The bottle drifts phone to phone from here; you will see "delivered" when it washes up.'
           : s.lastSendQueued
           ? 'Sealed and queued: no connection right now. It goes the moment this phone, or a phone carrying it, reaches the chain.'
           : g == null ? 'Sealed and sent. Readable once the block is mined.' : 'Sealed and sent to the whole crew ${g.name}.');
@@ -703,18 +703,18 @@ class _ComposeScreenState extends State<ComposeScreen> {
             const SizedBox(height: 6),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Send as BluMail'),
+              title: const Text('Send in a bottle'),
               subtitle: Text(Carrier.supported
                   ? 'Off the chain: the sealed note hops phone to phone over Bluetooth until it reaches them. No fee, no coins, no record once the carrying phones let it go. Needs the carrying switch on, here and along the way.'
-                  : 'BluMail travels between Android phones for now; from this phone a note could not leave.'),
-              value: bluMail,
-              onChanged: Carrier.supported ? (v) => setState(() { bluMail = v; if (v) amount.clear(); }) : null,
+                  : 'Bottles drift between Android phones for now; from this phone one could not leave.'),
+              value: inBottle,
+              onChanged: Carrier.supported ? (v) => setState(() { inBottle = v; if (v) amount.clear(); }) : null,
             ),
           ],
           const SizedBox(height: 12),
-          if (!bluMail) TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: g == null ? 'BERRY to send with it (optional)' : 'BERRY to send with each copy (optional)')),
+          if (!inBottle) TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: g == null ? 'BERRY to send with it (optional)' : 'BERRY to send with each copy (optional)')),
           const SizedBox(height: 16),
-          FilledButton.icon(icon: Icon(bluMail ? Icons.bluetooth : Icons.lock_outline), label: Text(bluMail ? 'Seal and hand over as BluMail' : g == null ? 'Seal and send' : 'Seal and send to $copies people'), onPressed: left < 0 ? null : send),
+          FilledButton.icon(icon: Icon(inBottle ? Icons.bluetooth : Icons.lock_outline), label: Text(inBottle ? 'Cork it and hand it over' : g == null ? 'Seal and send' : 'Seal and send to $copies people'), onPressed: left < 0 ? null : send),
           const SizedBox(height: 12),
           Text(
             g == null
