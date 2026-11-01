@@ -14,6 +14,7 @@ import 'core/light.dart';
 import 'core/node.dart';
 import 'core/tx.dart';
 import 'core/outbox.dart';
+import 'core/blumail.dart';
 import 'nearby.dart';
 import 'core/units.dart';
 import 'core/wallet.dart';
@@ -60,6 +61,10 @@ class LetterItem {
   int get seal => (meta['seal'] as int?) ?? 1;
   /// The receiving key this letter was sealed to.
   String? get encPub => meta['enc_pub'] as String?;
+  /// A BluMail note: carried phone to phone, never on the chain.
+  bool get blumail => meta['blumail'] == true;
+  bool get delivered => meta['delivered'] == true;
+  int get created => (meta['created'] as int?) ?? 0;
 }
 
 /// Someone this wallet has written to or heard from, or a well-known address.
@@ -157,13 +162,17 @@ class Session extends ChangeNotifier {
   int? _knownNextNonce;                          // the chain's view at the last refresh
   int? _knownFee;
   final Map<String, String> _encPubs = {};       // receiving keys seen for other addresses, for sealing offline
+  final List<Map<String, dynamic>> _bluIn = [];  // BluMail notes addressed to this wallet
+  final List<Map<String, dynamic>> _bluOut = []; // BluMail notes this wallet sent ('delivered' once a receipt comes back)
   bool verifying = false;                        // the chain check runs after the screen is current
   Timer? _poll;
 
   /// Letters, without the ones removed on this phone (unless [showRemoved])
   /// and never the burned ones.
-  List<LetterItem> get inbox => _inboxAll.where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
-  List<LetterItem> get sent => _sentAll.where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
+  List<LetterItem> get inbox => [..._inboxAll, ..._bluIn.map(_bluItem)].where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
+  List<LetterItem> get sent => [..._sentAll, ..._bluOut.map(_bluItem)].where((l) => !_burned.contains(l.id) && (showRemoved || !_hidden.contains(l.id))).toList();
+  LetterItem _bluItem(Map<String, dynamic> n) => LetterItem({'id': n['id'], 'from': n['from'], 'to': n['to'], 'enc_pub': n['enc_pub'], 'height': null, 'blumail': true, 'created': n['created'], 'delivered': n['delivered'] == true, 'seal': 2, 'size': (n['ciphertext'] as String? ?? '').length ~/ 2});
+  int get bluCount => _bluIn.length + _bluOut.length;
   bool isRemoved(String id) => _hidden.contains(id);
   int get removedCount => _hidden.length;
   bool isUnread(LetterItem l) => l.from != wallet?.address && !_seen.contains(l.id);
@@ -176,6 +185,7 @@ class Session extends ChangeNotifier {
   Session() {
     node = Node(nodeUrls.first);
     carrier = Carrier(outbox, onReceived: () async { notifyListeners(); await drainOutbox(); }, onChange: notifyListeners);
+    carrier!.onNotes = receiveNotes;
   }
 
   Future<void> init() async {
@@ -230,6 +240,14 @@ class Session extends ChangeNotifier {
       } catch (_) {}
     }
     await outbox.load();
+    final blu = await readText('${d}blumail.json');
+    if (blu != null) {
+      try {
+        final m = jsonDecode(blu) as Map<String, dynamic>;
+        for (final n in (m['in'] as List? ?? const [])) { _bluIn.add(Map<String, dynamic>.from(n as Map)); }
+        for (final n in (m['out'] as List? ?? const [])) { _bluOut.add(Map<String, dynamic>.from(n as Map)); }
+      } catch (_) {}
+    }
     if (carryLetters && Carrier.supported) carrier?.start();
     // Letters as last seen, so the lists are on screen before the network answers.
     final cache = await readText('${d}letters-cache.json');
@@ -264,6 +282,78 @@ class Session extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void> _saveBlu() async {
+    try {
+      await writeText('${await storeDir()}blumail.json', jsonEncode({'in': _bluIn, 'out': _bluOut}));
+    } catch (_) {}
+  }
+
+  // ------------------------------------------------------- BluMail: sealed notes by hand, off the chain
+  /// Seal a note to [to] and hand it to the nearby net. No fee, no coins, no chain.
+  Future<String> sendBluMail(String to, String subject, String body, {String? replyTo, Uint8List? photoJpeg}) async {
+    final w = wallet!;
+    if (!isValidAddress(to)) throw ArgumentError('that is not a BerryChain address');
+    if (to == w.address) throw ArgumentError('that is your own address');
+    var encPub = _encPubs[to];
+    if (encPub == null) {
+      try {
+        encPub = ((await node.account(to))['llm'] as Map<String, dynamic>?)?['enc_pub'] as String?;
+        if (encPub != null) { _encPubs[to] = encPub; _saveEncPubs(); }
+      } on NodeError catch (e) {
+        if (e.status != null) rethrow;
+      }
+    }
+    if (encPub == null) throw ArgumentError('no receiving key for that address on this phone: write to them once with a connection, or wait until one of you is online');
+    final (note, key) = await BluMail.seal(from: w.address, signPriv: w.signPriv, signPub: w.signPub, senderName: w.label, to: to, toEncPub: encPub, subject: subject, body: body, replyTo: replyTo, photoJpeg: photoJpeg);
+    w.packetKeys[note['id'] as String] = toHex(key);
+    await w.save();
+    _bluOut.insert(0, note);
+    await _saveBlu();
+    await outbox.addNote(note, mine: true);
+    carrier?.announce();
+    notifyListeners();
+    return note['id'] as String;
+  }
+
+  /// Notes handed over by a nearby phone: keep ours, carry the rest, send receipts.
+  Future<int> receiveNotes(List<dynamic> wire) async {
+    final me = wallet?.address;
+    var added = 0;
+    for (final w in wire) {
+      try {
+        final m = Map<String, dynamic>.from(w as Map);
+        final n = Map<String, dynamic>.from(m['note'] as Map);
+        final hops = ((m['hops'] as int?) ?? 0) + 1;
+        if (hops > Outbox.maxHops || !await BluMail.verify(n)) continue;
+        final id = n['id'] as String;
+        if (n['kind'] == BluMail.kindAck) {
+          if (n['to'] == me) {
+            final mine = _bluOut.where((o) => o['id'] == n['note']).toList();
+            if (mine.isNotEmpty && mine.first['delivered'] != true) { mine.first['delivered'] = true; mine.first['delivered_at'] = n['created']; await _saveBlu(); await outbox.removeNote(n['note'] as String); added++; }
+          } else if (!outbox.hasNote(id)) { await outbox.addNote(n, hops: hops); added++; }
+          continue;
+        }
+        if (n['to'] == me) {
+          if (_bluIn.any((x) => x['id'] == id)) continue;
+          _bluIn.insert(0, n);
+          await _saveBlu();
+          added++;
+          final wlt = wallet;
+          if (wlt != null) {
+            final ack = await BluMail.ack(noteId: id, from: wlt.address, to: n['from'] as String, signPriv: wlt.signPriv, signPub: wlt.signPub);
+            await outbox.addNote(ack, mine: true);
+          }
+          try { await notifyBluMail(); } catch (_) {}
+        } else if (!outbox.hasNote(id) && !_bluOut.any((x) => x['id'] == id)) {
+          await outbox.addNote(n, hops: hops);
+          added++;
+        }
+      } catch (_) {}
+    }
+    if (added > 0) { await _buildContacts(); notifyListeners(); }
+    return added;
+  }
+
   Future<void> _saveEncPubs() async {
     try {
       await writeText('${await storeDir()}encpubs.json', jsonEncode(_encPubs));
@@ -289,6 +379,7 @@ class Session extends ChangeNotifier {
     final parts = <String>[];
     if (outbox.mineCount > 0) parts.add('${outbox.mineCount} of yours waiting for a connection');
     if (outbox.carriedCount > 0) parts.add('${outbox.carriedCount} carried for others');
+    if (outbox.carriedNotes > 0) parts.add('${outbox.carriedNotes} BluMail carried');
     if (carrying) parts.add(nearbyPeers == 0 ? 'no BerryChain phones nearby' : '$nearbyPeers ${nearbyPeers == 1 ? 'phone' : 'phones'} nearby');
     if (carrier?.error != null) parts.add(carrier!.error!);
     return parts.isEmpty ? 'Nothing waiting.' : '${parts.join(' · ')}.';
@@ -692,6 +783,7 @@ class Session extends ChangeNotifier {
 
   /// When a block was mined, from its header; cached on the phone.
   Future<DateTime?> letterTime(LetterItem l) async {
+    if (l.blumail) return DateTime.fromMillisecondsSinceEpoch(l.created * 1000);
     if (l.pending) return null;
     final h = l.height;
     var t = _blockTime[h];
@@ -1220,6 +1312,22 @@ class Session extends ChangeNotifier {
     final w = wallet!;
     final cached = _opened[l.id];
     if (cached != null) return cached;
+    if (l.blumail) {
+      final n = [..._bluIn, ..._bluOut].firstWhere((x) => x['id'] == l.id, orElse: () => <String, dynamic>{});
+      if (n.isEmpty) throw StateError('this note is no longer on this phone');
+      final OpenedLetter o;
+      if (n['to'] == w.address) {
+        final priv = w.keyFor((n['enc_pub'] as String?) ?? w.encPub);
+        if (priv == null) throw StateError('this note was sealed to a receiving key this phone does not hold');
+        o = await BluMail.open(n, recipientEncPriv: priv);
+      } else if (w.packetKeys.containsKey(l.id)) {
+        o = await BluMail.open(n, packetKey: fromHex(w.packetKeys[l.id]!));
+      } else {
+        throw StateError('you wrote this note on another phone, so the key to reread it is not on this one');
+      }
+      _opened[l.id] = o;
+      return o;
+    }
     final full = await node.letter(l.id);
     // Seal v2 binds the addresses the chain recorded: a copied seal under another name does not open.
     final seal = (full['seal'] as int?) ?? 1;

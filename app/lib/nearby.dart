@@ -22,6 +22,7 @@ class Carrier {
 
   final Outbox outbox;
   final Future<void> Function() onReceived;   // the session drains and redraws
+  Future<int> Function(List<dynamic> notes)? onNotes;   // the session takes in carried BluMail; returns how many were new
   final void Function() onChange;
   bool running = false;
   String? error;
@@ -113,7 +114,7 @@ class Carrier {
   Future<void> _handOver(String id) async {
     try {
       final wire = outbox.toWire();
-      final bytes = Uint8List.fromList(utf8.encode(jsonEncode({'v': wireVersion, 'txs': wire})));
+      final bytes = Uint8List.fromList(utf8.encode(jsonEncode({'v': wireVersion, 'txs': wire, 'notes': outbox.notesWire()})));
       await Nearby().sendBytesPayload(id, bytes);
     } catch (_) {}
   }
@@ -125,7 +126,9 @@ class Carrier {
     try {
       final m = jsonDecode(utf8.decode(payload.bytes!)) as Map<String, dynamic>;
       if (m['v'] != wireVersion) return;
-      final added = await outbox.fromWire((m['txs'] as List?) ?? const []);
+      var added = await outbox.fromWire((m['txs'] as List?) ?? const []);
+      final notes = (m['notes'] as List?) ?? const [];
+      if (notes.isNotEmpty && onNotes != null) added += await onNotes!(notes);
       if (added > 0) {
         await onReceived();
         // pass the new ones on to everyone else we are connected to

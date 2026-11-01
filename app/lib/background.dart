@@ -60,6 +60,21 @@ Future<void> markSeen({required String address, required int height, required Li
   await notifications.cancelAll();
 }
 
+/// A BluMail note just arrived by hand from a nearby phone.
+Future<void> notifyBluMail() async {
+  if (kIsWeb) return;
+  await initNotifications();
+  await notifications.show(
+    id: 3,
+    title: 'BluMail',
+    body: 'A sealed note reached you by hand, phone to phone. Open BerryChain to read it.',
+    notificationDetails: const NotificationDetails(
+      android: AndroidNotificationDetails(_channelId, 'Letters', channelDescription: 'A quiet note when a sealed letter reaches your address', importance: Importance.high, priority: Priority.high, playSound: true),
+      iOS: DarwinNotificationDetails(presentSound: true, presentAlert: true, presentBadge: false),
+    ),
+  );
+}
+
 /// Show one notification right now, so a person can see and hear what the
 /// arrival nudge looks like on this phone (and grant permission if asked).
 Future<void> showTestNotification() async {

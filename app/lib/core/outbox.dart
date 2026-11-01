@@ -29,12 +29,16 @@ class Outbox {
   static const fileName = 'outbox.json';
 
   final List<OutboxItem> items = [];
+  /// BluMail notes and receipts being carried: {'note': {...}, 'hops': n, 'created': ts, 'mine': bool}.
+  final List<Map<String, dynamic>> notes = [];
   String? _path;
 
   int get mineCount => items.where((i) => i.mine).length;
   int get carriedCount => items.where((i) => !i.mine).length;
   bool get isEmpty => items.isEmpty;
   bool has(String id) => items.any((i) => i.id == id);
+  bool hasNote(String id) => notes.any((n) => n['note']['id'] == id);
+  int get carriedNotes => notes.where((n) => n['mine'] != true).length;
 
   Future<void> load() async {
     _path = '${await storeDir()}$fileName';
@@ -42,11 +46,19 @@ class Outbox {
     items.clear();
     if (raw == null) return;
     try {
-      for (final j in (jsonDecode(raw) as List)) {
+      final d = jsonDecode(raw);
+      final list = d is Map ? (d['items'] as List? ?? const []) : (d as List);
+      for (final j in list) {
         items.add(OutboxItem.fromJson(Map<String, dynamic>.from(j as Map)));
+      }
+      if (d is Map) {
+        for (final n in (d['notes'] as List? ?? const [])) {
+          notes.add(Map<String, dynamic>.from(n as Map));
+        }
       }
     } catch (_) {
       items.clear();
+      notes.clear();
     }
     prune();
   }
@@ -54,7 +66,7 @@ class Outbox {
   Future<void> save() async {
     try {
       _path ??= '${await storeDir()}$fileName';
-      await writeText(_path!, jsonEncode(items.map((i) => i.toJson()).toList()));
+      await writeText(_path!, jsonEncode({'items': items.map((i) => i.toJson()).toList(), 'notes': notes}));
     } catch (_) {}                      // no store (tests, or a phone with no writable dir): keep going in memory
   }
 
@@ -62,6 +74,12 @@ class Outbox {
   void prune() {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     items.removeWhere((i) => !i.mine && now - i.created > maxAgeSeconds);
+    notes.removeWhere((n) => now - ((n['created'] as int?) ?? 0) > maxAgeSeconds);
+    while (notes.length > maxItems) {
+      final idx = notes.indexWhere((n) => n['mine'] != true);
+      if (idx < 0) break;
+      notes.removeAt(idx);
+    }
     while (items.length > maxItems) {
       final idx = items.indexWhere((i) => !i.mine);
       if (idx < 0) break;
@@ -79,6 +97,21 @@ class Outbox {
 
   /// Everything this phone is holding, for handing to a nearby phone.
   List<Map<String, dynamic>> toWire() => items.map((i) => {'tx': i.tx, 'hops': i.hops}).toList();
+  List<Map<String, dynamic>> notesWire() => notes.map((n) => {'note': n['note'], 'hops': n['hops'] ?? 0}).toList();
+
+  Future<void> addNote(Map<String, dynamic> note, {bool mine = false, int hops = 0}) async {
+    final id = note['id'] as String;
+    if (hasNote(id)) return;
+    notes.add({'note': note, 'hops': hops, 'created': DateTime.now().millisecondsSinceEpoch ~/ 1000, 'mine': mine});
+    prune();
+    await save();
+  }
+
+  Future<void> removeNote(String id) async {
+    final before = notes.length;
+    notes.removeWhere((n) => n['note']['id'] == id);
+    if (notes.length != before) await save();
+  }
 
   /// Take in what a nearby phone handed over. Returns how many were new.
   /// Only well-formed, signed, modest-sized transactions are kept; nothing is
