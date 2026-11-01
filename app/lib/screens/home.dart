@@ -1,5 +1,4 @@
 import 'dart:math' show cos, sin;
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -213,14 +212,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: const Color(0xFFEEF3F8),
                   child: ListTile(
                     // the anchor is the way down to Walk the Plank, where his purse pays for deep dives
-                    leading: _gamesShown
-                        ? IconButton(
-                            icon: const Icon(Icons.anchor, color: Palette.brass),
-                            tooltip: 'Walk the Plank',
-                            padding: EdgeInsets.zero,
-                            onPressed: () => launchUrl(gameLink(s.registry?['name']?.toString(), w.address, 'plank'), mode: LaunchMode.externalApplication),
-                          )
-                        : const Icon(Icons.anchor, color: Palette.brass),
+                    leading: Tooltip(
+                      message: 'Walk the Plank: the daily quiz',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => launchUrl(gameLink(s.registry?['name']?.toString(), w.address, 'plank'), mode: LaunchMode.externalApplication),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.anchor, color: Palette.brass),
+                            SizedBox(height: 2),
+                            Text('Daily quiz', style: TextStyle(fontSize: 10.5, color: Palette.brass, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ),
+                    ),
                     title: const Text("The Harbourmaster's purse"),
                     subtitle: const Text(
                       'Write to the Harbourmaster and ${Network.welcomeTipBerry} BERRY rides back with his first reply. '
@@ -302,8 +308,8 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 /// The website's games open in the browser with this wallet's registered name and address filled in, so the
-/// race purse pays the right chest. Held back on iPhone until the App Store side of the purse is settled.
-bool get _gamesShown => kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
+/// race purse pays the right chest. Shown on every platform from 0.16.1, at the architect's call.
+const bool _gamesShown = true;
 
 Uri gameLink(String? name, String address, String game) {
   final q = <String, String>{if (name != null && name.trim().isNotEmpty) 'name': name.trim(), 'addr': address};
