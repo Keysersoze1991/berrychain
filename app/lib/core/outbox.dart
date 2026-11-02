@@ -24,13 +24,16 @@ class OutboxItem {
 class Outbox {
   static const maxItems = 300;
   static const maxAgeSeconds = 7 * 24 * 3600;
-  static const maxTxBytes = 64 * 1024;
+  static const maxTxBytes = 80 * 1024;   // MAX_TX_BYTES on the chain: a letter with a photo is close to it
   static const maxHops = 12;
   static const fileName = 'outbox.json';
 
   final List<OutboxItem> items = [];
   /// bottles (off-chain notes) and receipts being carried: {'note': {...}, 'hops': n, 'created': ts, 'mine': bool}.
   final List<Map<String, dynamic>> notes = [];
+  /// One line about the last thing that happened to a carried letter, for the Settings page: what a nearby
+  /// phone handed over and was refused here, or what the chain said when we handed one on.
+  String? lastCarryNote;
   String? _path;
 
   int get mineCount => items.where((i) => i.mine).length;
@@ -124,13 +127,15 @@ class Outbox {
         final m = Map<String, dynamic>.from(w as Map);
         final tx = Map<String, dynamic>.from(m['tx'] as Map);
         final hops = ((m['hops'] as int?) ?? 0) + 1;
-        if (hops > maxHops) continue;
-        if (!looksLikeTx(tx)) continue;
-        if (jsonEncode(tx).length > maxTxBytes) continue;
+        if (hops > maxHops) { lastCarryNote = 'A carried letter had been through too many phones and was dropped.'; continue; }
+        if (!looksLikeTx(tx)) { lastCarryNote = 'A nearby phone handed over something that was not a signed letter; dropped.'; continue; }
+        final size = jsonEncode(tx).length;
+        if (size > maxTxBytes) { lastCarryNote = 'A carried letter was too large to pass on (${size ~/ 1024} KB).'; continue; }
         final id = txid(tx);
         if (has(id)) continue;
         items.add(OutboxItem(id: id, tx: tx, mine: false, created: now, hops: hops));
         added++;
+        lastCarryNote = 'Took a letter from a nearby phone to carry.';
       } catch (_) {}
     }
     if (added > 0) {
@@ -175,11 +180,13 @@ class Outbox {
       if (delivered) {
         items.remove(item);
         sent++;
+        lastCarryNote = item.mine ? 'Your queued letter reached the chain.' : 'A carried letter reached the chain.';
       } else if (!unreachable && rejection != null) {
         // The chain said no. A carried letter was most likely delivered by another phone already; our own gets one note.
         items.remove(item);
         rejected++;
         if (item.mine) lastRejection = rejection;
+        lastCarryNote = item.mine ? 'The chain refused your queued letter: $rejection' : 'The chain refused a carried letter: $rejection';
       } else {
         break; // no node reachable: try again later
       }

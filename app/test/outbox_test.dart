@@ -14,6 +14,16 @@ Map<String, dynamic> fakeTx(int nonce, {String? from}) => {
     };
 
 void main() {
+  test('a letter with a photo, close to the chain limit, is carried; one over it is dropped with a note', () async {
+    final box = Outbox();
+    final big = {...fakeTx(1), 'payload': {'to': addrB, 'ciphertext': 'f' * (70 * 1024)}};
+    expect(await box.fromWire([{'tx': big, 'hops': 0}]), 1);
+    expect(box.lastCarryNote, contains('Took a letter'));
+    final huge = {...fakeTx(2), 'payload': {'to': addrB, 'ciphertext': 'f' * (90 * 1024)}};
+    expect(await box.fromWire([{'tx': huge, 'hops': 0}]), 0);
+    expect(box.lastCarryNote, contains('too large'));
+    expect(box.carriedCount, 1);
+  });
   test('only well-formed signed transactions are accepted from a nearby phone', () async {
     final box = Outbox();
     expect(Outbox.looksLikeTx(fakeTx(1)), isTrue);

@@ -380,6 +380,7 @@ class Session extends ChangeNotifier {
     if (outbox.mineCount > 0) parts.add('${outbox.mineCount} of yours waiting for a connection');
     if (outbox.carriedCount > 0) parts.add('${outbox.carriedCount} carried for others');
     if (outbox.carriedNotes > 0) parts.add('${outbox.carriedNotes} ${outbox.carriedNotes == 1 ? 'bottle' : 'bottles'} carried');
+    if (outbox.lastCarryNote != null) parts.add('Last: ${outbox.lastCarryNote}');
     if (carrying) parts.add(nearbyPeers == 0 ? 'no BerryChain phones nearby' : '$nearbyPeers ${nearbyPeers == 1 ? 'phone' : 'phones'} nearby');
     if (carrier?.error != null) parts.add(carrier!.error!);
     return parts.isEmpty ? 'Nothing waiting.' : '${parts.join(' · ')}.';
