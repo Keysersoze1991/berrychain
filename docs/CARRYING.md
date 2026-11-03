@@ -25,6 +25,15 @@ Sealing offline needs two things the phone normally asks a seed for:
 The seal version follows the last block height the phone saw, so letters
 sealed offline after the sealed-post upgrade still use seal v2.
 
+## Reading letters offline (app 0.16.2)
+
+The first time a letter is opened, the app keeps the sealed record the chain
+served (ciphertext and wrapped key, never the text) in `letters-cache.json`,
+newest 300, so the letter opens again with no connection. A letter not yet
+cached is fetched from the first seed that answers; with no seed reachable the
+screen says the letter lives on the chain and will open when the phone is
+back online, instead of a raw error.
+
 ## Nearby carriage (Android)
 
 With the Settings switch "Carry letters for nearby pen pals" on, the app

@@ -153,6 +153,10 @@ class Session extends ChangeNotifier {
   final Map<String, String> _nameCache = {};
   final Map<String, String> _manual = {};        // contacts added by hand: address -> nickname
   final Map<String, OpenedLetter> _opened = {};  // letters opened this session, so reopening is instant
+  /// Sealed letters as the chain served them (ciphertext and wrapped key, never the text), kept on the phone so a
+  /// letter read once can be opened again with no connection. Newest 300.
+  final Map<String, Map<String, dynamic>> _sealed = {};
+  static const _sealedKeep = 300;
   bool homeIsLetters = false;                    // open on the Letters page instead of the chest page
   final Outbox outbox = Outbox();                // signed letters waiting for a connection, ours and carried
   Carrier? carrier;                              // nearby-phone carriage (Android)
@@ -231,6 +235,12 @@ class Session extends ChangeNotifier {
     if (names != null) {
       try {
         (jsonDecode(names) as Map<String, dynamic>).forEach((k, v) => _nameCache[k] = v as String);
+      } catch (_) {}
+    }
+    final sealedRaw = await readText('${d}letters-cache.json');
+    if (sealedRaw != null) {
+      try {
+        (jsonDecode(sealedRaw) as Map<String, dynamic>).forEach((k, v) => _sealed[k] = Map<String, dynamic>.from(v as Map));
       } catch (_) {}
     }
     final pubs = await readText('${d}encpubs.json');
@@ -352,6 +362,37 @@ class Session extends ChangeNotifier {
     }
     if (added > 0) { await _buildContacts(); notifyListeners(); }
     return added;
+  }
+
+  Future<void> _saveSealed() async {
+    try {
+      while (_sealed.length > _sealedKeep) {
+        _sealed.remove(_sealed.keys.first);
+      }
+      await writeText('${await storeDir()}letters-cache.json', jsonEncode(_sealed));
+    } catch (_) {}
+  }
+
+  /// Fetch a sealed letter: from the phone's cache first, else from the first seed that answers.
+  Future<Map<String, dynamic>> _sealedLetter(String id) async {
+    final kept = _sealed[id];
+    if (kept != null) return kept;
+    Object? last;
+    for (final url in nodeUrls) {
+      try {
+        final full = await Node(url, timeout: const Duration(seconds: 12)).letter(id);
+        _sealed[id] = full;
+        _saveSealed();
+        return full;
+      } on NodeError catch (e) {
+        last = e;
+        if (e.status != null) rethrow;       // the chain answered (for example: unknown letter): no point asking another seed
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw StateError('no connection: this letter lives on the chain and this phone has not kept a copy of it yet. '
+        'It will open as soon as you are back online. (${last is NodeError ? 'the seeds could not be reached' : last})');
   }
 
   Future<void> _saveEncPubs() async {
@@ -1329,7 +1370,7 @@ class Session extends ChangeNotifier {
       _opened[l.id] = o;
       return o;
     }
-    final full = await node.letter(l.id);
+    final full = await _sealedLetter(l.id);
     // Seal v2 binds the addresses the chain recorded: a copied seal under another name does not open.
     final seal = (full['seal'] as int?) ?? 1;
     final aad = seal == 2 ? letterAad(full['from'] as String, full['to'] as String) : const <int>[];
