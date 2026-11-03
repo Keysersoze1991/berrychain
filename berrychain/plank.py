@@ -33,6 +33,12 @@ DAILY_PROMPTS = 7
 MAX_ANSWER = 60
 MAX_PLAYER = 24
 KEEP_DAYS = 90
+DAY_START_HOUR = int(os.environ.get("PLANK_DAY_START_HOUR", "5"))   # the new plank goes up at this hour, local time
+try:
+    from zoneinfo import ZoneInfo
+    DAY_TZ = ZoneInfo(os.environ.get("PLANK_TZ", "Australia/Sydney"))
+except Exception:  # pragma: no cover  no tz database (some Windows installs): fall back to AEDT
+    DAY_TZ = dt.timezone(dt.timedelta(hours=11), "AEDT")
 ORIGINS = {"https://berrychain.link", "https://www.berrychain.link", "http://localhost:8765", "http://127.0.0.1:8765"}
 
 
@@ -193,8 +199,11 @@ class Plank:
 
     # -- days
     @staticmethod
-    def today() -> str:
-        return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+    def today(now: dt.datetime | None = None) -> str:
+        """The plank day: a new plank at DAY_START_HOUR in DAY_TZ (5 am Sydney), not at midnight UTC."""
+        now = now or dt.datetime.now(dt.timezone.utc)
+        local = now.astimezone(DAY_TZ) - dt.timedelta(hours=DAY_START_HOUR)
+        return local.strftime("%Y-%m-%d")
 
     def daily_set(self, day: str) -> list[Prompt]:
         seed = int(hashlib.sha256(("plank|" + day).encode()).hexdigest()[:12], 16)

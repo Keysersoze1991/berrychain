@@ -26,7 +26,11 @@
     return data;
   }
   function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  function today() { return new Date().toISOString().slice(0, 10); }
+  // the plank day turns over at 5 am Sydney time (matches berrychain/plank.py)
+  function today() {
+    try { return new Date(Date.now() - 5 * 3600 * 1000).toLocaleDateString('en-CA', { timeZone: 'Australia/Sydney' }); }
+    catch (e) { return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10); }
+  }
 
   // ---------- boards: the five deepest named dives, today and this week
   function boardRow(row) {

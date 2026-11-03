@@ -206,6 +206,16 @@ class BoardTests(unittest.TestCase):
                 "answers": {pid: {"raw": "x", "canon": "x", "points": 0} for pid in self.pids[:answers]}}
         self.g._day(day)["sessions"][f"{day}-{player}-{total}"] = sess
 
+    def test_plank_day_turns_at_five_am_sydney(self):
+        import datetime as dt
+        from berrychain.plank import Plank, DAY_TZ
+        before = dt.datetime(2026, 11, 3, 4, 59, tzinfo=DAY_TZ)
+        after = dt.datetime(2026, 11, 3, 5, 0, tzinfo=DAY_TZ)
+        self.assertEqual(Plank.today(before), "2026-11-02")
+        self.assertEqual(Plank.today(after), "2026-11-03")
+        utc_midnight = dt.datetime(2026, 11, 3, 0, 0, tzinfo=dt.timezone.utc)   # 11 am in Sydney: still the 3rd
+        self.assertEqual(Plank.today(utc_midnight), "2026-11-03")
+
     def test_week_of(self):
         self.assertEqual(self.g.week_of("2026-11-04")[0], "2026-11-02")
         self.assertEqual(self.g.week_of("2026-11-08"), [f"2026-11-0{i}" for i in range(2, 9)])

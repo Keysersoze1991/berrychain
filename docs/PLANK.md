@@ -34,7 +34,7 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
 | route | what |
 |---|---|
 | `GET /plank/status` | prompt count, answers so far, today's date, whether the judge is on, whether the purse is open and what it pays |
-| `GET /plank/today?player=` | a session for today's seven (seeded by the UTC date) |
+| `GET /plank/today?player=` | a session for today's seven (seeded by the plank day: a new plank at 5 am Sydney time, `PLANK_TZ` / `PLANK_DAY_START_HOUR`) |
 | `GET /plank/endless?player=` | a session for seven random prompts; not on the board |
 | `POST /plank/answer` `{session, pid, answer, player}` | scores one answer, once per prompt per session |
 | `GET /plank/board?day=` | the day's deepest named, completed dives, one row per name (top 20); `&range=week` gives the Monday-to-Sunday week of that day, each name's deepest dive and how many dives they made. Rows carry `named` when the name is a registered BerryChain name. |
