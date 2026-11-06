@@ -30,6 +30,10 @@ if [ -s "$ETC/agent.env" ] && grep -q '^ANTHROPIC_API_KEY=sk-' "$ETC/agent.env";
 else
   echo "   judge: no key in agent.env, only listed answers will count"
 fi
+if grep -q '^PLANK_MODEL=claude-haiku-5-5$' "$ETC/plank.env"; then
+  sed -i 's/^PLANK_MODEL=claude-haiku-5-5$/PLANK_MODEL=claude-sonnet-5-5/' "$ETC/plank.env"
+  echo "   judge: model raised to claude-sonnet-5-5"
+fi
 chmod 640 "$ETC/plank.env"; chown root:berry "$ETC/plank.env"
 mkdir -p "$DATA/plank"; chown berry:berry "$DATA/plank"; chmod 700 "$DATA/plank"
 
@@ -59,6 +63,12 @@ else
 fi
 nginx -t
 systemctl reload nginx
+
+if [ "${PLANK_FORGET_INVALID:-0}" = "1" ]; then
+  echo "== forgetting the old judge's rejections so those answers are judged again"
+  systemctl stop berrychain-plank || true
+  sudo -u berry env PLANK_DIR="$DATA/plank" "$APP/.venv/bin/python" -m berrychain.plank forget-invalid
+fi
 
 echo "== service"
 install -m 644 "$APP/deploy/berrychain-plank.service" /etc/systemd/system/berrychain-plank.service

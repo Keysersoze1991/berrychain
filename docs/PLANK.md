@@ -46,12 +46,18 @@ anchor on the Harbourmaster's purse card), which fills the name in.
 ## Judging answers
 
 An answer is matched against the prompt's list (aliases, plurals, small typos).
-Anything else is put to a model once, with `ANTHROPIC_API_KEY` from
+Anything else is put to a model once (shown the prompt, the first eight listed
+answers as examples of what is wanted, and the player's answer; told to accept
+when in doubt and to reject only made-up, wrong-category, vague or rude
+answers), with `ANTHROPIC_API_KEY` from
 `/etc/berrychain/plank.env` (the setup script copies the key line from
 `agent.env`). The verdict, valid with a canonical name or invalid, is cached per
 spelling, so no spelling is judged twice. `PLANK_JUDGE_PER_DAY` caps the calls.
 With no key the judge is off and unlisted answers score nothing, with the
-message "the captain cannot rule on that one right now".
+message "the captain cannot rule on that one right now". After a judge change,
+`PLANK_FORGET_INVALID=1 bash deploy/plank-setup.sh` drops the cached rejections
+(`python -m berrychain.plank forget-invalid` with the service stopped) so those
+spellings are judged afresh; past scores are not changed.
 
 ## The dive prize
 

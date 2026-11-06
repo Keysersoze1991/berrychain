@@ -121,7 +121,7 @@
     $('reveal-title').textContent = res.valid ? res.canonical : (raw ? '“' + raw + '”' : 'No answer');
     if (res.valid) {
       const pct = Math.round((res.share || 0) * 100);
-      $('reveal-sub').textContent = (pct < 1 ? 'Fewer than one in a hundred' : pct + ' in a hundred') + ' of the crew said that' + (res.how === 'judged' ? ' (new to the log, checked by the Harbourmaster)' : '') + '. You sink ' + (pts * 10) + ' m.';
+      $('reveal-sub').textContent = 'Right answer. ' + (pct < 1 ? 'Fewer than one in a hundred' : pct + ' in a hundred') + ' of the crew said that' + (res.how === 'judged' ? ' (new to the log, checked by the Harbourmaster)' : '') + '. You sink ' + (pts * 10) + ' m.';
     } else {
       $('reveal-sub').textContent = res.why || 'The captain does not recognise that one.';
     }

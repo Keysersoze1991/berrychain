@@ -122,12 +122,20 @@ def load_prompts(path: str) -> list[Prompt]:
 class Judge:
     """Asks a model whether an unlisted answer is a genuine answer to the prompt. One call per new spelling."""
 
-    SYSTEM = ("You judge answers for a pub-style trivia game. Given a prompt like 'Name a famous pirate' and a "
-              "player's answer, decide whether the answer is a real, correct, specific answer to the prompt. "
-              "Be generous with spelling and with regional knowledge (the players are mostly Australian), strict "
-              "with made-up, vague, rude or off-topic answers. Reply with one line of JSON only: "
-              '{"valid": true, "canonical": "Proper Name"} or {"valid": false}. The canonical form is the usual '
-              "short name in title case, no article.")
+    SYSTEM = (
+        "You judge answers for a pub-style trivia game played mostly by Australians. You are given the prompt, a few "
+        "answers already on the list (to show the kind of thing wanted), and a player's answer. Decide whether a fair "
+        "pub-quiz host would accept the player's answer as a real, specific answer to the prompt.\n"
+        "Accept: correct answers in any spelling; partial or short names that clearly identify one thing (Brett Lee; "
+        "Rialto for the Rialto Bridge; Bounty for HMS Bounty; London for London Bridge when the prompt is bridges); "
+        "brand, model and product names; less famous members of the category; regional and Australian answers; "
+        "plurals and loose phrasing (car broke down; you are sick). When in doubt, accept.\n"
+        "Reject only: made-up words; the wrong category (a capital when the prompt wants a non-capital, a Central "
+        "American country for South America); answers too vague to name one specific thing (steve, flower, drive, "
+        "lights); rude answers; or answers that only repeat the prompt's own words.\n"
+        "Reply with one line of JSON only: {\"valid\": true, \"canonical\": \"Proper Name\"} or "
+        "{\"valid\": false, \"why\": \"short reason\"}. The canonical form is the usual name in title case, no "
+        "article, the fullest common form (Brett Lee, HMS Bounty, London Bridge, Rialto Bridge).")
 
     def __init__(self, model: str, per_day: int):
         self.model, self.per_day = model, per_day
@@ -144,7 +152,7 @@ class Judge:
     def enabled(self) -> bool:
         return self.client is not None
 
-    def ask(self, prompt: str, answer: str) -> str | None:
+    def ask(self, prompt: str, answer: str, examples: tuple[str, ...] | list[str] = ()) -> str | None:
         """Returns the canonical form if valid, '' if invalid, None if the judge could not run."""
         if not self.client:
             return None
@@ -155,9 +163,10 @@ class Judge:
             return None
         self.used += 1
         try:
+            shown = ", ".join(list(examples)[:8]) or "(none listed yet)"
             resp = self.client.messages.create(
-                model=self.model, max_tokens=80, system=self.SYSTEM,
-                messages=[{"role": "user", "content": f"Prompt: {prompt}\nAnswer: {answer[:MAX_ANSWER]}"}])
+                model=self.model, max_tokens=120, system=self.SYSTEM,
+                messages=[{"role": "user", "content": f"Prompt: {prompt}\nAlready on the list: {shown}\nPlayer's answer: {answer[:MAX_ANSWER]}"}])
             text = "".join(getattr(b, "text", "") for b in resp.content)
             m = re.search(r"\{.*\}", text, re.S)
             data = json.loads(m.group(0)) if m else {}
@@ -257,7 +266,7 @@ class Plank:
         for k, c in known.items():
             if close(n, k):
                 return c, "fuzzy"
-        verdict = self.judge.ask(p.text, raw)
+        verdict = self.judge.ask(p.text, raw, p.canon[:8])
         if verdict is None:
             return None, "nojudge"
         # the judge may hand back a name we already count under another spelling
@@ -483,13 +492,34 @@ def make_handler(game: Plank):
     return Handler
 
 
+def forget_invalid(state_path: str) -> int:
+    """Drop every cached 'invalid' verdict so those spellings are judged again (after a judge change). Returns how many."""
+    if not os.path.exists(state_path):
+        return 0
+    with open(state_path, encoding="utf-8") as f:
+        state = json.load(f)
+    n = 0
+    for pid, verdicts in list(state.get("judged", {}).items()):
+        for spelling in [s for s, v in verdicts.items() if not v]:
+            del verdicts[spelling]
+            n += 1
+    tmp = state_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(state, f, separators=(",", ":"))
+    os.replace(tmp, state_path)
+    return n
+
+
 def main(argv=None) -> None:
     port = int(env("PLANK_PORT", "8805"))
     data_dir = env("PLANK_DIR") or ("/var/lib/berrychain/plank" if os.name != "nt" else os.path.join(os.environ.get("TEMP", "."), "berrychain-plank"))
+    if argv and argv[0] == "forget-invalid":          # maintenance, with the service stopped
+        print(f"plank: forgot {forget_invalid(os.path.join(data_dir, 'plank-state.json'))} invalid verdict(s)", flush=True)
+        return
     prompts_path = env("PLANK_PROMPTS", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "deploy", "plank-prompts.txt"))
     os.makedirs(data_dir, exist_ok=True)
     prompts = load_prompts(prompts_path)
-    judge = Judge(env("PLANK_MODEL", "claude-haiku-5-5"), int(env("PLANK_JUDGE_PER_DAY", "3000")))
+    judge = Judge(env("PLANK_MODEL", "claude-sonnet-5-5"), int(env("PLANK_JUDGE_PER_DAY", "3000")))
     node_url = env("PLANK_NODE_URL", "http://127.0.0.1:8801")
     registry = purse.Registry(node_url) if node_url and node_url != "off" else None
     game = Plank(prompts, data_dir, judge, int(env("PLANK_SECONDS", "25")), registry)

@@ -26,8 +26,9 @@ class FakeJudge(OffJudge):
     def enabled(self):
         return True
 
-    def ask(self, prompt, answer):
+    def ask(self, prompt, answer, examples=()):
         self.calls += 1
+        self.examples = list(examples)
         return answer.title() if "real" in answer.lower() else ""
 
 
@@ -132,6 +133,24 @@ class JudgeTests(unittest.TestCase):
         sid3, sess3, _ = g.new_session("endless", "C"); sess3["prompts"] = [p.id]
         bad = g.answer(sid3, p.id, "nonsense")
         self.assertFalse(bad["valid"]); self.assertEqual(j.calls, 2)
+
+
+class JudgeMaintenanceTests(unittest.TestCase):
+    def test_forget_invalid_drops_only_rejections(self):
+        j = FakeJudge()
+        g = game(j)
+        p = g.prompts[0]
+        sid, sess, _ = g.new_session("endless", "A"); sess["prompts"] = [p.id]
+        g.answer(sid, p.id, "nonsense")
+        self.assertEqual(j.examples, p.canon[:8], "the judge is shown the listed answers")
+        sid2, sess2, _ = g.new_session("endless", "B"); sess2["prompts"] = [p.id]
+        g.answer(sid2, p.id, "a real thing")
+        g.save()
+        self.assertEqual(set(g.state["judged"][p.id].values()), {"", "A Real Thing"})
+        self.assertEqual(plank.forget_invalid(g.path), 1)
+        with open(g.path) as f:
+            kept = json.load(f)["judged"][p.id]
+        self.assertEqual(list(kept.values()), ["A Real Thing"])
 
 
 class DivePrizeTests(unittest.TestCase):
