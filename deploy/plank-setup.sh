@@ -67,7 +67,7 @@ systemctl reload nginx
 if [ "${PLANK_FORGET_INVALID:-0}" = "1" ]; then
   echo "== forgetting the old judge's rejections so those answers are judged again"
   systemctl stop berrychain-plank || true
-  sudo -u berry env PLANK_DIR="$DATA/plank" "$APP/.venv/bin/python" -m berrychain.plank forget-invalid
+  (cd "$APP" && sudo -u berry env PLANK_DIR="$DATA/plank" PYTHONPATH="$APP" "$APP/.venv/bin/python" -m berrychain.plank forget-invalid)
 fi
 
 echo "== service"
