@@ -23,6 +23,11 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
   127.0.0.1:8805 and fronted by nginx at `/plank/`. State is one JSON file,
   `plank-state.json`, under `/var/lib/berrychain/plank`.
 - `deploy/plank-prompts.txt`: the captain's log. One prompt per line, answers in
+  rough order of popularity, aliases joined with `=`. A line starting with `=`
+  is a single-answer question (`= Which continent has no Formula 1 race | Africa`):
+  a right answer scores 100 whatever its rarity, a wrong one nothing, and the
+  judge is told to accept only the same thing under another name. Each daily
+  seven carries `FACT_PER_DAY` (2) of them. Open prompts: one per line, answers in
   rough order of popularity, aliases joined with `=`. The first eight listed
   answers carry a prior weight (20, 12, 8, 5, 4, 3, 3, 2; the rest 1) so day one
   scores sensibly before the crew's own answers take over. A prompt's id is a

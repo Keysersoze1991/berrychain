@@ -81,7 +81,7 @@
     const p = state.prompts[state.i];
     show('screen-round');
     $('round-n').textContent = (state.i + 1) + ' of ' + state.prompts.length;
-    $('round-mode').textContent = state.mode === 'daily' ? 'Today\'s plank · ' + state.day : 'Endless plank';
+    $('round-mode').textContent = (p.kind === 'fact' ? 'One right answer · ' : '') + (state.mode === 'daily' ? 'Today\'s plank · ' + state.day : 'Endless plank');
     $('prompt').textContent = p.text;
     $('answer').value = ''; $('answer').disabled = false; $('answer').focus();
     deadline = performance.now() + state.seconds * 1000;
@@ -116,10 +116,12 @@
   function reveal(res, raw) {
     show('screen-reveal');
     const pts = res.valid ? res.points : 0;
-    $('badge').textContent = res.valid ? pts + ' points · ' + TIER_WORDS[pts] : 'No points';
+    $('badge').textContent = res.valid ? pts + ' points · ' + (res.kind === 'fact' ? 'Spot on' : TIER_WORDS[pts]) : 'No points';
     $('badge').className = 'badge t' + pts;
     $('reveal-title').textContent = res.valid ? res.canonical : (raw ? '“' + raw + '”' : 'No answer');
-    if (res.valid) {
+    if (res.valid && res.kind === 'fact') {
+      $('reveal-sub').textContent = 'Right answer. One right answer means the full 100: you sink 1,000 m.';
+    } else if (res.valid) {
       const pct = Math.round((res.share || 0) * 100);
       $('reveal-sub').textContent = 'Right answer. ' + (pct < 1 ? 'Fewer than one in a hundred' : pct + ' in a hundred') + ' of the crew said that' + (res.how === 'judged' ? ' (new to the log, checked by the Harbourmaster)' : '') + '. You sink ' + (pts * 10) + ' m.';
     } else {

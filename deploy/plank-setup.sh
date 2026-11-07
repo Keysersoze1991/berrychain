@@ -10,6 +10,13 @@ SITE=/etc/nginx/sites-available/berrychain
 
 if [ "$(id -u)" -ne 0 ]; then echo "run as root"; exit 1; fi
 
+# Pull first, then re-run this script from the fresh file, so a run always uses the version it pulled.
+if [ "${PLANK_SETUP_STAGE:-}" != "2" ]; then
+  git config --global --add safe.directory "$APP" >/dev/null 2>&1 || true
+  git -C "$APP" pull -q --ff-only origin main
+  PLANK_SETUP_STAGE=2 exec bash "$0" "$@"
+fi
+
 echo "== code"
 git config --global --add safe.directory "$APP" >/dev/null 2>&1 || true
 git -C "$APP" pull -q --ff-only origin main

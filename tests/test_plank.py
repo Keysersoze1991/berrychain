@@ -26,9 +26,10 @@ class FakeJudge(OffJudge):
     def enabled(self):
         return True
 
-    def ask(self, prompt, answer, examples=()):
+    def ask(self, prompt, answer, examples=(), fact=False):
         self.calls += 1
         self.examples = list(examples)
+        self.fact = fact
         return answer.title() if "real" in answer.lower() else ""
 
 
@@ -134,6 +135,41 @@ class JudgeTests(unittest.TestCase):
         bad = g.answer(sid3, p.id, "nonsense")
         self.assertFalse(bad["valid"]); self.assertEqual(j.calls, 2)
 
+
+class FactTests(unittest.TestCase):
+    """Single-answer questions: 100 or nothing, two in every seven."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        path = os.path.join(self.dir, "bank.txt")
+        with open(BANK, encoding="utf-8") as src, open(path, "w", encoding="utf-8") as f:
+            f.write(src.read())
+            f.write("\n= Which continent has no Formula 1 race | Africa, Antarctica\n"
+                    "= What is the capital of Australia | Canberra\n"
+                    "= Which river runs through Paris | Seine=The Seine\n")
+        self.judge = FakeJudge()
+        self.g = Plank(load_prompts(path), self.dir, self.judge, 25)
+        self.facts = [p for p in self.g.prompts if p.fact]
+
+    def test_fact_lines_load_and_fill_two_of_seven(self):
+        self.assertEqual(len(self.facts), 3)
+        self.assertEqual([p.text for p in self.facts][1], "What is the capital of Australia")
+        for day in ("2026-11-07", "2026-11-08", "2026-11-09"):
+            chosen = self.g.daily_set(day)
+            self.assertEqual(len(chosen), 7)
+            self.assertEqual(sum(1 for p in chosen if p.fact), plank.FACT_PER_DAY)
+        self.assertEqual(self.g.daily_set("2026-11-07"), self.g.daily_set("2026-11-07"), "deterministic per day")
+
+    def test_fact_scores_100_or_nothing(self):
+        p = next(x for x in self.facts if x.text.startswith("Which continent"))
+        for i, (raw, want) in enumerate([("africa", 100), ("Antartica", 100), ("Europe", 0), ("", 0), ("africa", 100)]):
+            sid, sess, _ = self.g.new_session("endless", f"P{i}"); sess["prompts"] = [p.id]
+            res = self.g.answer(sid, p.id, raw)
+            self.assertEqual(res["points"], want, raw)
+            self.assertEqual(res["kind"], "fact")
+            if want == 0 and raw:
+                self.assertIn("The answer: Africa or Antarctica", res["why"])
+        self.assertTrue(self.judge.fact, "the judge was asked in single-answer mode")
 
 class JudgeMaintenanceTests(unittest.TestCase):
     def test_forget_invalid_drops_only_rejections(self):

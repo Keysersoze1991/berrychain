@@ -30,6 +30,7 @@ from . import params, purse
 TIERS = [(0.25, 10), (0.12, 20), (0.06, 30), (0.03, 50), (0.01, 75), (0.0, 100)]
 PRIOR = [20, 12, 8, 5, 4, 3, 3, 2]          # weight of the bank's listed answers, in order; the rest get 1
 DAILY_PROMPTS = 7
+FACT_PER_DAY = 2          # of the seven, this many have one right answer (100 points or nothing)
 MAX_ANSWER = 60
 MAX_PLAYER = 24
 KEEP_DAYS = 90
@@ -89,8 +90,9 @@ def close(a: str, b: str) -> bool:
 
 # ------------------------------------------------------------------ prompts
 class Prompt:
-    def __init__(self, text: str, answers: list[list[str]]):
+    def __init__(self, text: str, answers: list[list[str]], fact: bool = False):
         self.text = text
+        self.fact = fact                              # one right answer: 100 points or nothing, rarity does not apply
         self.id = hashlib.sha1(norm(text).encode()).hexdigest()[:8]
         self.canon: list[str] = [a[0] for a in answers]
         self.alias: dict[str, str] = {}              # normalised alias -> canonical
@@ -110,9 +112,11 @@ def load_prompts(path: str) -> list[Prompt]:
             if not line or line.startswith("#") or "|" not in line:
                 continue
             text, rest = line.split("|", 1)
+            fact = text.lstrip().startswith("=")           # '= Which ... | Answer' marks a single-answer question
+            text = text.lstrip().lstrip("=").strip()
             answers = [[p.strip() for p in a.split("=") if p.strip()] for a in rest.split(",") if a.strip()]
-            if text.strip() and answers:
-                out.append(Prompt(text.strip(), answers))
+            if text and answers:
+                out.append(Prompt(text, answers, fact=fact))
     if len(out) < DAILY_PROMPTS:
         raise SystemExit(f"plank: need at least {DAILY_PROMPTS} prompts in {path}")
     return out
@@ -152,7 +156,14 @@ class Judge:
     def enabled(self) -> bool:
         return self.client is not None
 
-    def ask(self, prompt: str, answer: str, examples: tuple[str, ...] | list[str] = ()) -> str | None:
+    SYSTEM_FACT = (
+        "You check a trivia question that has one right answer (or a few equivalent ones). You are given the question, "
+        "the accepted answer(s), and a player's answer. Say whether the player's answer means the same thing as an "
+        "accepted answer: spelling mistakes, abbreviations, and other names for the same thing count (Uluru for Ayers "
+        "Rock, USA for United States); a different thing does not, however close. Reply with one line of JSON only: "
+        "{\"valid\": true, \"canonical\": \"<the accepted answer as listed>\"} or {\"valid\": false}.")
+
+    def ask(self, prompt: str, answer: str, examples: tuple[str, ...] | list[str] = (), fact: bool = False) -> str | None:
         """Returns the canonical form if valid, '' if invalid, None if the judge could not run."""
         if not self.client:
             return None
@@ -164,9 +175,13 @@ class Judge:
         self.used += 1
         try:
             shown = ", ".join(list(examples)[:8]) or "(none listed yet)"
+            if fact:
+                content = f"Question: {prompt}\nAccepted answer(s): {shown}\nPlayer's answer: {answer[:MAX_ANSWER]}"
+            else:
+                content = f"Prompt: {prompt}\nAlready on the list: {shown}\nPlayer's answer: {answer[:MAX_ANSWER]}"
             resp = self.client.messages.create(
-                model=self.model, max_tokens=120, system=self.SYSTEM,
-                messages=[{"role": "user", "content": f"Prompt: {prompt}\nAlready on the list: {shown}\nPlayer's answer: {answer[:MAX_ANSWER]}"}])
+                model=self.model, max_tokens=120, system=self.SYSTEM_FACT if fact else self.SYSTEM,
+                messages=[{"role": "user", "content": content}])
             text = "".join(getattr(b, "text", "") for b in resp.content)
             m = re.search(r"\{.*\}", text, re.S)
             data = json.loads(m.group(0)) if m else {}
@@ -214,9 +229,20 @@ class Plank:
         local = now.astimezone(DAY_TZ) - dt.timedelta(hours=DAY_START_HOUR)
         return local.strftime("%Y-%m-%d")
 
+    def _mix(self, rng: random.Random) -> list[Prompt]:
+        """Seven prompts: FACT_PER_DAY single-answer ones (when the bank has them) and the rest open, shuffled."""
+        facts = [p for p in self.prompts if p.fact]
+        opens = [p for p in self.prompts if not p.fact]
+        nf = min(FACT_PER_DAY, len(facts))
+        if len(opens) < DAILY_PROMPTS - nf:
+            return rng.sample(self.prompts, DAILY_PROMPTS)
+        chosen = rng.sample(facts, nf) + rng.sample(opens, DAILY_PROMPTS - nf)
+        rng.shuffle(chosen)
+        return chosen
+
     def daily_set(self, day: str) -> list[Prompt]:
         seed = int(hashlib.sha256(("plank|" + day).encode()).hexdigest()[:12], 16)
-        return random.Random(seed).sample(self.prompts, DAILY_PROMPTS)
+        return self._mix(random.Random(seed))
 
     def _day(self, day: str) -> dict[str, Any]:
         d = self.state["days"].setdefault(day, {"sessions": {}})
@@ -232,7 +258,7 @@ class Plank:
             prompts = self.daily_set(day)
             bucket = self._day(day)["sessions"]
         else:
-            prompts = random.sample(self.prompts, DAILY_PROMPTS)
+            prompts = self._mix(random.Random())
             bucket = self.state["endless"]
             if len(bucket) > 400:
                 for old in list(bucket)[:-400]:
@@ -266,7 +292,7 @@ class Plank:
         for k, c in known.items():
             if close(n, k):
                 return c, "fuzzy"
-        verdict = self.judge.ask(p.text, raw, p.canon[:8])
+        verdict = self.judge.ask(p.text, raw, p.canon[:8], fact=p.fact)
         if verdict is None:
             return None, "nojudge"
         # the judge may hand back a name we already count under another spelling
@@ -285,6 +311,8 @@ class Plank:
             counts[c] = counts.get(c, 0) + n
         total = sum(counts.values()) or 1
         share = counts.get(canon, 0) / total
+        if p.fact:
+            return 100, share, total          # one right answer: the full 100, however many got it
         for cut, pts in TIERS:
             if share >= cut:
                 return pts, share, total
@@ -313,14 +341,17 @@ class Plank:
             sess["answers"][pid] = {"raw": raw, "canon": None, "points": 0}
             msg = {"empty": "You froze on the plank.", "nojudge": "The captain cannot rule on that one right now.",
                    "unknown": "The captain does not recognise that one."}.get(how, "The captain does not recognise that one.")
-            return {"valid": False, "points": 0, "why": msg, "top": self.top(p), "total": sess["total"]}
+            if p.fact and how != "nojudge":
+                msg = ("You froze on the plank. " if how == "empty" else "Not this one. ") + "The answer: " + " or ".join(p.canon[:3]) + "."
+            return {"valid": False, "points": 0, "why": msg, "top": self.top(p), "total": sess["total"],
+                    "kind": "fact" if p.fact else "open"}
         pts, share, total = self.tier(p, canon)
         self.state["counts"].setdefault(pid, {})
         self.state["counts"][pid][canon] = self.state["counts"][pid].get(canon, 0) + 1
         sess["answers"][pid] = {"raw": raw, "canon": canon, "points": pts}
         sess["total"] += pts
         out = {"valid": True, "canonical": canon, "points": pts, "share": round(share, 4), "answers_seen": total,
-               "how": how, "top": self.top(p), "total": sess["total"]}
+               "how": how, "top": self.top(p), "total": sess["total"], "kind": "fact" if p.fact else "open"}
         if len(sess["answers"]) == DAILY_PROMPTS:
             out["prize"] = self.dive_prize(sess)
         return out
@@ -441,7 +472,7 @@ def make_handler(game: Plank):
             with game.lock:
                 if route == "/plank/status":
                     answered = sum(sum(c.values()) for c in game.state["counts"].values())
-                    return self._send({"prompts": len(game.prompts), "answers": answered, "day": game.today(),
+                    return self._send({"prompts": len(game.prompts), "facts": sum(1 for p in game.prompts if p.fact), "answers": answered, "day": game.today(),
                                        "judge": game.judge.enabled, "seconds": game.seconds, "purse": game.registry is not None,
                                        "prize": {"depth": params.PLANK_PRIZE_DEPTH, "amount": purse.berry_str(params.PURSE_PLANK_DIVE)}})
                 if route in ("/plank/today", "/plank/endless"):
@@ -450,7 +481,7 @@ def make_handler(game: Plank):
                     sid, sess, prompts = game.new_session(mode, player)
                     game.save()
                     return self._send({"session": sid, "mode": mode, "day": sess["day"], "seconds": game.seconds,
-                                       "prompts": [{"id": p.id, "text": p.text} for p in prompts]})
+                                       "prompts": [{"id": p.id, "text": p.text, "kind": "fact" if p.fact else "open"} for p in prompts]})
                 if route == "/plank/board":
                     day = q.get("day", game.today())
                     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
