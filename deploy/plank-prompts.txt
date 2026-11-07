@@ -482,7 +482,6 @@ Name a country that borders Brazil | Argentina, Uruguay, Paraguay, Bolivia, Peru
 Name a country that borders India | Pakistan, China, Nepal, Bangladesh, Bhutan, Myanmar, Afghanistan, Sri Lanka
 Name a country that borders Russia | China, Ukraine, Finland, Norway, Poland, Mongolia, Kazakhstan, Georgia, Belarus, Latvia, Estonia, Lithuania, North Korea, Azerbaijan
 Name a country on the equator | Brazil, Indonesia, Kenya, Ecuador, Colombia, Uganda, Democratic Republic of the Congo=DRC=Congo, Gabon, Somalia, Sao Tome and Principe, Republic of the Congo, Maldives, Kiribati
-Name a country that is also an island in the Mediterranean | Malta, Cyprus
 Name a Spanish-speaking country in South America | Argentina, Chile, Colombia, Peru, Venezuela, Ecuador, Bolivia, Uruguay, Paraguay
 Name a country that has hosted the Summer Olympics twice or more | United States=USA, United Kingdom=Britain, France, Greece, Germany, Australia, Japan, Canada, China
 Name a country that has won the FIFA World Cup | Brazil, Germany, Italy, Argentina, France, Uruguay, England, Spain
