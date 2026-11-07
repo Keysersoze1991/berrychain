@@ -642,3 +642,8 @@ Name a country ending in -stan | Pakistan, Afghanistan, Kazakhstan, Uzbekistan, 
 = Which country is Christ the Redeemer in | Brazil
 = Which country is the Great Wall in | China
 = Which country is Chichen Itza in | Mexico
+
+# ---- Easter eggs: One Piece ----
+= In One Piece, is it Luffy's dream to become King of the Pirates: yes or no | Yes
+= In One Piece, what is Luffy's crew called: the Straw Hat Pirates, the Red Hair Pirates or the Heart Pirates | Straw Hat Pirates=Straw Hats=Straw Hat crew=Straw Hat
+= In One Piece, which fruit made Luffy a rubber man: the Gum-Gum Fruit, the Flame-Flame Fruit or the Ope-Ope Fruit | Gum-Gum Fruit=Gum Gum=Gomu Gomu no Mi=Rubber fruit=Gum-Gum
