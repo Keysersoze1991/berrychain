@@ -616,8 +616,8 @@ Name a country ending in -stan | Pakistan, Afghanistan, Kazakhstan, Uzbekistan, 
 = What is the capital of Nigeria | Abuja
 = What is the capital of Morocco | Rabat
 = What is the capital of Ethiopia | Addis Ababa
-= What is the capital of Ghana | Accra
-= What is the capital of Tanzania | Dodoma
+= What is the capital of France | Paris
+= What is the capital of the United Kingdom | London
 = What is the capital of Iceland | Reykjavik
 = Which country is Transylvania in | Romania
 = Which country is Bavaria in | Germany
