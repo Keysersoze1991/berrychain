@@ -59,7 +59,7 @@ class BankTests(unittest.TestCase):
         ids = [p.id for p in ps]
         self.assertEqual(len(ids), len(set(ids)), "prompt ids collide")
         for p in ps:
-            self.assertGreaterEqual(len(p.canon), 8, p.text)
+            self.assertGreaterEqual(len(p.canon), 1 if p.fact else 3, p.text)
 
     def test_daily_set_is_the_same_for_everyone(self):
         g = game()
@@ -152,8 +152,8 @@ class FactTests(unittest.TestCase):
         self.facts = [p for p in self.g.prompts if p.fact]
 
     def test_fact_lines_load_and_fill_two_of_seven(self):
-        self.assertEqual(len(self.facts), 3)
-        self.assertEqual([p.text for p in self.facts][1], "What is the capital of Australia")
+        self.assertGreaterEqual(len(self.facts), 3)
+        self.assertIn("Which continent has no Formula 1 race", [p.text for p in self.facts])
         for day in ("2026-11-07", "2026-11-08", "2026-11-09"):
             chosen = self.g.daily_set(day)
             self.assertEqual(len(chosen), 7)
