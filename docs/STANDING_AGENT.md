@@ -114,7 +114,8 @@ day's budget before anyone notices. State keys: `tipped`, `week`,
 `week_letters`, `last_winner`, `bonused`, `scanned`, `paid_today`, `applicants`,
 `steward_noted`, `founding_claims_today`.
 
-The race purse, from app/site 0.15: the website's games, Walk the Plank
+The race purse (dive prizes, the week's deepest on the plank at 5 BERRY, course
+records), from app/site 0.15: the website's games, Walk the Plank
 (`docs/PLANK.md`) and MTB Crazy (`docs/RIDE.md`), decide their own prizes by
 fixed rules and queue each one as a JSON file under
 `/var/lib/berrychain/plank/queue` and `/var/lib/berrychain/ride/queue`

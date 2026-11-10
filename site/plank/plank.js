@@ -48,6 +48,13 @@
       if (!b.board.length) { const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'Nobody with a name has finished today yet.'; dayOl.appendChild(li); }
       if (!w.board.length) { const li = document.createElement('li'); li.className = 'muted'; li.textContent = 'No named dives this week yet.'; weekOl.appendChild(li); }
       if (note) note.textContent = b.board.length ? 'Deepest dive per name. Give your name on the deck and you are on these boards.' : 'Give your name on the deck and you will be on these boards.';
+      const wp = $('week-prize');
+      if (wp) {
+        const lw = w.last_week;
+        wp.textContent = (lw && lw.name) ? 'Last week\'s deepest: ' + lw.name + ', ' + lw.depth.toLocaleString() + ' m, ' + lw.amount + ' BERRY from the purse. '
+          : (lw ? 'Last week nobody dived under a registered name, so the week\'s prize stayed in the purse. ' : '');
+        wp.textContent += 'This week\'s deepest registered dive earns ' + (w.prize || '5') + ' BERRY when Saturday\'s plank closes.';
+      }
     } catch (e) { if (note) note.textContent = 'The crew boards are out of reach right now.'; }
   }
 

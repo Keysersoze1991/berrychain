@@ -298,7 +298,7 @@ class DivePrizeTests(unittest.TestCase):
 
 
 class BoardTests(unittest.TestCase):
-    """One row per name, deepest dive wins, today or the Monday-to-Sunday week."""
+    """One row per name, deepest dive wins, today or the Sunday-to-Saturday week."""
 
     def setUp(self):
         from berrychain import purse
@@ -322,9 +322,9 @@ class BoardTests(unittest.TestCase):
         self.assertEqual(Plank.today(utc_midnight), "2026-11-03")
 
     def test_week_of(self):
-        self.assertEqual(self.g.week_of("2026-11-04")[0], "2026-11-02")
-        self.assertEqual(self.g.week_of("2026-11-08"), [f"2026-11-0{i}" for i in range(2, 9)])
-        self.assertEqual(self.g.week_of("2026-11-09")[0], "2026-11-09")
+        self.assertEqual(self.g.week_of("2026-11-04")[0], "2026-11-01")          # Wednesday: the week began Sunday 1 Nov
+        self.assertEqual(self.g.week_of("2026-11-07"), [f"2026-11-0{i}" for i in range(1, 8)])   # Saturday closes it
+        self.assertEqual(self.g.week_of("2026-11-08")[0], "2026-11-08")          # Sunday opens the next
 
     def test_boards(self):
         self.dive("2026-11-03", "Pip", 520)
@@ -333,15 +333,61 @@ class BoardTests(unittest.TestCase):
         self.dive("2026-11-03", "Quiet", 700, answers=6)  # unfinished: not on the board
         self.dive("2026-11-03", "", 700)                 # nameless: not on the board
         self.dive("2026-11-05", "Pip", 650)
-        self.dive("2026-11-01", "Pegleg", 690)           # Sunday before: last week
+        self.dive("2026-10-31", "Pegleg", 690)           # Saturday before: last week
         day = self.g.board("2026-11-03")
         self.assertEqual([(r["player"], r["depth"], r["named"]) for r in day], [("Pegleg", 6100, False), ("Pip", 5200, True)])
         self.assertEqual(day[1]["dives"], 2)
         week = self.g.week_board("2026-11-04")
         self.assertEqual([(r["player"], r["depth"], r["day"]) for r in week], [("Pip", 6500, "2026-11-05"), ("Pegleg", 6100, "2026-11-03")])
         self.assertEqual(week[0]["dives"], 3)
-        self.assertEqual(self.g.week_board("2026-11-01")[0]["depth"], 6900)
+        self.assertEqual(self.g.week_board("2026-10-31")[0]["depth"], 6900)
         self.assertEqual(self.g.board("2026-11-04"), [])
+
+
+class WeekPrizeTests(unittest.TestCase):
+    """When the week turns, the deepest registered dive of the week just finished is queued 5 BERRY, once."""
+    setUp = BoardTests.setUp
+    dive = BoardTests.dive
+
+    def queued(self):
+        from berrychain import purse
+        return [e for _, e in purse.pending([self.g.queue])]
+
+    def at(self, day, hour=12):
+        import datetime as dt
+        from berrychain.plank import DAY_TZ
+        y, m, d = (int(x) for x in day.split("-"))
+        return dt.datetime(y, m, d, hour, 0, tzinfo=DAY_TZ)
+
+    def test_week_prize_goes_to_deepest_registered_once(self):
+        from berrychain import params
+        self.dive("2026-11-09", "Pegleg", 800)      # deeper, but not a registered name
+        self.dive("2026-11-10", "pip", 520)
+        self.dive("2026-11-13", "Pip", 610)
+        self.assertIsNone(self.g.settle_week(self.at("2026-11-14")), "Saturday: the week is still open")
+        self.assertIsNone(self.g.settle_week(self.at("2026-11-15", 4)), "Saturday's plank runs until 5 am Sunday")
+        self.assertEqual(self.queued(), [])
+        rec = self.g.settle_week(self.at("2026-11-15", 5))
+        self.assertEqual((rec["name"], rec["depth"], rec["day"], rec["amount"], rec["week"]), ("Pip", 6100, "2026-11-13", "5", ["2026-11-08", "2026-11-14"]))
+        q = self.queued()
+        self.assertEqual(len(q), 1)
+        self.assertEqual((q[0]["kind"], q[0]["amount"], q[0]["to"]), ("plank-week", params.PURSE_PLANK_WEEK, "brry1" + "c" * 52))
+        self.assertIn("6,100 metres", q[0]["body"])
+        self.assertIs(self.g.settle_week(self.at("2026-11-18")), rec, "asked again mid-week: same record, nothing new queued")
+        self.assertEqual(len(self.queued()), 1)
+        self.assertEqual(self.g.last_week("2026-11-18"), rec)
+        self.assertIsNone(self.g.last_week("2026-11-11"))
+
+    def test_week_with_no_registered_dive_is_recorded_without_a_winner(self):
+        self.dive("2026-11-10", "Pegleg", 800)
+        rec = self.g.settle_week(self.at("2026-11-16"))
+        self.assertEqual((rec["name"], rec["week"]), (None, ["2026-11-08", "2026-11-14"]))
+        self.assertEqual(self.queued(), [])
+
+    def test_weeks_before_the_start_are_not_paid(self):
+        self.dive("2026-11-03", "Pip", 900)
+        self.assertIsNone(self.g.settle_week(self.at("2026-11-09")))
+        self.assertEqual(self.queued(), [])
 
 
 if __name__ == "__main__":

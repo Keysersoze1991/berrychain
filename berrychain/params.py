@@ -220,5 +220,6 @@ COINBASE_SENDER = "coinbase"
 # Harbourmaster's purse. Policy of the standing agent, not consensus, and under the same daily cap.
 PLANK_PRIZE_DEPTH = 5000                     # metres on the daily plank that earn the dive prize
 PURSE_PLANK_DIVE = SEEDS_PER_BERRY // 5      # 0.2 BERRY, once a day per registered name
+PURSE_PLANK_WEEK = berry(5)                  # 5 BERRY to the week's deepest registered dive, paid when the week turns
 PURSE_RIDE_RECORD = SEEDS_PER_BERRY // 5     # 0.2 BERRY when a course record changes hands
 PURSE_RIDE_NAMED = berry(2)                  # 2 BERRY when the new holder set it under their registered name

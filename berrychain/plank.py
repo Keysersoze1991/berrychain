@@ -33,6 +33,8 @@ PRIOR = [20, 12, 8, 5, 4, 3, 3, 2]          # weight of the bank's listed answer
 DAILY_PROMPTS = 7
 FACT_PER_DAY = 2          # of the seven, this many have one right answer (100 points or nothing)
 NO_REPEAT_DAYS = 30       # a question used in the last this-many plank days is not drawn again
+WEEK_PRIZE_FROM = "2026-11-08"   # the Sunday of the first week whose deepest dive is paid
+WEEK_KEEP = 26            # weeks of prize records kept
 NO_REPEAT_FROM = "2026-11-11"   # the first plank day drawn under that rule (earlier days were independent draws)
 MAX_ANSWER = 60
 MAX_PLAYER = 24
@@ -418,9 +420,47 @@ class Plank:
     # -- boards: the deepest named, completed dives, one row per name (deepest dive wins), today or this week
     @staticmethod
     def week_of(day: str) -> list[str]:
+        """The plank week holding `day`: Sunday to Saturday. It turns when Saturday's plank closes (5 am Sunday, Sydney)."""
         d = dt.date.fromisoformat(day)
-        monday = d - dt.timedelta(days=d.weekday())
-        return [(monday + dt.timedelta(days=i)).isoformat() for i in range(7)]
+        sunday = d - dt.timedelta(days=(d.weekday() + 1) % 7)
+        return [(sunday + dt.timedelta(days=i)).isoformat() for i in range(7)]
+
+    def settle_week(self, now: dt.datetime | None = None) -> dict[str, Any] | None:
+        """Once the week has turned, pay last week's deepest registered dive PURSE_PLANK_WEEK, once. Safe to call
+        any time: it only acts on the week just finished, and remembers what it did (state key week_paid, by Sunday)."""
+        if self.registry is None:
+            return None
+        this_sunday = dt.date.fromisoformat(self.week_of(self.today(now))[0])
+        key = (this_sunday - dt.timedelta(days=7)).isoformat()
+        if key < WEEK_PRIZE_FROM:
+            return None
+        paid = self.state.setdefault("week_paid", {})
+        if key in paid:
+            return paid[key]
+        week = self.week_of(key)
+        winner = next((r for r in self._best(week) if r["named"]), None)
+        if winner is None:
+            paid[key] = {"week": [week[0], week[-1]], "name": None}
+        else:
+            addr = self.registry.address_of(winner["player"])
+            amount = purse.berry_str(params.PURSE_PLANK_WEEK)
+            body = (f"Deepest dive of the week on Walk the Plank: {winner['depth']:,} metres on {winner['day']}, the best any "
+                    f"registered name managed between {week[0]} and {week[-1]}. The week's prize rides with this letter: {amount} BERRY. "
+                    "A new week is under way; the crew board starts clean. BERRY has no price and no value; it is the coin you write letters with.")
+            purse.enqueue(self.queue, "plank-week", addr, params.PURSE_PLANK_WEEK,
+                          f"Walk the Plank: deepest of the week, {winner['depth']:,} m", body,
+                          ref={"week": week[0], "depth": winner["depth"], "name": winner["player"], "day": winner["day"]})
+            paid[key] = {"week": [week[0], week[-1]], "name": winner["player"], "depth": winner["depth"], "day": winner["day"],
+                         "to": addr, "amount": amount}
+        if len(paid) > WEEK_KEEP:
+            for old in sorted(paid)[:-WEEK_KEEP]:
+                paid.pop(old, None)
+        return paid[key]
+
+    def last_week(self, day: str) -> dict[str, Any] | None:
+        """The prize record for the week before the one holding `day`, if settled."""
+        sunday = dt.date.fromisoformat(self.week_of(day)[0])
+        return self.state.get("week_paid", {}).get((sunday - dt.timedelta(days=7)).isoformat())
 
     def _named(self, player: str) -> bool:
         return bool(self.registry and self.registry.address_of(player))
@@ -528,8 +568,12 @@ def make_handler(game: Plank):
                     answered = sum(sum(c.values()) for c in game.state["counts"].values())
                     return self._send({"prompts": len(game.prompts), "facts": sum(1 for p in game.prompts if p.fact), "answers": answered, "day": game.today(),
                                        "judge": game.judge.enabled, "seconds": game.seconds, "purse": game.registry is not None,
-                                       "prize": {"depth": params.PLANK_PRIZE_DEPTH, "amount": purse.berry_str(params.PURSE_PLANK_DIVE)}})
+                                       "prize": {"depth": params.PLANK_PRIZE_DEPTH, "amount": purse.berry_str(params.PURSE_PLANK_DIVE),
+                                                 "week": purse.berry_str(params.PURSE_PLANK_WEEK)},
+                                       "week_paid": game.state.get("week_paid", {})})
                 if route in ("/plank/today", "/plank/endless"):
+                    if game.settle_week() is not None:
+                        game.save()
                     mode = "daily" if route.endswith("today") else "endless"
                     player = re.sub(r"[^\w .'-]", "", (q.get("player", "")))[:MAX_PLAYER].strip()
                     sid, sess, prompts = game.new_session(mode, player)
@@ -541,8 +585,11 @@ def make_handler(game: Plank):
                     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
                         return self._send({"error": "bad day"}, 400)
                     if q.get("range") == "week":
+                        if game.settle_week() is not None:
+                            game.save()
                         week = game.week_of(day)
-                        return self._send({"day": day, "range": "week", "week": [week[0], week[-1]], "board": game.week_board(day)})
+                        return self._send({"day": day, "range": "week", "week": [week[0], week[-1]], "board": game.week_board(day),
+                                           "prize": purse.berry_str(params.PURSE_PLANK_WEEK), "last_week": game.last_week(day)})
                     return self._send({"day": day, "range": "day", "board": game.board(day)})
                 if route == "/plank/reveal":
                     p = game.by_id.get(q.get("pid", ""))
@@ -614,6 +661,16 @@ def main(argv=None) -> None:
     registry = purse.Registry(node_url) if node_url and node_url != "off" else None
     game = Plank(prompts, data_dir, judge, int(env("PLANK_SECONDS", "25")), registry)
     print(f"plank: {len(prompts)} prompts, judge {'on' if judge.enabled else 'off'}, purse {'open' if registry else 'shut'}, port {port}", flush=True)
+    def week_ticker() -> None:                       # the week's prize goes out even if nobody opens the page
+        while True:
+            time.sleep(600)
+            try:
+                with game.lock:
+                    if game.settle_week() is not None:
+                        game.save()
+            except Exception as e:  # noqa: BLE001
+                print(f"plank: week prize check failed: {e}", flush=True)
+    threading.Thread(target=week_ticker, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(game))
     try:
         server.serve_forever()

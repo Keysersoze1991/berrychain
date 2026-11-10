@@ -45,7 +45,7 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
 | `GET /plank/today?player=` | a session for today's seven (seeded by the plank day: a new plank at 5 am Sydney time, `PLANK_TZ` / `PLANK_DAY_START_HOUR`) |
 | `GET /plank/endless?player=` | a session for seven random prompts; not on the board |
 | `POST /plank/answer` `{session, pid, answer, player}` | scores one answer, once per prompt per session |
-| `GET /plank/board?day=` | the day's deepest named, completed dives, one row per name (top 20); `&range=week` gives the Monday-to-Sunday week of that day, each name's deepest dive and how many dives they made. Rows carry `named` when the name is a registered BerryChain name. |
+| `GET /plank/board?day=` | the day's deepest named, completed dives, one row per name (top 20); `&range=week` gives the Sunday-to-Saturday week of that day, each name's deepest dive and how many dives they made, plus `prize` (the week's amount) and `last_week` (the settled record for the week before: `{week, name, depth, day, to, amount}`, or `name: null`). Rows carry `named` when the name is a registered BerryChain name. |
 | `GET /plank/reveal?pid=` | the top eight answers to a prompt |
 
 The page opens with `?name=<registered name>` from the app (home screen, the
@@ -83,6 +83,18 @@ gift letter on its next tick, under its daily cap. The answer response carries
 is missing, unregistered or already paid today (state key `dive_paid`, by day
 and address). Typing someone else's registered name only sends the coins to
 them. The endless plank never pays.
+
+## The week's prize
+
+5 BERRY (`PURSE_PLANK_WEEK`) to the deepest dive of the week under a registered
+name. The plank week runs Sunday to Saturday and turns when Saturday's plank
+closes (5 am Sunday, Sydney). `settle_week` runs on the next `/plank/today`,
+`/plank/endless` or week-board request after that, and on a ten-minute timer,
+so the prize goes out whether or not anyone opens the page. It settles only
+the week just finished, once (state key `week_paid`, by the week's Sunday; the
+first paid week starts `WEEK_PRIZE_FROM` = 2026-11-08), queuing one
+`plank-week` file for the Harbourmaster. A tie goes to the earlier dive. If
+nobody dived under a registered name the week is recorded with no winner.
 
 ## Privacy
 
