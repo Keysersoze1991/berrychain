@@ -189,6 +189,29 @@ class JudgeMaintenanceTests(unittest.TestCase):
         self.assertEqual(list(kept.values()), ["A Real Thing"])
 
 
+class QueryTests(unittest.TestCase):
+    def test_query_is_url_decoded(self):
+        q = plank.parse_query("/plank/today?player=Gold%20D%20Rodger&x=")
+        self.assertEqual(q, {"player": "Gold D Rodger", "x": ""})
+        self.assertEqual(plank.parse_query("/plank/today?player=Mr+Banks"), {"player": "Mr Banks"})
+        self.assertEqual(plank.parse_query("/plank/status"), {})
+
+    def test_fix_names_repairs_only_registered_names(self):
+        class Reg:
+            def address_of(self, name):
+                return "brry1" + "ab" * 20 if name == "Gold D Rodger" else None
+        g = game()
+        p = g.prompts[0]
+        for name in ("Gold20D20Rodger", "Top20Gun", "Cloud00"):
+            sid, sess, _ = g.new_session("daily", name); sess["prompts"] = [p.id]
+        g.save()
+        self.assertEqual(plank.fix_names(g.path, Reg()), 1)
+        with open(g.path) as f:
+            players = sorted(s["player"] for d in json.load(f)["days"].values() for s in d["sessions"].values())
+        self.assertEqual(players, ["Cloud00", "Gold D Rodger", "Top20Gun"])
+        self.assertEqual(plank.fix_names(g.path, None), 0)
+
+
 class NoRepeatTests(unittest.TestCase):
     def test_no_prompt_twice_within_thirty_days(self):
         import datetime as dt

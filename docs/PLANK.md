@@ -65,7 +65,10 @@ With no key the judge is off and unlisted answers score nothing, with the
 message "the captain cannot rule on that one right now". After a judge change,
 `PLANK_FORGET_INVALID=1 bash deploy/plank-setup.sh` drops the cached rejections
 (`python -m berrychain.plank forget-invalid` with the service stopped) so those
-spellings are judged afresh; past scores are not changed.
+spellings are judged afresh; past scores are not changed. `python -m
+berrychain.plank fix-names` (run by `plank-setup.sh`) repairs player names
+that reached the board percent-encoded before the query string was decoded
+("Gold20D20Rodger"), only where the repaired name is registered.
 
 ## The dive prize
 

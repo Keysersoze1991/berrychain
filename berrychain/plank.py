@@ -22,6 +22,7 @@ import sys
 import threading
 import time
 import unicodedata
+from urllib.parse import parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -451,6 +452,39 @@ class Plank:
 
 
 # ------------------------------------------------------------------ http
+def parse_query(path: str) -> dict[str, str]:
+    """The query string, URL-decoded (so ?player=Gold%20D%20Rodger is the name with spaces, not 'Gold20D20Rodger')."""
+    if "?" not in path:
+        return {}
+    return {k: v[0] for k, v in parse_qs(path.split("?", 1)[1], keep_blank_values=True).items()}
+
+
+def fix_names(state_path: str, registry: purse.Registry | None) -> int:
+    """Repair player names that arrived percent-encoded before parse_query existed ('Gold20D20Rodger'): each '20'
+    between word characters becomes a space, but only when the result is a registered name. Returns how many."""
+    if registry is None or not os.path.exists(state_path):
+        return 0
+    with open(state_path, encoding="utf-8") as f:
+        state = json.load(f)
+    n = 0
+    buckets = [d.get("sessions", {}) for d in state.get("days", {}).values()] + [state.get("endless", {})]
+    for sessions in buckets:
+        for sess in sessions.values():
+            player = sess.get("player") or ""
+            if "20" not in player:
+                continue
+            fixed = re.sub(r"(?<=\w)20(?=\w)", " ", player)
+            if fixed != player and registry.address_of(fixed):
+                sess["player"] = fixed
+                n += 1
+    if n:
+        tmp = state_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, separators=(",", ":"))
+        os.replace(tmp, state_path)
+    return n
+
+
 def make_handler(game: Plank):
     class Handler(BaseHTTPRequestHandler):
         server_version = "BerryChainPlank/1"
@@ -484,14 +518,7 @@ def make_handler(game: Plank):
             self.end_headers()
 
         def _query(self) -> dict[str, str]:
-            if "?" not in self.path:
-                return {}
-            out = {}
-            for part in self.path.split("?", 1)[1].split("&"):
-                if "=" in part:
-                    k, v = part.split("=", 1)
-                    out[k] = v
-            return out
+            return parse_query(self.path)
 
         def do_GET(self):
             route = self.path.split("?")[0]
@@ -573,6 +600,11 @@ def main(argv=None) -> None:
     data_dir = env("PLANK_DIR") or ("/var/lib/berrychain/plank" if os.name != "nt" else os.path.join(os.environ.get("TEMP", "."), "berrychain-plank"))
     if argv and argv[0] == "forget-invalid":          # maintenance, with the service stopped
         print(f"plank: forgot {forget_invalid(os.path.join(data_dir, 'plank-state.json'))} invalid verdict(s)", flush=True)
+        return
+    if argv and argv[0] == "fix-names":               # maintenance, with the service stopped
+        node_url = env("PLANK_NODE_URL", "http://127.0.0.1:8801")
+        reg = purse.Registry(node_url) if node_url and node_url != "off" else None
+        print(f"plank: repaired {fix_names(os.path.join(data_dir, 'plank-state.json'), reg)} player name(s)", flush=True)
         return
     prompts_path = env("PLANK_PROMPTS", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "deploy", "plank-prompts.txt"))
     os.makedirs(data_dir, exist_ok=True)

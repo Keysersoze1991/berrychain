@@ -77,6 +77,10 @@ if [ "${PLANK_FORGET_INVALID:-0}" = "1" ]; then
   (cd "$APP" && sudo -u berry env PLANK_DIR="$DATA/plank" PYTHONPATH="$APP" "$APP/.venv/bin/python" -m berrychain.plank forget-invalid)
 fi
 
+echo "== player names"
+systemctl stop berrychain-plank || true
+(cd "$APP" && sudo -u berry env PLANK_DIR="$DATA/plank" PYTHONPATH="$APP" "$APP/.venv/bin/python" -m berrychain.plank fix-names)
+
 echo "== service"
 install -m 644 "$APP/deploy/berrychain-plank.service" /etc/systemd/system/berrychain-plank.service
 systemctl daemon-reload
