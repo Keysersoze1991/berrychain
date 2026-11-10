@@ -22,6 +22,12 @@ class VerifyError implements Exception {
   String toString() => message;
 }
 
+/// Two miners found a block at the same height within seconds of each other and the node asked has the other one.
+/// Not a fault: the chain already verified is kept and the next block settles it. Shown quietly, never in red.
+class EqualWorkTie extends VerifyError {
+  EqualWorkTie() : super('node is on a different fork of equal work; keeping the chain already verified');
+}
+
 const headerFields = ['height', 'prev_hash', 'timestamp', 'target', 'merkle_root', 'nonce', 'hash'];
 const maxFutureDrift = 2 * 60 * 60;
 const _pageSize = 100; // MAX_HEADERS_PER_REQUEST on the node
@@ -199,7 +205,7 @@ class LightClient {
       lo = hi + 1;
     }
     if (candidateWork < work) throw VerifyError('node is on a lighter chain (height ${candidate.last['height']}) than the best already verified (height $height)');
-    if (candidateWork == work && candidate.last['hash'] != tip!['hash']) throw VerifyError('node is on a different fork of equal work; keeping the chain already verified');
+    if (candidateWork == work && candidate.last['hash'] != tip!['hash']) throw EqualWorkTie();
     _checkCheckpoint(candidate, base);
     final changed = candidate.last['hash'] != tip!['hash'];
     headers = candidate;

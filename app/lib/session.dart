@@ -671,6 +671,8 @@ class Session extends ChangeNotifier {
       }
     } on NodeError catch (e) {
       lastError = e.message;
+    } on EqualWorkTie {
+      // two miners tied for the latest block; the seeds settle it with the next one. The chain kept is still verified.
     } on VerifyError catch (e) {
       lastError = 'chain check failed: ${e.message}';
     } catch (e) {
