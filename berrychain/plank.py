@@ -31,6 +31,8 @@ TIERS = [(0.25, 10), (0.12, 20), (0.06, 30), (0.03, 50), (0.01, 75), (0.0, 100)]
 PRIOR = [20, 12, 8, 5, 4, 3, 3, 2]          # weight of the bank's listed answers, in order; the rest get 1
 DAILY_PROMPTS = 7
 FACT_PER_DAY = 2          # of the seven, this many have one right answer (100 points or nothing)
+NO_REPEAT_DAYS = 30       # a question used in the last this-many plank days is not drawn again
+NO_REPEAT_FROM = "2026-11-11"   # the first plank day drawn under that rule (earlier days were independent draws)
 MAX_ANSWER = 60
 MAX_PLAYER = 24
 KEEP_DAYS = 90
@@ -197,6 +199,7 @@ class Judge:
 class Plank:
     def __init__(self, prompts: list[Prompt], data_dir: str, judge: Judge, seconds: int, registry: purse.Registry | None = None):
         self.prompts = prompts
+        self._sets: dict[str, list[Prompt]] = {}      # plank day -> its seven, memoised (deterministic per bank)
         self.registry = registry                      # registered names -> addresses; None keeps the purse shut
         self.queue = os.path.join(data_dir, "queue")   # prizes for the Harbourmaster to pay (berrychain/purse.py)
         self.by_id = {p.id: p for p in prompts}
@@ -229,20 +232,44 @@ class Plank:
         local = now.astimezone(DAY_TZ) - dt.timedelta(hours=DAY_START_HOUR)
         return local.strftime("%Y-%m-%d")
 
-    def _mix(self, rng: random.Random) -> list[Prompt]:
-        """Seven prompts: FACT_PER_DAY single-answer ones (when the bank has them) and the rest open, shuffled."""
-        facts = [p for p in self.prompts if p.fact]
-        opens = [p for p in self.prompts if not p.fact]
+    def _mix(self, rng: random.Random, exclude: frozenset[str] = frozenset()) -> list[Prompt]:
+        """Seven prompts: FACT_PER_DAY single-answer ones (when the bank has them) and the rest open, shuffled.
+        Prompts in `exclude` (recently used) are left out while the bank is big enough to allow it."""
+        facts = [p for p in self.prompts if p.fact and p.id not in exclude]
+        opens = [p for p in self.prompts if not p.fact and p.id not in exclude]
         nf = min(FACT_PER_DAY, len(facts))
         if len(opens) < DAILY_PROMPTS - nf:
+            if exclude:                                   # bank too small to avoid repeats: draw from all of it
+                return self._mix(rng)
             return rng.sample(self.prompts, DAILY_PROMPTS)
         chosen = rng.sample(facts, nf) + rng.sample(opens, DAILY_PROMPTS - nf)
         rng.shuffle(chosen)
         return chosen
 
     def daily_set(self, day: str) -> list[Prompt]:
+        """The seven for a plank day: the same for everyone, drawn from the day alone (no state), and from
+        NO_REPEAT_FROM on never a prompt used in the previous NO_REPEAT_DAYS days."""
+        got = self._sets.get(day)
+        if got is not None:
+            return got
+        if day >= NO_REPEAT_FROM:
+            # every day from the rule's start up to this one, oldest first, so each sees the days before it
+            start = dt.date.fromisoformat(NO_REPEAT_FROM)
+            d = start
+            while d.isoformat() < day:
+                self.daily_set(d.isoformat())
+                d += dt.timedelta(days=1)
+            recent: set[str] = set()
+            this = dt.date.fromisoformat(day)
+            for back in range(1, NO_REPEAT_DAYS + 1):
+                recent.update(p.id for p in self.daily_set((this - dt.timedelta(days=back)).isoformat()))
+            exclude = frozenset(recent)
+        else:
+            exclude = frozenset()
         seed = int(hashlib.sha256(("plank|" + day).encode()).hexdigest()[:12], 16)
-        return self._mix(random.Random(seed))
+        chosen = self._mix(random.Random(seed), exclude)
+        self._sets[day] = chosen
+        return chosen
 
     def _day(self, day: str) -> dict[str, Any]:
         d = self.state["days"].setdefault(day, {"sessions": {}})

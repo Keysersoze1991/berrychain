@@ -189,6 +189,33 @@ class JudgeMaintenanceTests(unittest.TestCase):
         self.assertEqual(list(kept.values()), ["A Real Thing"])
 
 
+class NoRepeatTests(unittest.TestCase):
+    def test_no_prompt_twice_within_thirty_days(self):
+        import datetime as dt
+        from berrychain.plank import NO_REPEAT_FROM, NO_REPEAT_DAYS
+        g = game()
+        start = dt.date.fromisoformat(NO_REPEAT_FROM)
+        days = [(start + dt.timedelta(days=i)).isoformat() for i in range(45)]
+        sets = {d: [p.id for p in g.daily_set(d)] for d in days}
+        for d in days:
+            self.assertEqual(len(sets[d]), 7)
+            self.assertEqual(len(set(sets[d])), 7)
+        for i, d in enumerate(days):
+            window = set()
+            for prev in days[max(0, i - NO_REPEAT_DAYS):i]:
+                window.update(sets[prev])
+            self.assertFalse(window & set(sets[d]), f"{d} repeats a prompt from the last {NO_REPEAT_DAYS} days")
+        # also against the 30 independent days before the rule started
+        before = set()
+        for back in range(1, NO_REPEAT_DAYS + 1):
+            before.update(p.id for p in g.daily_set((start - dt.timedelta(days=back)).isoformat()))
+        self.assertFalse(before & set(sets[days[0]]))
+        # deterministic: a fresh game draws the same sets, in any order of asking
+        g2 = game()
+        for d in reversed(days):
+            self.assertEqual([p.id for p in g2.daily_set(d)], sets[d])
+
+
 class DivePrizeTests(unittest.TestCase):
     """Past 5,000 m on the daily plank under a registered name queues 0.2 BERRY, once a day per address."""
     PIP = "brry1" + "c" * 52

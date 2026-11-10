@@ -1,7 +1,10 @@
 # Walk the Plank
 
 The captain's daily trivia dive, at [berrychain.link/plank](https://berrychain.link/plank/).
-Seven prompts a day, the same seven for everyone, 25 seconds each. An answer is
+Seven prompts a day, the same seven for everyone, 25 seconds each. A prompt
+used in the last 30 plank days is not drawn again (`NO_REPEAT_DAYS`, from
+`NO_REPEAT_FROM` = 2026-11-11 on; the draw stays a pure function of the day and
+the bank, no state). An answer is
 scored by how rare it is among everything the crew has answered to that prompt:
 
 | share of answers | points |
