@@ -24,7 +24,7 @@
   <div class="hero" style="padding-top:36px">
     <p class="eyebrow" style="color:var(--brass)">Privacy policy · BerryChain app and network</p>
     <h1 style="color:var(--ink)">What we know about you: almost nothing.</h1>
-    <p class="lede">This policy covers the BerryChain app for Android, iPhone and the browser, and the seed nodes at berrychain.link. Last updated 2 October 2026.</p>
+    <p class="lede">This policy covers the BerryChain app for Android, iPhone and the browser, and the seed nodes at berrychain.link. Last updated 15 November 2026.</p>
   </div>
 
   <h2>No accounts, no sign-up, no collection</h2>
@@ -47,6 +47,9 @@
 
   <h2>Instant notices on iPhone (optional)</h2>
   <p>On iPhone, Settings has a switch called <em>Tell me straight away</em>. It is off unless you turn it on. When it is on, the app hands your phone's Apple push token to a BerryChain seed node, signed by your wallet, and the seed keeps the pairing of that token and your address. The seed then sends an Apple push the moment a letter for your address is carried in a block. The push says that a letter has arrived and nothing else: not who wrote it, not what it says, not any coins attached. This is the only thing any server of ours stores about you. Turn the switch off and the seed forgets the pairing at once; Apple is told nothing about your address. Android phones use the app's own background check instead and register nothing.</p>
+
+  <h2>Carrying letters between nearby phones (optional)</h2>
+  <p>Settings has a switch called <em>Carry letters for nearby pen pals</em>. It is off unless you turn it on. While it is on, the phone looks for other phones running the app nearby, over Bluetooth and Wi-Fi, and the phones hand each other the sealed letters waiting in their outboxes so that whichever reaches the internet first can deliver them. A nearby phone sees a random name made up for that session and the sealed, signed letters themselves, which it cannot read or change. No server of ours is involved and your location is not read.</p>
 
   <h2>Parcels (large attachments)</h2>
   <p>A letter can carry a file too big for the chain. The app seals the file on your phone with a one-off key, pays a small BERRY fee to a seed node's parcel room, and uploads the sealed copy there; the key travels only inside the sealed letter. The parcel room keeps the sealed file for up to 30 days and hands it to the recipient's app, which checks it and opens it. The room learns the sender's address, the file's size and a hash of the sealed bytes: not the file name, not the contents, not who it is for. Burning the letter asks the room to delete the parcel at once.</p>

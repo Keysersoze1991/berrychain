@@ -298,8 +298,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Carry letters for nearby pen pals'),
                 subtitle: Text(Carrier.supported
-                    ? 'With no internet, a letter you send waits in the outbox and is also handed to any BerryChain phone within Bluetooth range, and you carry theirs. Whichever phone next reaches a seed delivers the lot. Bottles (off-chain notes) travel the same way and never touch the chain. Everything stays sealed; a carrier cannot read it. Uses a little battery while on.'
-                    : 'Android only for now. On this phone a letter written without a connection still waits in the outbox and goes the moment one returns.'),
+                    ? 'With no internet, a letter you send waits in the outbox and is also handed to any BerryChain phone within Bluetooth range, and you carry theirs. Whichever phone next reaches a seed delivers the lot. Bottles (off-chain notes) travel the same way and never touch the chain. Everything stays sealed; a carrier cannot read it. ${Carrier.reach} Uses a little battery while on.'
+                    : 'Carrying between phones needs the phone app. Here a letter written without a connection still waits in the outbox and goes the moment one returns.'),
                 value: s.carryLetters,
                 onChanged: Carrier.supported
                     ? (v) async {

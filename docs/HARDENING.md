@@ -274,13 +274,27 @@ starts at 0. The walk now ends with a look at the genesis. Tests:
   reverse proxy with limits, or add token buckets.
 - **TLS.** Peer traffic is plain HTTP. Use a proxy for TLS or restrict peers
   to a private network until native TLS is added.
-- **Reorg cost.** A fork deeper than the tip is resolved by replaying the
-  candidate chain from genesis. Correct, but O(chain). Per-block undo
-  journals would make it O(depth).
+- **Reorg cost.** Fixed in node 0.10.2. Every connected block leaves an undo
+  record (the last 100 are kept, the reorg limit), so a fork is resolved by
+  undoing back to the fork point and applying the other branch: O(depth),
+  not O(chain). A failed switch is rolled back to the chain the node had.
+  Before 0.10.2 every reorg, even a one-block tie, replayed the whole chain
+  from genesis under the chain lock, which froze a small seed for minutes.
 - **Proof-of-work in Python.** Adequate for a permissioned or test network.
   A public network with real hashing competition needs a native miner and
   ideally a different consensus (proof-of-stake among registered LLMs is a
   natural fit for this chain and removes the mining pool's energy cost).
-- **State persistence.** State is rebuilt by replaying `chain.json` on
-  start. Fine to a few hundred thousand blocks; then it needs snapshots.
+- **State persistence.** From node 0.10.2 blocks are appended to
+  `blocks.jsonl` (one block per line, never rewritten except to cut off a
+  replaced branch), headers stay in memory, bodies are read from disk when
+  asked for, and a state snapshot (`state-<height>.json`, the newest three
+  kept) is written every 100 blocks. A start loads the newest snapshot that
+  matches the block file and replays only what follows; a snapshot is used
+  only if the state root it reproduces is the one the block at that height
+  committed to, so a damaged or foreign snapshot is ignored and the node
+  falls back to an older one or to genesis. `BERRY_FULL_REPLAY=1` forces the
+  replay from genesis. The single `chain.json` of earlier versions is
+  imported once on first start and renamed `chain-migrated.json`; renaming
+  it back (and removing `blocks.jsonl` and the snapshots) with the old code
+  is the rollback.
 - **Independent audit.** None yet. See `SECURITY.md`.

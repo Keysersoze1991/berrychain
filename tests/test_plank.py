@@ -1,8 +1,14 @@
 """Walk the Plank: prompt bank, matching, scoring and sessions (no network, judge off)."""
+import contextlib
+import io
 import json
 import os
 import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
 
 from berrychain import plank
 from berrychain.plank import Judge, Plank, close, load_prompts, norm
@@ -388,6 +394,163 @@ class WeekPrizeTests(unittest.TestCase):
         self.dive("2026-11-03", "Pip", 900)
         self.assertIsNone(self.g.settle_week(self.at("2026-11-09")))
         self.assertEqual(self.queued(), [])
+
+
+class AppealTests(unittest.TestCase):
+    """A refused answer can be put to the architect; the ruling is remembered for everyone."""
+    def setUp(self):
+        self.j = FakeJudge()
+        self.g = game(self.j)
+        self.p = next(p for p in self.g.prompts if p.text == "Name something that floats")
+
+    def give(self, raw, player="Pip"):
+        sid, sess, _ = self.g.new_session("endless", player)
+        sess["prompts"] = [self.p.id]
+        return sid, self.g.answer(sid, self.p.id, raw)
+
+    def test_a_refused_answer_can_be_appealed_once_and_an_empty_one_not_at_all(self):
+        sid, res = self.give("driftwood plank")
+        self.assertFalse(res["valid"]); self.assertTrue(res["appeal"])
+        self.assertEqual(self.g.appeal(sid, self.p.id), {"queued": True})
+        self.assertEqual(self.g.appeal(sid, self.p.id), {"queued": True})
+        waiting = self.g.appeals()
+        self.assertEqual([(a["answer"], a["count"], a["prompt"], a["kind"]) for a in waiting],
+                         [("driftwood plank", 1, "Name something that floats", "open")])
+        self.assertIn("Boat", waiting[0]["listed"])
+        sid2, res2 = self.give("")
+        self.assertFalse(res2["appeal"])
+        self.assertEqual(self.g.appeal(sid2, self.p.id), "there is nothing to appeal")
+        sid3, res3 = self.give("boat")
+        self.assertNotIn("appeal", res3)
+        self.assertEqual(self.g.appeal(sid3, self.p.id), "there is nothing to appeal")
+        self.assertEqual(self.g.appeal("nope", self.p.id), "no such session")
+
+    def test_the_same_answer_from_several_players_is_one_appeal_counted(self):
+        for name in ("Pip", "Smee", "Bones"):
+            sid, _ = self.give("Driftwood  Plank!", name)
+            self.g.appeal(sid, self.p.id)
+        self.assertEqual([(a["count"]) for a in self.g.appeals()], [3])
+        self.assertEqual(self.j.calls, 1, "the judge's refusal was cached; appeals do not ask it again")
+
+    def test_accepted_it_counts_for_everyone_from_then_on_and_points_already_scored_stand(self):
+        sid, _ = self.give("driftwood plank")
+        self.g.appeal(sid, self.p.id)
+        aid = self.g.appeals()[0]["id"]
+        res = self.g.rule(aid, True, "Driftwood")
+        self.assertEqual((res["ruling"], res["canonical"]), ("accepted", "Driftwood"))
+        self.assertEqual(self.g.find_session(sid)["total"], 0)
+        self.assertEqual(self.g.appeals(), [])
+        _, again = self.give("Driftwood plank", "Smee")
+        self.assertTrue(again["valid"]); self.assertEqual((again["canonical"], again["how"]), ("Driftwood", "cached"))
+        self.assertEqual(self.g.state["counts"][self.p.id]["Driftwood"], 1)
+        self.assertEqual(self.g.rule(aid, False), "already accepted")
+        self.assertEqual(self.g.rule("zzzzzz", True), "no such appeal")
+
+    def test_accepted_without_a_name_keeps_the_players_words_and_folds_into_a_listed_answer(self):
+        sid, _ = self.give("driftwood plank")
+        self.g.appeal(sid, self.p.id)
+        self.assertEqual(self.g.rule(self.g.appeals()[0]["id"], True)["canonical"], "driftwood plank")
+        sid2, _ = self.give("my tiny vessel")
+        self.g.appeal(sid2, self.p.id)
+        self.assertEqual(self.g.rule(self.g.appeals()[0]["id"], True, "boat")["canonical"], "Boat")
+        _, again = self.give("My tiny vessel", "Smee")
+        self.assertEqual((again["canonical"], again["points"]), ("Boat", 10))
+
+    def test_rejected_it_stays_refused_and_cannot_be_appealed_again(self):
+        sid, _ = self.give("driftwood plank")
+        self.g.appeal(sid, self.p.id)
+        self.assertEqual(self.g.rule(self.g.appeals()[0]["id"], False)["ruling"], "rejected")
+        sid2, res = self.give("Driftwood plank", "Smee")
+        self.assertFalse(res["valid"]); self.assertFalse(res["appeal"])
+        self.assertEqual(self.g.appeal(sid2, self.p.id), "the captain has already ruled on that answer")
+        self.assertEqual(self.g.appeals(), [])
+
+    def test_an_answer_the_judge_could_not_rule_on_can_be_appealed_too(self):
+        g = game()                                                   # judge off
+        sid, sess, _ = g.new_session("endless", "Pip"); sess["prompts"] = [self.p.id]
+        res = g.answer(sid, self.p.id, "driftwood plank")
+        self.assertTrue(res["appeal"])
+        g.appeal(sid, self.p.id)
+        g.rule(g.appeals()[0]["id"], True, "Driftwood")
+        sid2, sess2, _ = g.new_session("endless", "Smee"); sess2["prompts"] = [self.p.id]
+        self.assertTrue(g.answer(sid2, self.p.id, "driftwood plank")["valid"])
+
+    def test_the_desk_takes_only_so_many_and_appeals_survive_a_restart(self):
+        old, plank.APPEALS_WAITING = plank.APPEALS_WAITING, 2
+        try:
+            for i, raw in enumerate(("first thing", "second thing", "third thing")):
+                sid, _ = self.give(raw, f"P{i}")
+                res = self.g.appeal(sid, self.p.id)
+            self.assertIn("desk is full", res)
+            sid, _ = self.give("first thing", "Late")
+            self.assertEqual(self.g.appeal(sid, self.p.id), {"queued": True}, "one already waiting only gains a count")
+        finally:
+            plank.APPEALS_WAITING = old
+        self.g.save()
+        g2 = Plank(load_prompts(BANK), self.g.dir, OffJudge(), 25)
+        self.assertEqual([(a["answer"], a["count"]) for a in g2.appeals()], [("first thing", 2), ("second thing", 1)])
+
+
+class DeskTests(unittest.TestCase):
+    """The architect's commands reach the service on this machine only; through nginx they do not exist."""
+    def setUp(self):
+        self.g = game()
+        self.p = next(p for p in self.g.prompts if p.text == "Name something that floats")
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), plank.make_handler(self.g))
+        self.port = self.server.server_address[1]
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+
+    def call(self, path, body=None, headers=None):
+        req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", data=None if body is None else json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json", **(headers or {})})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def run_desk(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = plank.desk(self.port, list(argv))
+        return code, out.getvalue()
+
+    def test_appeal_over_http_then_listed_and_ruled_from_the_command_line(self):
+        _, s = self.call("/plank/endless?player=Pip")
+        with self.g.lock:
+            self.g.find_session(s["session"])["prompts"] = [self.p.id]
+        _, res = self.call("/plank/answer", {"session": s["session"], "pid": self.p.id, "answer": "driftwood plank"})
+        self.assertTrue(res["appeal"])
+        self.assertEqual(self.call("/plank/appeal", {"session": s["session"], "pid": self.p.id}), (200, {"queued": True}))
+        self.assertEqual(self.call("/plank/appeal", {"session": "nope", "pid": self.p.id})[0], 400)
+        self.assertEqual(self.call("/plank/status")[1]["appeals"], 1)
+        code, text = self.run_desk("appeals")
+        self.assertEqual(code, 0)
+        self.assertIn("1 appeal(s) waiting", text); self.assertIn('"driftwood plank"', text); self.assertIn("Name something that floats", text)
+        aid = self.g.appeals()[0]["id"]
+        self.assertIn(aid, text)
+        code, text = self.run_desk("accept", aid, "Driftwood")
+        self.assertEqual(code, 0); self.assertIn('now counts as "Driftwood"', text)
+        self.assertEqual(self.run_desk("appeals"), (0, "plank: no appeals waiting\n"))
+        self.assertEqual(self.run_desk("reject", aid), (1, "plank: already accepted\n"))
+        self.assertEqual(self.run_desk("accept")[0], 2)
+        with open(self.g.path) as f:
+            self.assertEqual(json.load(f)["judged"][self.p.id]["driftwood plank"], "Driftwood", "the ruling was saved")
+
+    def test_the_desk_is_not_there_for_anything_nginx_forwarded(self):
+        for marked in ({"X-Real-IP": "203.0.113.9"}, {"X-Forwarded-For": "203.0.113.9"}, {"Origin": "https://berrychain.link"}):
+            self.assertEqual(self.call("/admin/appeals", headers=marked), (404, {"error": "not found"}))
+            self.assertEqual(self.call("/admin/rule", {"id": "abcdef", "accept": True}, headers=marked), (404, {"error": "not found"}))
+        self.assertEqual(self.call("/admin/appeals"), (200, {"appeals": []}))
+        self.assertEqual(self.call("/admin/rule", {"id": "abcdef", "accept": True}), (400, {"error": "no such appeal"}))
+        self.assertEqual(self.call("/plank/admin/appeals")[0], 404)
+
+    def test_a_desk_with_no_service_behind_it_says_so(self):
+        self.server.shutdown(); self.server.server_close()
+        code, text = self.run_desk("appeals")
+        self.assertEqual(code, 1); self.assertIn("cannot reach the plank service", text)
 
 
 if __name__ == "__main__":

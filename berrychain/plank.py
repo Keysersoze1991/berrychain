@@ -22,6 +22,8 @@ import sys
 import threading
 import time
 import unicodedata
+import urllib.error
+import urllib.request
 from urllib.parse import parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -39,6 +41,8 @@ NO_REPEAT_FROM = "2026-11-11"   # the first plank day drawn under that rule (ear
 MAX_ANSWER = 60
 MAX_PLAYER = 24
 KEEP_DAYS = 90
+APPEALS_WAITING = 300     # disputed answers that may wait for the architect at once; past this, no more are taken
+APPEALS_KEPT = 1500       # appeals remembered in all, ruled ones included (the oldest ruled go first)
 DAY_START_HOUR = int(os.environ.get("PLANK_DAY_START_HOUR", "5"))   # the new plank goes up at this hour, local time
 try:
     from zoneinfo import ZoneInfo
@@ -211,7 +215,7 @@ class Plank:
         self.judge = judge
         self.seconds = seconds
         self.lock = threading.Lock()
-        self.state: dict[str, Any] = {"counts": {}, "judged": {}, "days": {}, "endless": {}, "dive_paid": {}}
+        self.state: dict[str, Any] = {"counts": {}, "judged": {}, "days": {}, "endless": {}, "dive_paid": {}, "appeals": {}}
         if os.path.exists(self.path):
             with open(self.path, encoding="utf-8") as f:
                 self.state.update(json.load(f))
@@ -374,7 +378,7 @@ class Plank:
             if p.fact and how != "nojudge":
                 msg = ("You froze on the plank. " if how == "empty" else "Not this one. ") + "The answer: " + " or ".join(p.canon[:3]) + "."
             return {"valid": False, "points": 0, "why": msg, "top": self.top(p), "total": sess["total"],
-                    "kind": "fact" if p.fact else "open"}
+                    "kind": "fact" if p.fact else "open", "appeal": self.can_appeal(pid, raw)}
         pts, share, total = self.tier(p, canon)
         self.state["counts"].setdefault(pid, {})
         self.state["counts"][pid][canon] = self.state["counts"][pid].get(canon, 0) + 1
@@ -385,6 +389,86 @@ class Plank:
         if len(sess["answers"]) == DAILY_PROMPTS:
             out["prize"] = self.dive_prize(sess)
         return out
+
+    # -- appeals: a player who thinks a refused answer was right can put it to the architect, whose ruling is
+    #    remembered like a judge's verdict, so an accepted answer counts for everyone who gives it from then on
+    @staticmethod
+    def appeal_id(pid: str, raw: str) -> str:
+        return hashlib.sha1(f"{pid}\n{norm(raw)}".encode()).hexdigest()[:6]
+
+    def waiting(self) -> list[tuple[str, dict[str, Any]]]:
+        return [(aid, a) for aid, a in self.state["appeals"].items() if not a.get("ruling")]
+
+    def can_appeal(self, pid: str, raw: str) -> bool:
+        """A refused answer may be appealed unless it is empty or the architect has already ruled on it."""
+        if not norm(raw):
+            return False
+        rec = self.state["appeals"].get(self.appeal_id(pid, raw))
+        return not (rec and rec.get("ruling"))
+
+    def appeal(self, sid: str, pid: str) -> dict[str, Any] | str:
+        sess = self.find_session(sid)
+        if not sess:
+            return "no such session"
+        a, p = sess["answers"].get(pid), self.by_id.get(pid)
+        if not a or not p or a.get("canon") is not None or not norm(a.get("raw") or ""):
+            return "there is nothing to appeal"
+        if a.get("appealed"):
+            return {"queued": True}                     # asked twice: once is enough
+        aid = self.appeal_id(pid, a["raw"])
+        rec = self.state["appeals"].get(aid)
+        if rec and rec.get("ruling"):
+            return "the captain has already ruled on that answer"
+        if rec is None:
+            if len(self.waiting()) >= APPEALS_WAITING:
+                return "the captain's desk is full; try again another day"
+            rec = self.state["appeals"][aid] = {"pid": pid, "raw": a["raw"], "count": 0, "day": self.today()}
+        rec["count"] += 1
+        a["appealed"] = True
+        return {"queued": True}
+
+    def appeals(self) -> list[dict[str, Any]]:
+        """The appeals waiting for a ruling, the most asked-for first, with what the architect needs to rule."""
+        out = []
+        for aid, a in sorted(self.waiting(), key=lambda kv: (-kv[1]["count"], kv[1]["day"])):
+            p = self.by_id.get(a["pid"])
+            out.append({"id": aid, "answer": a["raw"], "count": a["count"], "day": a["day"],
+                        "prompt": p.text if p else "(a question no longer in the bank)",
+                        "kind": "fact" if p and p.fact else "open", "listed": p.canon[:8] if p else []})
+        return out
+
+    def rule(self, aid: str, accept: bool, canonical: str = "") -> dict[str, Any] | str:
+        """The architect's ruling on an appeal. Accepted, the answer is remembered as valid under `canonical`
+        (default: as the player wrote it), folded into a spelling already counted when it is one; rejected, it
+        stays refused and cannot be appealed again. Points already scored are not changed either way."""
+        rec = self.state["appeals"].get(aid)
+        if rec is None:
+            return "no such appeal"
+        if rec.get("ruling"):
+            return f"already {rec['ruling']}"
+        p = self.by_id.get(rec["pid"])
+        n = norm(rec["raw"])
+        canon = ""
+        if accept:
+            if p is None:
+                return "that question is no longer in the bank; reject the appeal to clear it"
+            canon = " ".join((canonical or rec["raw"]).split())[:MAX_ANSWER]
+            if not norm(canon):
+                return "the canonical name is empty"
+            known = {**p.alias, **{norm(c): c for c in self.state["counts"].get(p.id, {})}}
+            for k, c in known.items():
+                if close(norm(canon), k):
+                    canon = c
+                    break
+        self.state["judged"].setdefault(rec["pid"], {})[n] = canon
+        rec["ruling"] = "accepted" if accept else "rejected"
+        if canon:
+            rec["canon"] = canon
+        ruled = [k for k, a in self.state["appeals"].items() if a.get("ruling")]
+        for old in ruled[:max(0, len(self.state["appeals"]) - APPEALS_KEPT)]:
+            del self.state["appeals"][old]
+        return {"id": aid, "ruling": rec["ruling"], "answer": rec["raw"], "canonical": canon or None,
+                "prompt": p.text if p else None}
 
     # -- the dive prize: 0.2 BERRY for passing PLANK_PRIZE_DEPTH on the daily plank, once a day per registered name
     def dive_prize(self, sess: dict[str, Any]) -> dict[str, Any] | None:
@@ -560,17 +644,52 @@ def make_handler(game: Plank):
         def _query(self) -> dict[str, str]:
             return parse_query(self.path)
 
+        def _local(self) -> bool:
+            """Asked from this machine itself (the architect's command line): not through nginx, which only
+            forwards /plank/ and marks what it forwards with X-Real-IP, and not by a web page in a browser."""
+            return (self.client_address[0] in ("127.0.0.1", "::1")
+                    and not any(self.headers.get(h) for h in ("X-Real-IP", "X-Forwarded-For", "Origin")))
+
+        def _drain(self) -> None:
+            """Take a small unwanted body off the socket: closing with it unread resets the connection, and the
+            caller then sees a broken connection instead of the answer."""
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if 0 < n <= 2048:
+                    self.rfile.read(n)
+            except Exception:
+                pass
+
+        def _body(self) -> dict[str, Any] | None:
+            """The JSON body, or None after the error has been sent."""
+            try:
+                n = int(self.headers.get("Content-Length", "0"))
+                if n > 2048:
+                    self._send({"error": "too large"}, 413)
+                    return None
+                body = json.loads(self.rfile.read(n) or b"{}")
+                if not isinstance(body, dict):
+                    raise ValueError("not an object")
+                return body
+            except Exception:
+                self._send({"error": "bad json"}, 400)
+                return None
+
         def do_GET(self):
             route = self.path.split("?")[0]
             q = self._query()
+            if route.startswith("/admin/") and not self._local():
+                return self._send({"error": "not found"}, 404)
             with game.lock:
+                if route == "/admin/appeals":
+                    return self._send({"appeals": game.appeals()})
                 if route == "/plank/status":
                     answered = sum(sum(c.values()) for c in game.state["counts"].values())
                     return self._send({"prompts": len(game.prompts), "facts": sum(1 for p in game.prompts if p.fact), "answers": answered, "day": game.today(),
                                        "judge": game.judge.enabled, "seconds": game.seconds, "purse": game.registry is not None,
                                        "prize": {"depth": params.PLANK_PRIZE_DEPTH, "amount": purse.berry_str(params.PURSE_PLANK_DIVE),
                                                  "week": purse.berry_str(params.PURSE_PLANK_WEEK)},
-                                       "week_paid": game.state.get("week_paid", {})})
+                                       "week_paid": game.state.get("week_paid", {}), "appeals": len(game.waiting())})
                 if route in ("/plank/today", "/plank/endless"):
                     if game.settle_week() is not None:
                         game.save()
@@ -600,16 +719,23 @@ def make_handler(game: Plank):
 
         def do_POST(self):
             route = self.path.split("?")[0]
-            if route != "/plank/answer":
+            if route not in ("/plank/answer", "/plank/appeal") and not (route == "/admin/rule" and self._local()):
+                self._drain()
                 return self._send({"error": "not found"}, 404)
-            try:
-                n = int(self.headers.get("Content-Length", "0"))
-                if n > 2048:
-                    return self._send({"error": "too large"}, 413)
-                body = json.loads(self.rfile.read(n) or b"{}")
-            except Exception:
-                return self._send({"error": "bad json"}, 400)
+            body = self._body()
+            if body is None:
+                return None
+            if route == "/admin/rule":
+                with game.lock:
+                    res = game.rule(str(body.get("id", "")), body.get("accept") is True, str(body.get("canonical") or ""))
+                    game.save()
+                return self._send({"error": res}, 400) if isinstance(res, str) else self._send(res)
             sid, pid, raw = str(body.get("session", ""))[:40], str(body.get("pid", ""))[:16], str(body.get("answer", ""))
+            if route == "/plank/appeal":
+                with game.lock:
+                    res = game.appeal(sid, pid)
+                    game.save()
+                return self._send({"error": res}, 400) if isinstance(res, str) else self._send(res)
             player = re.sub(r"[^\w .'-]", "", str(body.get("player", "")))[:MAX_PLAYER].strip()
             with game.lock:                       # one answer at a time; a judge call is a second or so
                 sess = game.find_session(sid)
@@ -642,8 +768,58 @@ def forget_invalid(state_path: str) -> int:
     return n
 
 
+def desk(port: int, argv: list[str]) -> int:
+    """The architect's side of the appeals, run on the seed: `appeals` lists what is waiting, `accept <id>
+    [canonical name]` and `reject <id>` rule on one. It talks to the running service, which owns the state."""
+    def call(path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+        req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=None if body is None else json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read())
+            except ValueError:
+                return {"error": f"the plank service answered {e.code}"}
+        except OSError as e:
+            return {"error": f"cannot reach the plank service on port {port}: {e}"}
+
+    if argv[0] == "appeals":
+        res = call("/admin/appeals")
+        if "error" in res:
+            print(f"plank: {res['error']}")
+            return 1
+        if not res["appeals"]:
+            print("plank: no appeals waiting")
+            return 0
+        print(f"plank: {len(res['appeals'])} appeal(s) waiting\n")
+        for a in res["appeals"]:
+            asked = "asked once" if a["count"] == 1 else f"asked {a['count']} times"
+            print(f"  {a['id']}   \"{a['answer']}\"   ({asked}, first on {a['day']})")
+            print(f"           to: {a['prompt']}" + ("   [one right answer]" if a["kind"] == "fact" else ""))
+            print(f"           listed: {', '.join(a['listed']) or '-'}\n")
+        print("  accept:  python -m berrychain.plank accept <id> [the name it should be counted under]")
+        print("  reject:  python -m berrychain.plank reject <id>")
+        return 0
+    if len(argv) < 2:
+        print(f"usage: python -m berrychain.plank {argv[0]} <id>" + (" [canonical name]" if argv[0] == "accept" else ""))
+        return 2
+    res = call("/admin/rule", {"id": argv[1], "accept": argv[0] == "accept", "canonical": " ".join(argv[2:])})
+    if "error" in res:
+        print(f"plank: {res['error']}")
+        return 1
+    if res["ruling"] == "accepted":
+        print(f"plank: accepted. \"{res['answer']}\" now counts as \"{res['canonical']}\" for: {res['prompt']}")
+    else:
+        print(f"plank: rejected. \"{res['answer']}\" stays refused and cannot be appealed again")
+    return 0
+
+
 def main(argv=None) -> None:
     port = int(env("PLANK_PORT", "8805"))
+    if argv and argv[0] in ("appeals", "accept", "reject"):
+        sys.exit(desk(port, list(argv)))
     data_dir = env("PLANK_DIR") or ("/var/lib/berrychain/plank" if os.name != "nt" else os.path.join(os.environ.get("TEMP", "."), "berrychain-plank"))
     if argv and argv[0] == "forget-invalid":          # maintenance, with the service stopped
         print(f"plank: forgot {forget_invalid(os.path.join(data_dir, 'plank-state.json'))} invalid verdict(s)", flush=True)

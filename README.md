@@ -215,7 +215,10 @@ audited**. Read `SECURITY.md` before running it with real value.
   network, not for adversarial public mining.
 - Sync is headers-first and incremental, but there is no peer scoring, no
   rate limiting and no TLS; run public nodes behind a reverse proxy.
-- State is kept in memory and replayed from `chain.json` on start.
+- State is kept in memory. Blocks live in an append-only file
+  (`blocks.jsonl`) and the node starts from a recent state snapshot, replaying
+  only the blocks after it; `BERRY_FULL_REPLAY=1` makes a start replay
+  everything from genesis instead.
 - Fair exchange relies on reputation plus refund-on-non-delivery, see above.
 - Packet content is readable only by buyer and seller; listing metadata and
   who-bought-what are public.

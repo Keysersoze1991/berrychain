@@ -706,7 +706,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
               title: const Text('Send in a bottle'),
               subtitle: Text(Carrier.supported
                   ? 'Off the chain: the sealed note hops phone to phone over Bluetooth until it reaches them. No fee, no coins, no record once the carrying phones let it go. Needs the carrying switch on, here and along the way.'
-                  : 'Bottles drift between Android phones for now; from this phone one could not leave.'),
+                  : 'Bottles drift from phone to phone; from a browser one could not leave.'),
               value: inBottle,
               onChanged: Carrier.supported ? (v) => setState(() { inBottle = v; if (v) amount.clear(); }) : null,
             ),

@@ -54,6 +54,8 @@ Tested target: Ubuntu 22.04 / 24.04 LTS.
 | `berrychain-node.service` | systemd unit, sandboxed; environment in `/etc/berrychain/node.env` |
 | `nginx-seed.conf` | TLS proxy, rate limits, body caps, `/mine` blocked |
 | `node.env.example` | the environment file the unit reads |
+| `updates-stagger.sh` | gives each seed its own hour for automatic system updates |
+| `backup-setup.sh`, `backup.sh`, `berrychain-backup.*` | nightly copy of seed1's service state (no keys, no chain) |
 
 ## After the first hour of blocks
 
@@ -73,7 +75,64 @@ bash /opt/berrychain/deploy/install.sh   # same env vars; pulls, reinstalls, res
 ```
 
 Consensus changes are hard forks and need a chain id bump; do not roll
-those out this way.
+those out this way. Update one seed, check `/status`, then the other, so
+one is always answering.
+
+## The data directory (node 0.10.2 and later)
+
+| File | What it is |
+|---|---|
+| `blocks.jsonl` | every block, one per line, appended as blocks connect |
+| `state-<height>.json` | state snapshots, one every 100 blocks, newest three kept |
+| `chain-migrated.json` | the single chain file of 0.10.1 and earlier, kept after the one-off import |
+
+The first start after updating from 0.10.1 reads `chain.json`, replays it
+once, writes `blocks.jsonl` and a snapshot, and renames the old file to
+`chain-migrated.json`. That one start takes about as long as starts used to;
+every later one takes seconds. Once the seed has run well for a few days the
+migrated file can be deleted. To go back instead: stop the node, check out
+the old code, delete `blocks.jsonl` and `state-*.json`, rename
+`chain-migrated.json` to `chain.json`, start.
+
+To make a start distrust the snapshots and replay everything from genesis,
+add `BERRY_FULL_REPLAY=1` to `/etc/berrychain/node.env` for that start.
+
+## System updates, staggered
+
+Stock Ubuntu installs security updates on both seeds in the same hour and
+restarts services afterwards, so both nodes could be restarting together.
+Run once on each seed:
+
+```bash
+bash /opt/berrychain/deploy/updates-stagger.sh
+```
+
+seed1 then updates at 16:30 UTC and seed2 at 18:30 UTC, the small hours in
+eastern Australia and two hours apart.
+
+## Backing up seed1's service state
+
+The chain is on every node; what exists only on seed1 is what its services
+have learned and paid: the Harbourmaster's memory, journal and threads, the
+plank boards and purse records, the ride records. Run once on seed1:
+
+```bash
+bash /opt/berrychain/deploy/backup-setup.sh
+```
+
+A root-only archive is then written to `/var/backups/berrychain` every night
+at 13:10 UTC, seven kept. It deliberately leaves out wallets, passphrases and
+API keys (those stay on the offline sticks), and push pairings and parcels
+(the privacy page promises those are forgotten on request). A copy on the
+same disk is not a backup, so fetch it to the PC now and then:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\pull-backup.ps1
+```
+
+It lands in `private\backups`, which git ignores. To restore on a rebuilt
+seed: stop the services, `tar -C /var/lib/berrychain -xzf <archive>`,
+`chown -R berry:berry /var/lib/berrychain`, start them.
 
 ## While the repository is private
 

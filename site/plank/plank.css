@@ -42,7 +42,8 @@ body.plank main.wrap { max-width: 1000px; padding-top: 18px; }
 .top li span:last-child, .recap li span:last-child, .boardbox li span:last-child { color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .top li.mine { font-weight: 600; color: var(--brass); }
 .play .big { font: 700 48px/1 Fraunces, Georgia, serif; margin: 6px 0; font-variant-numeric: tabular-nums; }
-#btn-next { margin-top: 16px; }
+#screen-reveal .row { margin-top: 16px; }
+#appeal-note { margin: 12px 0 0; }
 .about { margin: 24px 0 30px; }
 footer .wrap { padding: 16px 0 30px; }
 .err { color: var(--band); }

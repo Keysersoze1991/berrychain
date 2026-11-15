@@ -13,12 +13,16 @@ configured; without a token they are only accepted from the loopback address.
 Sync is headers-first and incremental: a node that is behind fetches the
 peer's headers from the last common block, checks proof-of-work and total
 work on the headers alone, and only then downloads block bodies in pages.
+
+The chain lives in the data directory as a block file (blocks.jsonl) with a
+few state snapshots beside it; see chain.py.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -28,7 +32,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__, params
-from .chain import BlockError, Chain, header_of
+from .chain import BLOCKS_FILE, SNAPSHOT_EVERY, SNAPSHOTS_KEPT, BlockError, Chain, WrongGenesis
 from .state import TxError
 from .tx import txid as _txid
 
@@ -63,8 +67,15 @@ class Node:
         return os.path.join(self.data_dir, "chain.json") if self.data_dir else None
 
     def persist(self) -> None:
-        if self.chain_path:
-            self.chain.save(self.chain_path)
+        """Make what the chain holds durable. A disk that will not take the write must not end the thread that
+        mines or syncs: the blocks are still in the chain, and the next call tries again."""
+        try:
+            if self.chain.data_dir:
+                self.chain.persist()
+            elif self.chain_path:                              # a chain held in memory: the whole of it, as one file
+                self.chain.save(self.chain_path)
+        except OSError as e:
+            print(f"could not write the chain to disk: {e}", flush=True)
 
     def start_background(self) -> None:
         # Announce ourselves only when we have a public URL. A home miner
@@ -96,7 +107,7 @@ class Node:
         with self.chain.lock:
             if blk["height"] <= self.chain.height:
                 return False                                   # old or already known
-            if blk["height"] == self.chain.height + 1 and blk.get("prev_hash") == self.chain.tip["hash"]:
+            if blk["height"] == self.chain.height + 1 and blk.get("prev_hash") == self.chain.hdrs[-1]["hash"]:
                 self.chain.add_block(blk)
             else:
                 threading.Thread(target=self._sync_once, daemon=True).start()   # we are behind / forked
@@ -164,20 +175,31 @@ class Node:
             return False
         peer_height = int(st["height"])
 
-        # 1. find the last common block by walking back in growing steps,
-        #    always ending with a look at the genesis itself
+        def same(h: int) -> bool:
+            hdrs = self._http(f"{peer}/headers?from={h}&to={h}")["headers"]
+            return bool(hdrs) and hdrs[0]["hash"] == self.chain.hdrs[h]["hash"]
+
+        # 1. find the last common block: walk back in growing steps, always ending
+        #    with a look at the genesis itself, then close in between the last two looks
         common = None
         step, h = 1, min(self.chain.height, peer_height)
+        above = h + 1                                          # lowest height not known to be shared
         while True:
-            hdrs = self._http(f"{peer}/headers?from={h}&to={h}")["headers"]
-            if hdrs and hdrs[0]["hash"] == self.chain.blocks[h]["hash"]:
+            if same(h):
                 common = h
                 break
             if h == 0:
                 break
+            above = h
             h, step = max(0, h - step), step * 2
         if common is None:
             return False                                       # different genesis
+        while above - common > 1:
+            mid = (common + above) // 2
+            if same(mid):
+                common = mid
+            else:
+                above = mid
         if self.chain.height - common > params.MAX_REORG_DEPTH:
             # Rolling finality: whatever work the peer claims, we do not undo
             # more than MAX_REORG_DEPTH of our own blocks. Logged once per peer tip.
@@ -189,8 +211,8 @@ class Node:
                       f"(limit {params.MAX_REORG_DEPTH}); refusing the reorg", flush=True)
             return False
 
-        # 2. fetch and verify headers beyond the common block
-        headers = [header_of(b) for b in self.chain.blocks[:common + 1]]
+        # 2. fetch and verify headers beyond the common block (ours up to it already are)
+        headers = []
         lo = common + 1
         while lo <= peer_height:
             hi = min(lo + params.MAX_HEADERS_PER_REQUEST - 1, peer_height)
@@ -199,7 +221,7 @@ class Node:
                 break
             headers.extend(page)
             lo = hi + 1
-        if self.chain.check_headers(headers) <= self.chain.cumulative_work():
+        if self.chain.check_extension(common, headers) <= self.chain.cumulative_work():
             return False
 
         # 3. download bodies and apply
@@ -212,14 +234,14 @@ class Node:
                     self.chain.add_block(b)
                 lo = hi + 1
         else:
-            # fork: assemble the candidate chain and let fork choice decide
-            blocks = list(self.chain.blocks[:common + 1])
+            # fork: fetch the other branch and let fork choice decide
+            blocks = []
             lo = common + 1
             while lo <= peer_height:
                 hi = min(lo + params.MAX_BLOCKS_PER_REQUEST - 1, peer_height)
                 blocks.extend(self._http(f"{peer}/blocks?from={lo}&to={hi}", timeout=60)["blocks"])
                 lo = hi + 1
-            if not self.chain.replace_with(blocks):
+            if not self.chain.reorg_from(common, blocks):
                 return False
         self.persist()
         for p in st.get("peers", []):
@@ -263,12 +285,13 @@ class Node:
     # -------------------------------------------------------------- views
     def status(self) -> dict:
         c = self.chain
+        tip = c.hdrs[-1]
         return {
             "chain_id": c.profile["chain_id"],
             "profile": c.profile_name,
-            "height": c.height,
-            "tip_hash": c.tip["hash"],
-            "tip_time": c.tip["timestamp"],
+            "height": tip["height"],
+            "tip_hash": tip["hash"],
+            "tip_time": tip["timestamp"],
             "next_target": f"{c.target_for_height(c.height + 1):064x}",
             "work": c.cumulative_work(),
             "mempool": len(c.mempool),
@@ -409,10 +432,10 @@ def make_handler(node: Node):
                                    "max_inline_bytes": params.MAX_PACKET_INLINE_BYTES})
             if head == "balance" and arg:
                 return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg),
-                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.mempool.values() if t.get("from") == arg)})
+                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.pending_txs() if t.get("from") == arg)})
             if head == "account" and arg:
                 return self._send({"address": arg, "balance": st.balance(arg), "nonce": st.nonce(arg),
-                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.mempool.values() if t.get("from") == arg),
+                                   "next_nonce": st.nonce(arg) + sum(1 for t in c.pending_txs() if t.get("from") == arg),
                                    "llm": st.llms.get(arg), "reputation": st.reputation.get(arg),
                                    "correspondents": st.correspondents(arg),
                                    "is_registrar": arg in st.registrars})
@@ -422,14 +445,14 @@ def make_handler(node: Node):
                     return self._error("not registered", 404)
                 return self._send(key_history(rec))
             if head == "block" and arg:
-                if arg.isdigit():
-                    h = int(arg)
-                    if h > c.height:
-                        return self._error("no such block", 404)
-                    return self._send(c.blocks[h])
-                for b in reversed(c.blocks):
-                    if b["hash"] == arg:
-                        return self._send(b)
+                try:
+                    if arg.isdigit():
+                        return self._send(c.blocks[int(arg)])
+                    for h in range(c.height, -1, -1):
+                        if c.hdrs[h]["hash"] == arg:
+                            return self._send(c.blocks[h])
+                except IndexError:                             # past the tip, or undone by a reorg a moment ago
+                    pass
                 return self._error("no such block", 404)
             if head == "blocks":
                 lo = max(0, int(q.get("from", max(0, c.height - 20))))
@@ -443,7 +466,7 @@ def make_handler(node: Node):
                 r = c.get_tx(arg)
                 return self._send(r) if r else self._error("unknown txid", 404)
             if head == "mempool":
-                return self._send({"txs": list(c.mempool.values())})
+                return self._send({"txs": c.pending_txs()})
             if head == "packets":
                 items = list(st.packets.values())
                 if q.get("seller"):
@@ -472,10 +495,9 @@ def make_handler(node: Node):
                 if q.get("since", "").isdigit():
                     items = [l for l in items if l["height"] >= int(q["since"])]
                 if q.get("pending") == "1":
-                    # letters in transit: in the mempool, not yet in a block
-                    with c.lock:
-                        waiting = [pending_letter(t) for t in c.mempool.values()]
-                    for l in waiting:
+                    # letters in transit: in the mempool, not yet in a block. Read without the chain lock,
+                    # so a letter check never waits behind a block being applied.
+                    for l in [pending_letter(t) for t in c.pending_txs()]:
                         if l and all(not q.get(k) or l[k] == q[k] for k in ("to", "from")):
                             items.append(l)
                 return self._send({"letters": items})
@@ -483,8 +505,7 @@ def make_handler(node: Node):
                 l = st.letters.get(arg)
                 if l:
                     return self._send(dict(l, ciphertext=c.get_ciphertext(arg)))
-                with c.lock:
-                    tx = c.mempool.get(arg)
+                tx = c.mempool.get(arg)
                 pl = pending_letter(tx) if tx else None
                 if not pl:
                     return self._error("no such letter", 404)
@@ -570,26 +591,97 @@ def serve(node: Node, host: str = "127.0.0.1", port: int = 8801, advertise: str 
         server.server_close()
 
 
+def _log(msg: str) -> None:
+    print(msg, flush=True)
+
+
+def _set_store_aside(data_dir: str, tag: str) -> str:
+    """Move the block file out of the way and drop the state snapshots that went with it."""
+    aside = os.path.join(data_dir, f"blocks-stale-{tag}.jsonl")
+    os.replace(os.path.join(data_dir, BLOCKS_FILE), aside)
+    for name in os.listdir(data_dir):
+        if re.fullmatch(r"state-\d+\.json", name):
+            os.remove(os.path.join(data_dir, name))
+    return aside
+
+
 def open_or_create(genesis_path: str, data_dir: str | None) -> Chain:
-    """Load the persisted chain if it belongs to the genesis we were given;
-    otherwise set the stale file aside and start from that genesis. A node
-    must never silently keep mining a retired chain."""
-    fresh = Chain.from_genesis_file(genesis_path)
-    path = os.path.join(data_dir, "chain.json") if data_dir else None
-    if path and os.path.exists(path):
-        try:
-            stored = Chain.load(path)
-        except (ValueError, KeyError, TypeError) as e:       # empty or truncated file: keep it, start over, resync
-            aside = os.path.join(data_dir, f"chain-corrupt-{int(time.time())}.json")
-            os.replace(path, aside)
-            print(f"stored chain at {path} is unreadable ({e.__class__.__name__}); moved it to {aside} "
-                  f"and starting from the given genesis, peers will fill the gap", flush=True)
-            return fresh
-        if stored.blocks[0]["hash"] == fresh.blocks[0]["hash"]:
-            return stored
-        old = stored.blocks[0]["hash"][:8]
+    """The chain a node starts with: the one kept in `data_dir` if it belongs to the genesis we were given;
+    otherwise what is stored is set aside and the node starts from that genesis. A node must never silently
+    keep mining a retired chain. A chain.json left by a version before 0.10.2 is taken over into the block file."""
+    with open(genesis_path) as f:
+        genesis = json.load(f)
+    if not data_dir:
+        return Chain(genesis)
+    try:
+        chain = Chain.open(genesis, data_dir, _log)
+    except WrongGenesis as e:
+        aside = _set_store_aside(data_dir, e.found[:8])
+        print(f"stored chain has genesis {e.found[:8]}..., not the genesis in {genesis_path}; "
+              f"moved it to {aside} and starting from the given genesis", flush=True)
+        chain = Chain.open(genesis, data_dir, _log)
+    legacy = os.path.join(data_dir, "chain.json")
+    if os.path.exists(legacy):
+        chain = _take_over_legacy(chain, genesis, genesis_path, data_dir, legacy)
+    return chain
+
+
+def _take_over_legacy(chain: Chain, genesis: dict, genesis_path: str, data_dir: str, legacy: str) -> Chain:
+    """Bring the chain.json of a version before 0.10.2 into the block file, once. The file is then renamed
+    chain-migrated.json: renaming it back is all it takes to return to the older version."""
+    try:
+        with open(legacy) as f:
+            blocks = json.load(f)["blocks"]
+        if not blocks or not all(isinstance(b, dict) and isinstance(b.get("hash"), str) for b in blocks):
+            raise ValueError("no blocks")
+    except (ValueError, KeyError, TypeError) as e:           # empty or truncated file: keep it, carry on, resync
+        aside = os.path.join(data_dir, f"chain-corrupt-{int(time.time())}.json")
+        os.replace(legacy, aside)
+        print(f"stored chain at {legacy} is unreadable ({e.__class__.__name__}); moved it to {aside} "
+              f"and continuing from block {chain.height}, peers will fill the gap", flush=True)
+        return chain
+    if blocks[0]["hash"] != chain.hdrs[0]["hash"]:
+        old = blocks[0]["hash"][:8]
         aside = os.path.join(data_dir, f"chain-stale-{old}.json")
-        os.replace(path, aside)
+        os.replace(legacy, aside)
         print(f"stored chain has genesis {old}..., not the genesis in {genesis_path}; "
               f"moved it to {aside} and starting from the given genesis", flush=True)
-    return fresh
+        return chain
+
+    common = chain.fork_point(blocks)
+    todo = blocks[common + 1:]
+    if todo and common < chain.height:
+        # each holds blocks the other lacks: the one with more work is the chain, as in fork choice
+        try:
+            heavier = Chain.work_of(blocks) > chain.cumulative_work()
+        except (ValueError, KeyError, TypeError):
+            heavier = False
+        if heavier:
+            aside = _set_store_aside(data_dir, chain.hdrs[-1]["hash"][:8])
+            print(f"{legacy} and the block file part ways after block {common} and {legacy} carries more work; "
+                  f"moved the block file to {aside}", flush=True)
+            chain = Chain.open(genesis, data_dir, _log)
+            todo = blocks[1:]
+        else:
+            print(f"{legacy} and the block file part ways after block {common}; the block file carries at least "
+                  f"as much work and is kept", flush=True)
+            todo = []
+    if todo:
+        print(f"taking over {len(todo)} blocks from {legacy} (this once; later starts read the block file)", flush=True)
+        last = blocks[-1]["height"] if isinstance(blocks[-1].get("height"), int) else 0
+        for b in todo:
+            try:
+                chain.add_block(b, now=b["timestamp"])
+            except (BlockError, KeyError, TypeError) as e:
+                print(f"block {chain.height + 1} in {legacy} does not apply ({e}); keeping the chain up to block "
+                      f"{chain.height}, peers will fill the gap", flush=True)
+                break
+            h = chain.height
+            if h % SNAPSHOT_EVERY == 0 and last - h <= SNAPSHOT_EVERY * SNAPSHOTS_KEPT:
+                chain.persist()                              # leave the last few state snapshots behind
+            if h % 10000 == 0:
+                print(f"  block {h}", flush=True)
+        chain.persist()
+    os.replace(legacy, os.path.join(data_dir, "chain-migrated.json"))
+    print(f"chain at block {chain.height}; {legacy} is now chain-migrated.json and no longer read", flush=True)
+    return chain

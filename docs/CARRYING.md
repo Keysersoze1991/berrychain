@@ -62,9 +62,32 @@ to start without them (error 8032, MISSING_PERMISSION_ACCESS_WIFI_STATE). They
 are install-time permissions, so nothing in the phone settings could add them;
 the fix is in the build.
 
-iPhone: the outbox works; carrying between phones does not yet. Apple only
-allows this kind of peer link while the app is in the foreground, and it is
-planned as a later version once the Android side has run for a while.
+## Nearby carriage (iPhone)
+
+From app 0.16.3 the same switch works on iPhone, over Apple's Multipeer
+Connectivity (service type `berry-carry`, encrypted session, invitations
+accepted automatically; the native half is `CarryLink` in
+`app/ios/Runner/AppDelegate.swift`, driven from `app/lib/nearby.dart` over the
+`berrychain/carry` channel). What is exchanged, the limits and the rules are
+exactly the Android ones; only the radio link differs.
+
+Two honest limits:
+
+- iPhones carry for iPhones and Android phones for Android phones. The two
+  links are different systems and do not see each other, so a letter cannot
+  hop from one kind of phone to the other. Either kind still delivers to the
+  chain the moment it has a connection.
+- Apple lets this kind of link live only while the app is on screen. The app
+  puts the link down when it leaves the screen and starts a fresh search when
+  it comes back, so two iPhones exchange letters only while BerryChain is
+  open on both.
+
+Permission on iPhone: local network access, which iOS asks for the first time
+the switch is turned on. Location is not used. If it was refused, the purse
+page says so and it can be allowed under Settings, BerryChain, Local Network.
+
+Status: built and compiled in the release pipeline, but as of 0.16.3 it has
+not been tried on two real iPhones side by side. Treat it as new until it has.
 
 ## Not yet: paying carriers
 

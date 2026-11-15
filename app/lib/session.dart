@@ -159,7 +159,7 @@ class Session extends ChangeNotifier {
   static const _sealedKeep = 300;
   bool homeIsLetters = false;                    // open on the Letters page instead of the chest page
   final Outbox outbox = Outbox();                // signed letters waiting for a connection, ours and carried
-  Carrier? carrier;                              // nearby-phone carriage (Android)
+  Carrier? carrier;                              // nearby-phone carriage (Android to Android, iPhone to iPhone)
   bool carryLetters = false;
   bool lastSendQueued = false;                   // the last letter went to the outbox rather than the chain
   int lastKnownHeight = 0;                       // so the seal version is right even with no connection
@@ -186,8 +186,59 @@ class Session extends ChangeNotifier {
   String? lastError;
   bool busy = false;
 
+  // ---- which seed we talk to. The first in the list by choice; when it does not answer, the next stands in.
+  int _nodeAt = 0;
+  DateTime? _fellOver;                                  // when the first seed last let us down
+  static const _patience = Duration(seconds: 6);        // how long a seed gets before the next is asked as well
+  static const _retryFirst = Duration(minutes: 10);     // how long before the first seed is given another go
+
+  void _useSeed(int i) {
+    _nodeAt = i;
+    node = Node(nodeUrls[i]);
+    if (i == 0) _fellOver = null;
+  }
+
+  static String _host(String url) {
+    final h = Uri.tryParse(url)?.host ?? '';
+    return h.isEmpty ? url : h;
+  }
+
+  /// Said on the purse page while another seed is standing in for the first: worth knowing, not an error.
+  String? get seedNote => _nodeAt == 0 || _nodeAt >= nodeUrls.length
+      ? null
+      : '${_host(nodeUrls.first)} is not answering just now; connected through ${_host(node.url)}.';
+
+  /// Everything the purse page needs from seed number [i], asked for at once rather than in turn. The last
+  /// answer is the same balance as the next seed along sees it, or empty when that seed is slow or away.
+  Future<List<Map<String, dynamic>>> _ask(int i, Wallet w) {
+    final n = i == _nodeAt ? node : Node(nodeUrls[i]);
+    return Future.wait<Map<String, dynamic>>([
+      n.status(),
+      n.params(),
+      n.account(w.address),
+      n.letters(to: w.address, pending: true).then((l) => {'letters': l}),
+      n.letters(from: w.address, pending: true).then((l) => {'letters': l}),
+      if (nodeUrls.length > 1)
+        Node(nodeUrls[(i + 1) % nodeUrls.length], timeout: _patience).account(w.address).catchError((_) => <String, dynamic>{}),
+    ], eagerError: true);
+  }
+
+  /// [_ask] the seed in use; when it fails or keeps us waiting, the others too. Whichever answers is the seed
+  /// we use from here on, and after a while on a stand-in the first seed is tried again.
+  Future<List<Map<String, dynamic>>> _askSeeds(Wallet w) async {
+    final retry = _nodeAt != 0 && DateTime.now().difference(_fellOver ?? DateTime(2000)) > _retryFirst;
+    final (at, results) = await firstToAnswer(nodeUrls.length, retry ? 0 : _nodeAt, (i) => _ask(i, w), patience: _patience);
+    if (at != _nodeAt) _useSeed(at);
+    if (at == 0) {
+      _fellOver = null;
+    } else if (retry || _fellOver == null) {
+      _fellOver = DateTime.now();
+    }
+    return results;
+  }
+
   Session() {
-    node = Node(nodeUrls.first);
+    _useSeed(0);
     carrier = Carrier(outbox, onReceived: () async { notifyListeners(); await drainOutbox(); }, onChange: notifyListeners);
     carrier!.onNotes = receiveNotes;
   }
@@ -211,7 +262,7 @@ class Session extends ChangeNotifier {
         _knownFee = s['fee'] as int?;
       } catch (_) {}
     }
-    node = Node(nodeUrls.first);
+    _useSeed(0);
     if (!kIsWeb) {
       try {
         await Workmanager().initialize(callbackDispatcher);
@@ -414,6 +465,11 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The app came to the screen or left it. Only the iPhone's carrying link cares.
+  void appForeground(bool on) {
+    if (carryLetters) carrier?.foreground(on);
+  }
+
   int get nearbyPeers => carrier?.peers ?? 0;
   bool get carrying => carrier?.running ?? false;
   String get carryStatusLine {
@@ -431,7 +487,7 @@ class Session extends ChangeNotifier {
   Future<String?> setCarryLetters(bool on) async {
     final c = carrier;
     if (on) {
-      if (c == null || !Carrier.supported) return 'Carrying letters between phones is Android only for now.';
+      if (c == null || !Carrier.supported) return 'Carrying letters between phones needs the phone app.';
       final why = await c.requestPermissions();
       if (why != null) return why;
       carryLetters = true;
@@ -489,6 +545,13 @@ class Session extends ChangeNotifier {
       await _buildContacts();
       notifyListeners();
       if (!same) await _saveLetterCache();
+    } on NodeError catch (e) {
+      // the seed in use has gone quiet between refreshes: the next check goes to the one after it
+      if (e.status == null && nodeUrls.length > 1) {
+        _useSeed((_nodeAt + 1) % nodeUrls.length);
+        if (_nodeAt != 0) _fellOver = DateTime.now();
+        notifyListeners();
+      }
     } catch (_) {}
   }
 
@@ -536,7 +599,7 @@ class Session extends ChangeNotifier {
   Future<void> saveSettings(List<String> urls, {bool? background}) async {
     nodeUrls = urls.where((u) => u.trim().isNotEmpty).map((u) => u.trim()).toList();
     if (nodeUrls.isEmpty) nodeUrls = List.of(Network.seeds);
-    node = Node(nodeUrls.first);
+    _useSeed(0);
     if (background != null) backgroundChecks = background;
     await _writeSettings();
     try {
@@ -620,15 +683,7 @@ class Session extends ChangeNotifier {
     notifyListeners();
     await drainOutbox();
     try {
-      // Everything the screen needs, asked for at once rather than in turn.
-      final results = await Future.wait<Map<String, dynamic>>([
-        node.status(),
-        node.params(),
-        node.account(w.address),
-        node.letters(to: w.address, pending: true).then((l) => {'letters': l}),
-        node.letters(from: w.address, pending: true).then((l) => {'letters': l}),
-        if (nodeUrls.length > 1) Node(nodeUrls[1]).account(w.address).catchError((_) => <String, dynamic>{}),
-      ]);
+      final results = await _askSeeds(w);
       final st = results[0];
       nodeHeight = st['height'] as int?;
       starterAmount = st['starter_amount'] as int?;
@@ -687,9 +742,11 @@ class Session extends ChangeNotifier {
   Future<void> _verifyChain() async {
     final lc = light;
     if (lc == null) return;
-    for (final url in nodeUrls.skip(1)) {
+    // the other seeds first, and not for long: they are a second opinion, the seed in use is the one we wait for
+    for (var i = 0; i < nodeUrls.length; i++) {
+      if (i == _nodeAt) continue;
       try {
-        await lc.sync(Node(url));
+        await lc.sync(Node(nodeUrls[i], timeout: const Duration(seconds: 10)));
       } catch (_) {}
     }
     await lc.sync(node);

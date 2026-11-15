@@ -47,6 +47,7 @@ A point is ten metres. 7,000 m is a perfect plank: Shallows below 2,000, Reef to
 | `POST /plank/answer` `{session, pid, answer, player}` | scores one answer, once per prompt per session |
 | `GET /plank/board?day=` | the day's deepest named, completed dives, one row per name (top 20); `&range=week` gives the Sunday-to-Saturday week of that day, each name's deepest dive and how many dives they made, plus `prize` (the week's amount) and `last_week` (the settled record for the week before: `{week, name, depth, day, to, amount}`, or `name: null`). Rows carry `named` when the name is a registered BerryChain name. |
 | `GET /plank/reveal?pid=` | the top eight answers to a prompt |
+| `POST /plank/appeal` `{session, pid}` | puts a refused answer of that session to the architect (see Appeals); once per answer |
 
 The page opens with `?name=<registered name>` from the app (home screen, the
 anchor on the Harbourmaster's purse card), which fills the name in.
@@ -69,6 +70,33 @@ spellings are judged afresh; past scores are not changed. `python -m
 berrychain.plank fix-names` (run by `plank-setup.sh`) repairs player names
 that reached the board percent-encoded before the query string was decoded
 ("Gold20D20Rodger"), only where the repaired name is registered.
+
+## Appeals
+
+A refused answer comes back with `appeal: true` (unless it was empty, or the
+architect has already ruled on that spelling), and the reveal then shows "That
+should count: ask the captain". Pressing it queues the answer; the same
+answer from several players is one appeal with a count. At most 300 wait at
+once. `GET /plank/status` carries `appeals`, the number waiting.
+
+The architect rules on them on seed1, from the command line, which talks to
+the running service:
+
+```
+cd /opt/berrychain
+.venv/bin/python -m berrychain.plank appeals                 # what is waiting, most asked-for first
+.venv/bin/python -m berrychain.plank accept 3fa2c1           # valid, counted as the player wrote it
+.venv/bin/python -m berrychain.plank accept 3fa2c1 Driftwood # valid, counted under this name
+.venv/bin/python -m berrychain.plank reject 3fa2c1           # stays refused, cannot be appealed again
+```
+
+A ruling is stored like a judge's verdict, per spelling: an accepted answer
+is valid for everyone who gives it from then on (and folds into a listed or
+already-counted answer when the name given is one), a rejected one stays
+refused. Points already scored are not changed, so boards and prizes never
+move after the fact. The routes behind those commands (`/admin/appeals`,
+`/admin/rule`) answer only to the machine itself: nginx forwards `/plank/`
+alone, and the service refuses anything carrying nginx's `X-Real-IP`.
 
 ## The dive prize
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -16,9 +17,11 @@ class Node {
   final String url;
   final Duration timeout;
   final http.Client _http;
+  // One client for every Node: they are made freely (one per seed, per check) and a client each was never closed.
+  static final http.Client _shared = http.Client();
   Node(String url, {this.timeout = const Duration(seconds: 20), http.Client? client})
       : url = url.replaceFirst(RegExp(r'/+$'), ''),
-        _http = client ?? http.Client();
+        _http = client ?? _shared;
 
   Future<Map<String, dynamic>> get(String path) async {
     final http.Response r;
@@ -90,4 +93,42 @@ class Node {
   }
 
   Future<String> sendTx(Map<String, dynamic> tx) async => (await post('/tx', tx))['txid'] as String;
+}
+
+/// Ask one of [count] interchangeable sources, starting with number [first]. When it fails, or has not answered
+/// within [patience], the next one is asked as well, and so on round the list. The first answer wins and comes
+/// back with the number of the source that gave it; when every source fails, the first failure is thrown.
+Future<(int, T)> firstToAnswer<T>(int count, int first, Future<T> Function(int i) ask,
+    {Duration patience = const Duration(seconds: 6)}) {
+  final done = Completer<(int, T)>();
+  Object? firstError;
+  StackTrace? firstStack;
+  var asked = 0, failed = 0;
+  Timer? timer;
+  void next() {
+    timer?.cancel();
+    if (done.isCompleted || asked >= count) return;
+    final i = (first + asked) % count;
+    asked++;
+    if (asked < count) timer = Timer(patience, next);
+    ask(i).then((v) {
+      if (done.isCompleted) return;
+      timer?.cancel();
+      done.complete((i, v));
+    }, onError: (Object e, StackTrace st) {
+      firstError ??= e;
+      firstStack ??= st;
+      failed++;
+      if (done.isCompleted) return;
+      if (failed == count) {
+        timer?.cancel();
+        done.completeError(firstError!, firstStack);
+      } else {
+        next();
+      }
+    });
+  }
+
+  next();
+  return done.future;
 }

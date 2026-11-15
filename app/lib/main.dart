@@ -13,7 +13,7 @@ void main() {
 }
 
 /// Shown in Settings and on the welcome screen; keep in step with pubspec.yaml.
-const appVersion = '0.15.0';
+const appVersion = '0.16.3';
 /// What the app is running on, for copy that says where the wallet lives.
 /// A web build made for store screenshots (--dart-define=SHOTS=true) speaks as the phone app.
 const shots = bool.fromEnvironment('SHOTS');
@@ -61,6 +61,8 @@ class _BerryAppState extends State<BerryApp> with WidgetsBindingObserver {
   /// and make sure the twenty-second poll is running (the OS may have paused it).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) widget.session.appForeground(false);
+    if (state == AppLifecycleState.resumed) widget.session.appForeground(true);
     if (state == AppLifecycleState.resumed && widget.session.wallet != null) {
       widget.session.startPolling();
       widget.session.refresh();

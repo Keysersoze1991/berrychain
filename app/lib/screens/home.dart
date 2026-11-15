@@ -109,6 +109,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 if (s.lastError != null)
                   Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastError!, style: const TextStyle(color: Palette.band))),
+                if (s.seedNote != null && s.lastError == null)
+                  Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.seedNote!, style: const TextStyle(color: Palette.brass, fontSize: 13))),
                 if (s.lastNote != null)
                   Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(s.lastNote!, style: const TextStyle(color: Palette.leaf, fontSize: 13))),
                 const SizedBox(height: 4),

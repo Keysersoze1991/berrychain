@@ -126,6 +126,20 @@ class State:
         if savepoint is None:
             self._journal = None
 
+    def detach(self) -> list:
+        """Close the journal like commit(), but hand it back: undo() with it later takes the state back to
+        where begin() found it. The chain keeps one per recent block, which is how a short reorg is undone."""
+        j, self._journal = self._journal or [], None
+        return j
+
+    def undo(self, journal: list) -> None:
+        """Undo what a detached journal recorded. Journals must be undone newest first, with nothing applied
+        to the state in between that they did not record."""
+        if self._journal is not None:
+            raise RuntimeError("cannot undo while a journal is open")
+        self._journal = journal
+        self.rollback()
+
     def _touch(self, d: dict, key) -> None:
         if self._journal is not None:
             self._journal.append(("item", d, key, key in d, copy.deepcopy(d[key]) if key in d else None))

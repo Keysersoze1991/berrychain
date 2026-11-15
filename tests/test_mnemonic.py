@@ -26,11 +26,13 @@ class MnemonicTests(unittest.TestCase):
         p = M.new_phrase()
         self.assertEqual(len(p.split()), 12)
         self.assertEqual(M.validate("  " + p.upper() + " "), p)
+        # A swapped word gets past the 4-bit checksum one time in 16, so this part uses a fixed phrase
+        # where it is known not to.
+        p = M.new_phrase(bytes(range(16)))
         words = p.split()
-        words[3] = "zoo" if words[3] != "zoo" else "zone"
-        with self.assertRaises(ValueError):                     # checksum catches a swapped word (almost always)
-            for _ in range(1):
-                M.validate(" ".join(words))
+        words[3] = "zoo"
+        with self.assertRaises(ValueError):
+            M.validate(" ".join(words))
         with self.assertRaises(ValueError):
             M.validate(" ".join(words[:11]))
         with self.assertRaises(ValueError):

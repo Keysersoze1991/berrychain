@@ -137,7 +137,27 @@
     const list = $('top-list'); list.innerHTML = '';
     for (const [name, n] of res.top || []) { const li = document.createElement('li'); li.innerHTML = '<span>' + esc(name) + '</span><span>' + n + '</span>'; if (res.valid && name === res.canonical) li.className = 'mine'; list.appendChild(li); }
     $('btn-next').textContent = state.i + 1 < state.prompts.length ? 'Next question' : 'See how deep you went';
+    offerAppeal(res.appeal === true, state.session, state.prompts[state.i].id);
     $('btn-next').focus();
+  }
+
+  // a refused answer the player believes in can be put to the captain (a person rules on it, see docs/PLANK.md)
+  function offerAppeal(on, session, pid) {
+    const btn = $('btn-appeal'), note = $('appeal-note');
+    btn.hidden = !on; btn.disabled = false;
+    note.hidden = true; note.className = 'muted small';
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        await api('/plank/appeal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session, pid }) });
+        btn.hidden = true;
+        note.textContent = 'Sent to the captain. If it stands, it counts for everyone who gives it from then on; points already scored stay as they are.';
+      } catch (e) {
+        btn.disabled = false;
+        note.textContent = 'That did not reach the captain: ' + e.message + '.'; note.className = 'small err';
+      }
+      note.hidden = false;
+    };
   }
   $('btn-next').addEventListener('click', () => { state.i++; if (state.i < state.prompts.length) round(); else finish(); });
   window.addEventListener('keydown', e => { if (e.key === 'Enter' && !$('screen-reveal').hidden) $('btn-next').click(); });

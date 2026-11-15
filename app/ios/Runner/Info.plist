@@ -73,11 +73,16 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock your chest quickly with Face ID instead of typing the passphrase. Optional; turn it on in Settings.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Reserved for carrying sealed letters between nearby BerryChain phones when there is no internet. Not switched on for iPhone in this version.</string>
+	<string>Only when you switch on carrying in Settings: finds nearby iPhones running BerryChain so sealed letters can be handed between them when there is no internet.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Only ever for finding nearby BerryChain phones to carry sealed letters, a feature not switched on for iPhone in this version. Your location is never read or sent.</string>
+	<string>BerryChain does not use your location. Your location is never read or sent.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Reserved for carrying sealed letters between nearby BerryChain phones. Not switched on for iPhone in this version.</string>
+	<string>Only when you switch on carrying in Settings: finds nearby iPhones running BerryChain and hands sealed letters between them when there is no internet. Nothing else on your network is looked at.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_berry-carry._tcp</string>
+		<string>_berry-carry._udp</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIBackgroundModes</key>
