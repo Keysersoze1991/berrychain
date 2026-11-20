@@ -117,6 +117,17 @@ Future<Uint8List> _derive(List<int> shared, List<int> epk, List<int> rpk) async 
   return Uint8List.fromList(await k.extractBytes());
 }
 
+/// A low-order public key gives an all-zero X25519 result; refuse it, as the
+/// reference implementation (pyca/cryptography) does.
+List<int> _nonZero(List<int> shared) {
+  var acc = 0;
+  for (final b in shared) {
+    acc |= b;
+  }
+  if (acc == 0) throw const FormatException('refusing a low-order X25519 key (all-zero shared secret)');
+  return shared;
+}
+
 final _aead = Chacha20.poly1305Aead();
 
 Future<Uint8List> _aeadEncrypt(List<int> key, List<int> nonce, List<int> plaintext, List<int> aad) async {
@@ -146,7 +157,7 @@ Future<Map<String, String>> wrapToRecipient(String recipientPubHex, List<int> pl
   final epk = (await eph.extractPublicKey()).bytes;
   final shared = await _x.sharedSecretKey(
       keyPair: eph, remotePublicKey: SimplePublicKey(rpk, type: KeyPairType.x25519));
-  final key = await _derive(await shared.extractBytes(), epk, rpk);
+  final key = await _derive(_nonZero(await shared.extractBytes()), epk, rpk);
   final nonce = randomBytes(12);
   final ct = await _aeadEncrypt(key, nonce, plaintext, [...epk, ...aad]);
   return {'epk': toHex(epk), 'nonce': toHex(nonce), 'ct': toHex(ct)};
@@ -158,7 +169,7 @@ Future<Uint8List> unwrapFromSender(String recipientPrivHex, Map<String, dynamic>
   final epk = fromHex(blob['epk'] as String);
   final shared = await _x.sharedSecretKey(
       keyPair: kp, remotePublicKey: SimplePublicKey(epk, type: KeyPairType.x25519));
-  final key = await _derive(await shared.extractBytes(), epk, rpk);
+  final key = await _derive(_nonZero(await shared.extractBytes()), epk, rpk);
   return _aeadDecrypt(key, fromHex(blob['nonce'] as String), fromHex(blob['ct'] as String), [...epk, ...aad]);
 }
 

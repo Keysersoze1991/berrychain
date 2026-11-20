@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
               const Text('Letters that only one person can open.', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600, height: 1.1)),
               const SizedBox(height: 14),
               const Text(
-                'Remember pen pals? A letter written to one person, carried a long way, opened by nobody else. BerryChain brings that back. Your letter is sealed in $deviceThe, carried across the water by a crew that cannot read it, and opened only by the hand it was written for.',
+                'A letter written to one person, carried a long way, opened by nobody else. BerryChain brings that back. Your letter is sealed in $deviceThe, carried across the water by a crew that cannot read it, and opened only by the hand it was written for.',
                 style: TextStyle(color: Color(0xFFA9BACC), fontSize: 15.5, height: 1.45),
               ),
               const Spacer(),
@@ -161,7 +161,7 @@ class _ShowPhraseScreenState extends State<ShowPhraseScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Write these twelve words on paper, in order, and keep them somewhere other than with the $device. Anyone with the words has the chest; without them, a lost $device means lost coins and letters.', style: const TextStyle(height: 1.4)),
+          Text('Write these twelve words on paper, in order, and keep them somewhere other than with the $device. Anyone with the words has the chest: they can spend its coins and open every letter ever sent to it, including ones you removed or burned. Without them, a lost $device means lost coins and letters.', style: const TextStyle(height: 1.4)),
           const SizedBox(height: 16),
           Card(
             child: Padding(

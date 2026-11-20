@@ -49,6 +49,29 @@ int textBudget({Uint8List? photoJpeg, LetterGroup? group, ParcelRef? parcel}) {
 
 bool fitsEnvelope(Uint8List plaintext) => plaintext.length + _sealOverhead <= envelopeLimit;
 
+/// Sizes a sealed letter is rounded up to, so the chain shows only which band
+/// a letter falls in, not its length to the byte. The last band is the
+/// envelope limit itself.
+const padBuckets = [512, 2048, 8192, envelopeLimit - _sealOverhead];
+
+/// Pad an envelope (the JSON from [composeLetter]) up to the next size band
+/// with a "pad" field of spaces. Older apps ignore the field, so padded letters
+/// open everywhere. A letter that does not fit any band stays as it is.
+Uint8List padLetter(Uint8List plain) {
+  const field = ',"pad":""'; // what the empty field adds
+  if (plain.isEmpty || plain.first != 0x7B || plain.last != 0x7D) return plain; // not a JSON object
+  for (final band in padBuckets) {
+    final spaces = band - plain.length - field.length;
+    if (spaces >= 0) {
+      return Uint8List.fromList([
+        ...plain.sublist(0, plain.length - 1),
+        ...utf8.encode(',"pad":"${' ' * spaces}"}'),
+      ]);
+    }
+  }
+  return plain;
+}
+
 class OpenedLetter {
   final String subject, body, fromName;
   final String? replyTo;

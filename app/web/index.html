@@ -17,6 +17,10 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!-- No inline scripts, scripts and the CanvasKit engine only from this site (built with --no-web-resources-cdn),
+       network only to BerryChain hosts and Google's font files (Flutter fetches fallback glyphs from there). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://berrychain.link https://*.berrychain.link https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="BerryChain in the browser: make a wallet and write sealed letters that only the addressee can open.">
 
@@ -35,7 +39,7 @@
 </head>
 <body>
   <div id="boot">Rigging the letterbox…</div>
-  <script>window.addEventListener("flutter-first-frame",function(){var b=document.getElementById("boot");if(b)b.remove();});</script>
+  <script src="boot.js"></script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

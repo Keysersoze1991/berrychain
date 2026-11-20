@@ -36,7 +36,7 @@ class Bottle {
     if (!fitsEnvelope(plain)) throw ArgumentError('the note is too long for one envelope; shorten it or drop the picture');
     final key = newPacketKey();
     final aad = letterAad(from, to);
-    final ct = await encryptPacket(key, plain, aad: aad);
+    final ct = await encryptPacket(key, padLetter(plain), aad: aad);
     final note = <String, dynamic>{
       'v': 1, 'kind': kindNote, 'from': from, 'to': to, 'enc_pub': toEncPub, 'pubkey': signPub,
       'ciphertext': toHex(ct), 'ciphertext_hash': toHex(sha256(ct)), 'wrapped_key': await wrapToRecipient(toEncPub, key, aad: aad),

@@ -324,6 +324,8 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
   OpenedLetter? opened;
   String? error;
   DateTime? when;
+  /// The other party's name as the chain registry (or your own nickname) has it.
+  String? knownName;
 
   @override
   void initState() {
@@ -331,6 +333,9 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
     final s = SessionScope.of(context);
     s.letterTime(widget.letter).then((t) {
       if (mounted) setState(() => when = t);
+    });
+    s.lookupName(widget.incoming ? widget.letter.from : widget.letter.to).then((n) {
+      if (mounted) setState(() => knownName = n);
     });
     s.readLetter(widget.letter).then((o) async {
       if (!mounted) return;
@@ -376,7 +381,15 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('${widget.incoming ? 'From' : 'To'}: ${widget.incoming ? l.from : l.to}${o?.fromName.isNotEmpty == true ? '  (${o!.fromName})' : ''}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+          // The name shown is the chain's (or your nickname), never the one the sender wrote inside the letter.
+          if (knownName?.isNotEmpty == true)
+            Text('${widget.incoming ? 'From' : 'To'} ${knownName!}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          Text('${knownName?.isNotEmpty == true ? '' : (widget.incoming ? 'From: ' : 'To: ')}${widget.incoming ? l.from : l.to}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+          if (widget.incoming && o != null && o.fromName.isNotEmpty && o.fromName != knownName)
+            Text('Signs the letter as "${o.fromName}" (their own words, not checked)', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13)),
+          if (widget.incoming && !l.bottle && !l.pending && o != null)
+            Text(l.verified ? '✓ Sender checked against the chain' : 'Sender not yet checked against the chain (the letter is very new, or the phone is still catching up)',
+                style: TextStyle(color: l.verified ? Palette.sea : const Color(0xFF6F7883), fontSize: 13)),
           if (group != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -400,7 +413,7 @@ class _ReadLetterScreenState extends State<ReadLetterScreen> {
             const SizedBox(height: 24),
             OutlinedButton.icon(
               icon: const Icon(Icons.reply),
-              label: Text(group != null ? 'Reply to ${o.fromName.isNotEmpty ? o.fromName : 'the sender'} only' : 'Reply'),
+              label: Text(group != null ? 'Reply to ${knownName?.isNotEmpty == true ? knownName : 'the sender'} only' : 'Reply'),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ComposeScreen(to: l.from, subject: o.subject.startsWith('Re:') ? o.subject : 'Re: ${o.subject}', replyTo: l.id))),
             ),
             if (group != null) ...[
@@ -744,6 +757,23 @@ class _ParcelCardState extends State<_ParcelCard> {
 
   Future<void> fetch() async {
     final s = SessionScope.of(context);
+    final room = widget.ref.room;
+    if (roomIsSafeScheme(room) && !roomIsKnown(room, s.nodeUrls)) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Fetch from another server?'),
+          content: Text('This parcel is kept at ${roomHost(room)}, which is not one of the BerryChain seeds. '
+              'Fetching it tells that server your internet address and when you opened it. '
+              'The parcel itself is still sealed and checked against the letter.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Fetch anyway')),
+          ],
+        ),
+      );
+      if (go != true || !mounted) return;
+    }
     setState(() { busy = true; error = null; });
     try {
       bytes = await s.fetchParcelBytes(widget.ref);

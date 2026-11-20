@@ -45,6 +45,24 @@ class ParcelRef {
 
 String roomFor(String nodeUrl) => nodeUrl.replaceFirst(RegExp(r'/+$'), '');
 
+/// The host a parcel room lives on, for showing to the reader.
+String roomHost(String room) => Uri.tryParse(room)?.host ?? room;
+
+/// Parcels travel only over https (plain http is allowed for a devnet on this machine).
+bool roomIsSafeScheme(String room) {
+  final u = Uri.tryParse(room);
+  if (u == null || u.host.isEmpty) return false;
+  return u.scheme == 'https' || (u.scheme == 'http' && (u.host == '127.0.0.1' || u.host == 'localhost'));
+}
+
+/// A room is "known" when it is one of the seeds this app talks to. A letter
+/// names its parcel room itself, so a sender could point it at their own
+/// server and see the reader's address (IP) and the moment they fetch.
+bool roomIsKnown(String room, Iterable<String> seeds) {
+  final host = roomHost(room);
+  return roomIsSafeScheme(room) && seeds.any((s) => roomHost(s) == host);
+}
+
 Future<ParcelTerms> parcelTerms(String room, {http.Client? client}) async {
   final c = client ?? http.Client();
   final r = await c.get(Uri.parse('${roomFor(room)}/parcels/status')).timeout(const Duration(seconds: 20));
@@ -73,6 +91,7 @@ Future<String> uploadParcel(String room, String hash, Uint8List ciphertext, {htt
 
 /// Fetch, check the hash, open with the letter's key.
 Future<Uint8List> fetchParcel(ParcelRef ref, {http.Client? client}) async {
+  if (!roomIsSafeScheme(ref.room)) throw NodeError('this parcel is kept somewhere that is not a secure (https) address, so it is not fetched');
   final c = client ?? http.Client();
   final r = await c.get(Uri.parse('${roomFor(ref.room)}/parcels/${ref.hash}')).timeout(const Duration(minutes: 5));
   if (r.statusCode != 200) {

@@ -10,7 +10,7 @@ wallets, they are the only way to ever update the app).
 
 | Field | Value |
 |---|---|
-| App name | BerryChain |
+| App name | BerryChain: Secure Messaging |
 | Package name | link.berrychain.berrychain_app |
 | Default language | English (Australia) |
 | App or game | App |
@@ -22,26 +22,34 @@ wallets, they are the only way to ever update the app).
 
 ## Short description (80 characters max)
 
-Sealed letters that only one person can open, carried by a small blockchain.
+Private, end-to-end encrypted messaging: Privacy is not dead, it’s back!
 
-## Full description
+## Full description (live on Play from November 2026)
 
-Remember pen pals? A letter written to one person, carried a long way, and opened by nobody else. BerryChain brings that back.
+A letter written to one person, carried a long way, and opened by nobody else. BerryChain brings that back.
 
-Write a letter on your phone. It is sealed there, with a key that only the person you are writing to can use, and carried by a small public blockchain of volunteer miners. They can see that a letter went from one address to another. They cannot read a word of it. The recipient opens it whenever they next look: today or in a month. No accounts, no sign-up, no servers holding your mail.
+Secure messaging with no phone number and no account. Private messaging that stays between two people. Encrypted messaging end to end: every letter is sealed on your phone so only the person you write to can open it.
+
+Write a letter on your phone. It is sealed there, with a key that only the person you are writing to holds, and carried by a public blockchain of volunteer miners. They can see that a letter went from one address to another. They cannot read a word of it. The recipient opens it whenever they next look: today or in a month. No accounts, no sign-up, no server that can read your mail, and an option to burn a letter for good with rotating keys.
 
 WHAT THE APP DOES
-• Creates a wallet on your phone, sealed with a passphrase, with twelve recovery words that rebuild it anywhere.
-• Claims your starter: a few coins of BERRY from the network's treasury, and a name so people can write to you. No form, no approval.
-• Writes and reads sealed letters, with one small picture if you like, and replies threaded together.
-• Keeps a People list of everyone you have corresponded with.
+• Creates a wallet on your phone, sealed with a passphrase, with twelve recovery words that rebuild it anywhere. Open it with your fingerprint or face if you like; the passphrase still rules.
+• Claims your starter: a few BERRY from the network's treasury, and a name so people can write to you. No form, no approval.
+• Writes and reads sealed letters, with a small photo if you like, kept in a folder per friend. A letter shows the moment it reaches the network, before its block.
+• Parcels: attach a file up to 100 MB, sealed on your phone, fetched and checked by the recipient, and deleted when the letter is burned.
+• Crews: write one letter to a group of friends, and everyone in the crew can reply to all.
+• Contacts: everyone you have corresponded with, by name, plus anyone you add by address, checked against the chain as you type.
+• Receiving keys that rotate every month, so a burned letter stays burned.
 • Sends and receives BERRY, with a QR code for your address.
-• Writes to the Harbourmaster, a pen pal who answers every letter.
+• Notifications when a letter arrives.
+• Opens on your letters or on your chest, as you prefer.
+• The Harbourmaster: a pen pal who answers every letter and keeps a small purse. A welcome tip for your first letter, a letter of the week, and a bonus for pen pals who go on to mine a block.
 
 ABOUT BERRY
 BERRY is the stamp on the envelope: a unit of account on this network that pays the miner a tiny fee for carrying a letter. It has no price, no exchange and no promise of value, and the app does not sell it. You earn it by taking part: a starter when you join, more as you correspond with more people.
 
 HONEST NOTES
+• Letters, not instant chat: a letter is delivered when the next block is mined, usually within a minute or two.
 • This is pre-audit software from a small project. Do not keep anything on it you cannot afford to lose.
 • The ledger is public and permanent: addresses, times and sizes of letters are visible to anyone; their contents are not.
 • Your keys never leave your phone. Lose the passphrase and the words and nobody can help.

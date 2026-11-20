@@ -445,6 +445,21 @@ class Session extends ChangeNotifier {
   }
 
   /// Fetch a sealed letter: from the phone's cache first, else from the first seed that answers.
+  /// The letter's transaction as a block of the verified header chain carries
+  /// it, or null when that cannot be shown yet (no light client, too few
+  /// confirmations, offline, or the seed's answers do not add up).
+  Future<Map<String, dynamic>?> _proveLetter(String id) async {
+    final lc = light;
+    if (lc == null) return null;
+    try {
+      final tx = await lc.verifyTx(node, id, minConfirmations: 1);
+      if (tx['type'] != TxType.sendLetter || tx['payload'] is! Map) return null;
+      return tx;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> _sealedLetter(String id) async {
     final kept = _sealed[id];
     if (kept != null) return kept;
@@ -1396,12 +1411,13 @@ class Session extends ChangeNotifier {
     }
     final plain = composeLetter(body, subject: subject, replyTo: replyTo, senderName: w.label, photoJpeg: photoJpeg, group: group, parcel: parcel);
     if (!fitsEnvelope(plain)) throw ArgumentError('the letter is too long for one envelope; shorten it or drop the picture');
+    final padded = padLetter(plain); // the chain sees a size band, not the exact length
     final key = newPacketKey();
     // Seal v2 (sender and recipient bound in) once the chain is past the
     // sealed-post upgrade; v1 before it, so pen pals on older apps can still open our letters.
     final seal = sealedPostLive ? 2 : 1;
     final aad = seal == 2 ? letterAad(w.address, to) : const <int>[];
-    final ct = await encryptPacket(key, plain, aad: aad);
+    final ct = await encryptPacket(key, padded, aad: aad);
     final payload = {
       'to': to, 'enc_pub': encPub, 'ciphertext': toHex(ct), 'ciphertext_hash': toHex(sha256(ct)),
       'wrapped_key': await wrapToRecipient(encPub, key, aad: aad), 'amount': amountSeeds, 'seal': seal,
@@ -1449,7 +1465,23 @@ class Session extends ChangeNotifier {
       _opened[l.id] = o;
       return o;
     }
-    final full = await _sealedLetter(l.id);
+    var full = await _sealedLetter(l.id);
+    // Who a letter is from is not taken on the seed's word: prove the letter's
+    // transaction is in a block of the verified chain, and use the sender,
+    // recipient, key and hash that the block carries. Too new, or offline:
+    // it opens with the seed's copy and is shown as not yet checked.
+    if (!l.pending && full['to'] == w.address) {
+      final proven = await _proveLetter(l.id);
+      if (proven != null) {
+        final p = Map<String, dynamic>.from(proven['payload'] as Map);
+        full = {
+          ...full,
+          'from': proven['from'], 'to': p['to'], 'enc_pub': p['enc_pub'], 'wrapped_key': p['wrapped_key'],
+          'ciphertext_hash': p['ciphertext_hash'], 'seal': p['seal'] ?? 1,
+        };
+        l.verified = true;
+      }
+    }
     // Seal v2 binds the addresses the chain recorded: a copied seal under another name does not open.
     final seal = (full['seal'] as int?) ?? 1;
     final aad = seal == 2 ? letterAad(full['from'] as String, full['to'] as String) : const <int>[];
