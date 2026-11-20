@@ -43,6 +43,15 @@ class BerryApp extends StatefulWidget {
 
 class _BerryAppState extends State<BerryApp> with WidgetsBindingObserver {
   bool ready = false;
+  final _nav = GlobalKey<NavigatorState>();
+
+  /// Opened from a "write to me" link: once the wallet is open, start a letter to that address.
+  void _openWriteTo() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final to = widget.session.takeWriteTo();
+      if (to != null) _nav.currentState?.push(MaterialPageRoute(builder: (_) => ComposeScreen(to: to)));
+    });
+  }
 
   @override
   void initState() {
@@ -75,6 +84,7 @@ class _BerryAppState extends State<BerryApp> with WidgetsBindingObserver {
     return SessionScope(
       session: widget.session,
       child: MaterialApp(
+        navigatorKey: _nav,
         title: 'BerryChain',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -93,6 +103,8 @@ class _BerryAppState extends State<BerryApp> with WidgetsBindingObserver {
                 listenable: widget.session,
                 builder: (context, _) {
                   final s = widget.session;
+                  // Only once registered: a new wallet first shows its twelve words and claims its starter.
+                  if (s.wallet != null && s.registry != null && s.hasWriteTo) _openWriteTo();
                   if (s.wallet != null) return s.homeIsLetters ? const LettersScreen(asHome: true) : const HomeScreen();
                   if (s.hasWalletFile) return const UnlockScreen();
                   return const WelcomeScreen();

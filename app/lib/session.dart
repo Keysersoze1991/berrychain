@@ -36,10 +36,15 @@ class Network {
   static const site = 'https://berrychain.link';
 
   /// The note the share sheet sends to a friend.
+  /// The "write to me" page for an address. The address sits after the #, so it
+  /// never reaches the web server's logs.
+  static String writeToLink(String address) => '$site/to/#$address';
+
   static String invite(String address, String name) {
     final who = name.isEmpty ? 'me' : '$name (that is me)';
     return 'Hi! I am using BerryChain to send sealed letters: private mail only the person I write to can open. '
-        'Get the app at $site and write to $who at this address:\n\n$address\n\n'
+        'Write to $who here: ${writeToLink(address)}\n\n'
+        'Or get the app at $site and write to this address:\n\n$address\n\n'
         'Your first letter to the Harbourmaster earns a small welcome, and the best letter each week wins a prize.';
   }
 }
@@ -121,6 +126,21 @@ class Session extends ChangeNotifier {
   Wallet? wallet;
   String? walletPath;
   bool hasWalletFile = false;
+
+  /// An address the app was opened to write to (a "write to me" link: the web
+  /// letterbox at /write/?to=ADDRESS). Taken once, after the wallet is open.
+  String? _writeTo = _writeToFromUrl();
+  static String? _writeToFromUrl() {
+    if (!kIsWeb) return null;
+    final a = Uri.base.queryParameters['to']?.trim().toLowerCase();
+    return isValidAddress(a) ? a : null;
+  }
+  String? takeWriteTo() {
+    final a = _writeTo;
+    _writeTo = null;
+    return a;
+  }
+  bool get hasWriteTo => _writeTo != null;
   List<String> nodeUrls = List.of(Network.seeds);
   bool backgroundChecks = true;
   bool instantNotices = false;   // iOS: the seed's push relay sends a push the moment a letter lands

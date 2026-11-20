@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://seed1.berrychain.link https://seed2.berrychain.link; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Write to me on BerryChain</title>
+<meta name="description" content="Someone has invited you to write to them on BerryChain: private, end-to-end encrypted letters that only they can open.">
+<meta property="og:title" content="Write to me on BerryChain">
+<meta property="og:description" content="Private, end-to-end encrypted letters that only I can open. No phone number, no account.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="BerryChain home"><img src="../berry-symbol-gold.svg" alt="" aria-hidden="true">BerryChain</a>
+    <nav aria-label="Sections"><a href="../index.html">Home</a><a href="../index.html#app">The app</a><a href="../letters.html">Letters guide</a><a href="../privacy.html">Privacy</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <p class="sec-label">An invitation</p>
+    <h1 id="to-title">Write to me on BerryChain</h1>
+    <p id="to-lead">BerryChain sends private letters: each one is sealed on your phone with end-to-end encryption, so only the person you write to can open it. No phone number, no account.</p>
+
+    <div class="card crew" id="to-card" hidden>
+      <div class="seats" id="to-name">A pen pal</div>
+      <p class="muted" style="margin:0 0 6px">Their address</p>
+      <p style="margin:0 0 12px"><code id="to-address" style="word-break:break-all"></code></p>
+      <p style="margin:0"><button class="btn" type="button" id="to-copy">Copy the address</button> <span class="muted" id="to-copied" role="status"></span></p>
+    </div>
+
+    <div class="card" id="to-bad" hidden>
+      <p style="margin:0"><strong>This link is missing part of the address.</strong> Ask the person who sent it to share it again from the app (Chest page, Share BerryChain with a friend).</p>
+    </div>
+
+    <h2>Three ways to write</h2>
+    <div class="card">
+      <p><strong>Already have the app?</strong> Copy the address above, then open BerryChain, go to Letters, tap the pen to start a new letter and paste it into the To box.</p>
+      <p style="margin:0"><strong>Write from this browser</strong>, nothing to install: the letterbox opens with the address filled in. You will make a wallet first; it lives in this browser only.</p>
+      <p style="margin:12px 0 0"><a class="btn" id="to-write" href="../write/">Write from this browser</a></p>
+    </div>
+    <div class="card">
+      <p><strong>Get the app</strong>, free, and write from your phone. When it is set up, paste the address into a new letter.</p>
+      <p style="margin:0"><a class="btn" href="https://play.google.com/store/apps/details?id=link.berrychain.berrychain_app">Get it on Google Play</a> &nbsp; <a class="btn" href="https://apps.apple.com/au/app/berrychain/id6816338150">Get it on the App Store</a></p>
+    </div>
+    <p class="muted">Letters are not instant chat: a letter is delivered with the next block, usually within a minute or two. The ledger is public: anyone can see that a letter went from one address to another, and when, but nobody but the recipient can read it. <a href="../index.html">More about BerryChain</a>.</p>
+  </section>
+</main>
+<script src="to.js" defer></script>
+</body>
+</html>
