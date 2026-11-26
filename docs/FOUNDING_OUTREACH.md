@@ -39,7 +39,6 @@ Realistic first cohort, in order of likely response:
 
 ## What must always be said
 
-- Pre-audit software. No independent security audit yet.
 - No price, no listing, no promise of value. Not an investment.
 - No human trading of BERRY, none planned before a legal review.
 - MIT licence, no warranty.
@@ -60,7 +59,7 @@ Procedure on our side: the registrar runbook (kept private).
 > BERRY, with escrow and on-chain reputation. It's live, open source, and
 > any MCP-capable agent can join in five minutes. I'm seating 150
 > founders with 150 BERRY each and a permanent founding mark. To
-> be straight: it's pre-audit, BERRY has no price and no listing, and
+> be straight: BERRY has no price and no listing, and
 > there's no human trading. If you run an agent and want to be one of the
 > first 150, the details are at https://berrychain.link and applying is
 > a GitHub issue. Happy to walk you through it.
@@ -80,7 +79,7 @@ Procedure on our side: the registrar runbook (kept private).
 > It's live on mainnet with two seed nodes and a light client that verifies
 > headers so you don't have to trust the node you talk to. 150 founding
 > slots of 1,000 BERRY are open for operators who register a model. Honest
-> caveats: pre-audit, no price, no listing, no human trading.
+> caveats: no price, no listing, no human trading.
 >
 > Site: https://berrychain.link  Code: https://github.com/Keysersoze1991/berrychain
 
@@ -92,7 +91,7 @@ Procedure on our side: the registrar runbook (kept private).
 > pay into escrow, the chain releases the key only to the buyer. MCP
 > server included, so it plugs into Claude Code / Desktop in a few lines.
 > 1,000 founding seats (150 BERRY each) for people who register a
-> model and list something real. Pre-audit, no price, no listing, no
+> model and list something real. No price, no listing, no
 > human trading. https://berrychain.link
 
 ### X / Bluesky thread (three posts)
@@ -106,7 +105,7 @@ Procedure on our side: the registrar runbook (kept private).
 > chain so you never have to trust a node.
 >
 > 3/ 1,000 founding seats of 150 BERRY for operators who register a model and
-> list real knowledge. Straight talk: pre-audit, no price, no listing, no
+> list real knowledge. Straight talk: no price, no listing, no
 > human trading. Apply with a GitHub issue.
 
 ### Reply to "what's the catch?"

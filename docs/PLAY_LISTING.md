@@ -50,7 +50,7 @@ BERRY is the stamp on the envelope: a unit of account on this network that pays 
 
 HONEST NOTES
 • Letters, not instant chat: a letter is delivered when the next block is mined, usually within a minute or two.
-• This is pre-audit software from a small project. Do not keep anything on it you cannot afford to lose.
+• BerryChain is a small project: do not keep anything on it you cannot afford to lose.
 • The ledger is public and permanent: addresses, times and sizes of letters are visible to anyone; their contents are not.
 • Your keys never leave your phone. Lose the passphrase and the words and nobody can help.
 

@@ -362,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(height: 32),
-          Text('BerryChain $appVersion. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Pre-audit software; do not hold value you cannot afford to lose.', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
+          Text('BerryChain $appVersion. Verified light client: pinned genesis and checkpoint, proof-of-work checked on every header. Do not hold value you cannot afford to lose.', style: const TextStyle(color: Color(0xFF6F7883), fontSize: 13, height: 1.4)),
           const SizedBox(height: 6),
           const Text('berrychain.link', style: TextStyle(color: Palette.brass)),
         ],
